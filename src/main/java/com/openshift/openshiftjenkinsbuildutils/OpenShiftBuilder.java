@@ -29,6 +29,7 @@ import com.openshift.restclient.capability.resources.IPodLogRetrieval;
 import com.openshift.restclient.http.IHttpClient;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
+import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IPod;
 import com.openshift.restclient.model.IProject;
 import com.openshift.restclient.model.IReplicationController;
@@ -210,28 +211,50 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         									e.printStackTrace(listener.getLogger());
         								}
         							}
-
-            						listener.getLogger().println("OpenShiftBuilder checking if deployment out there");
             						
-    								// confirm the deployment has kicked in from completed build
-    								currTime = System.currentTimeMillis();
+            						// if the deployment config for this app specifies a desired replica count of 
+            						// of greater than zero, let's also confirm the deployment occurs;
+            						// first, get the deployment config
+            						Map<String,IDeploymentConfig> dcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
+            						boolean dcWithReplicas = false;
     								boolean haveDep = false;
-    								while (System.currentTimeMillis() < (currTime + 60000)) {
-    						        	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
-    						        	for (String key : rcs.keySet()) {
-    						        		if (key.startsWith(bldId)) {
-    						        			listener.getLogger().println("OpenShiftBuilder found dep " + key + ":  " + rcs.get(key));
-    						        			haveDep = true;
-    						        			break;
-    						        		}
-    						        	}
-    						        	
-    						        	if (haveDep)
-    						        		break;
-    								}
+            						for (String key : dcs.keySet()) {
+            							if (key.startsWith(bldCfg)) {
+            								IDeploymentConfig dc = dcs.get(key);
+            								if (dc.getReplicas() > 0) {
+            									dcWithReplicas = true;
+            									
+                        						listener.getLogger().println("OpenShiftBuilder checking if deployment out there");
+                        						
+                								// confirm the deployment has kicked in from completed build
+                								currTime = System.currentTimeMillis();
+                								while (System.currentTimeMillis() < (currTime + 60000)) {
+                						        	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
+                						        	for (String rckey : rcs.keySet()) {
+                						        		if (rckey.startsWith(bldId)) {
+                						        			listener.getLogger().println("OpenShiftBuilder found dep " + key + ":  " + rcs.get(key));
+                						        			haveDep = true;
+                						        			break;
+                						        		}
+                						        	}
+                						        	
+                						        	if (haveDep)
+                						        		break;
+                								}
+            								}
+            							}
+            							
+            							if (haveDep)
+            								break;
+            						}
+
     								
-    								if (haveDep)
+    								if (dcWithReplicas && haveDep)
     									return true;
+    								
+    								if (!dcWithReplicas)
+    									return true;
+    								
             					} else {
             						listener.getLogger().println("OpenShiftBuilder logger for pod " + pod.getName() + " not available");
             						bldState = pod.getStatus();
