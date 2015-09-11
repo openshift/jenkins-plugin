@@ -122,9 +122,6 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     	if (client != null) {
     		// seed the auth
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
-        	List<IProject> projects = client.list(ResourceKind.PROJECT, nameSpace);
-        	
-        	listener.getLogger().println("OpenShiftBuilder list of projects " + projects);
         	
         	// get BuildConfig ref
         	IBuildConfig bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, nameSpace);
@@ -178,7 +175,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             					if (logger != null) {
             						
             						// get internal OS Java REST Client error if access pod logs while bld is in Pending state
-            						// instead of Running, Succeeded, or Failed
+            						// instead of Running, Complete, or Failed
             						long currTime = System.currentTimeMillis();
             						while (System.currentTimeMillis() < (currTime + 60000)) {
             							bld = client.get(ResourceKind.BUILD, bldId, nameSpace);
@@ -215,51 +212,54 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             						// if the deployment config for this app specifies a desired replica count of 
             						// of greater than zero, let's also confirm the deployment occurs;
             						// first, get the deployment config
-            						Map<String,IDeploymentConfig> dcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
-            						boolean dcWithReplicas = false;
-    								boolean haveDep = false;
-            						for (String key : dcs.keySet()) {
-            							if (key.startsWith(bldCfg)) {
-            								IDeploymentConfig dc = dcs.get(key);
-            								if (dc.getReplicas() > 0) {
-            									dcWithReplicas = true;
-            									
-                        						listener.getLogger().println("OpenShiftBuilder checking if deployment out there");
-                        						
-                								// confirm the deployment has kicked in from completed build
-                								currTime = System.currentTimeMillis();
-                								while (System.currentTimeMillis() < (currTime + 60000)) {
-                						        	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
-                						        	for (String rckey : rcs.keySet()) {
-                						        		if (rckey.startsWith(bldId)) {
-                						        			listener.getLogger().println("OpenShiftBuilder found dep " + key + ":  " + rcs.get(key));
-                						        			haveDep = true;
-                						        			break;
-                						        		}
-                						        	}
-                						        	
-                						        	if (haveDep)
-                						        		break;
-                								}
-            								}
-            							}
-            							
-            							if (haveDep)
-            								break;
-            						}
-
-    								
-    								if (dcWithReplicas && haveDep)
-    									return true;
-    								
-    								if (!dcWithReplicas)
-    									return true;
+//            						Map<String,IDeploymentConfig> dcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
+//            						boolean dcWithReplicas = false;
+//    								boolean haveDep = false;
+//            						for (String key : dcs.keySet()) {
+//            							if (key.startsWith(bldCfg)) {
+//            								IDeploymentConfig dc = dcs.get(key);
+//            								if (dc.getReplicas() > 0) {
+//            									dcWithReplicas = true;
+//            									
+//                        						listener.getLogger().println("OpenShiftBuilder checking if deployment out there");
+//                        						
+//                								// confirm the deployment has kicked in from completed build
+//                								currTime = System.currentTimeMillis();
+//                								while (System.currentTimeMillis() < (currTime + 60000)) {
+//                						        	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
+//                						        	for (String rckey : rcs.keySet()) {
+//                						        		if (rckey.startsWith(bldId)) {
+//                						        			listener.getLogger().println("OpenShiftBuilder found dep " + key + ":  " + rcs.get(key));
+//                						        			haveDep = true;
+//                						        			break;
+//                						        		}
+//                						        	}
+//                						        	
+//                						        	if (haveDep)
+//                						        		break;
+//                								}
+//            								}
+//            							}
+//            							
+//            							if (haveDep)
+//            								break;
+//            						}
+//
+//    								
+//    								if (dcWithReplicas && haveDep)
+//    									return true;
+//    								
+//    								if (!dcWithReplicas)
+//    									return true;
     								
             					} else {
             						listener.getLogger().println("OpenShiftBuilder logger for pod " + pod.getName() + " not available");
             						bldState = pod.getStatus();
             					}
         					}
+        					
+        					if (foundPod)
+        						break;
         				}
         				
         				try {
@@ -274,10 +274,25 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     					return false;
     				}
     				
-    				if (bldState == null || !bldState.equalsIgnoreCase("Succeeded") || !bldState.equalsIgnoreCase("Running")) {
+					long currTime = System.currentTimeMillis();
+					while (System.currentTimeMillis() < (currTime + 60000)) {
+						bld = client.get(ResourceKind.BUILD, bldId, nameSpace);
+						bldState = bld.getStatus();
+						listener.getLogger().println("OpenShiftBuilder post bld launch bld state:  " + bldState);
+						if (!bldState.equals("Complete")) {
+							try {
+								Thread.sleep(1000);
+							} catch (InterruptedException e) {
+							}
+						} else {
+							break;
+						}
+					}
+    				if (bldState == null || !bldState.equals("Complete")) {
     					listener.getLogger().println("OpenShiftBuilder build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
     					return false;
-    				}
+    				} else 
+    					return true;
     				
     				
     			}
@@ -292,7 +307,6 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     		return false;
     	}
 
-    	return false;
     }
 
     // Overridden for better type safety.

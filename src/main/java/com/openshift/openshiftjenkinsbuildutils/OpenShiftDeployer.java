@@ -121,7 +121,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         		return false;
         	}
         	
-        	// do the oc scale ... may need to retry
+        	// do the oc deploy ... may need to retry
         	long currTime = System.currentTimeMillis();
         	boolean deployDone = false;
         	while (System.currentTimeMillis() < (currTime + 60000)) {
@@ -164,29 +164,29 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         	}
         	
         	// if it exists, confirm rep ctrl is scaled down to where it is suppose to be
-        	int count = 0;
-        	boolean scaledAppropriately = false;
-        	while (count < 5) {
-        		rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, nameSpace);
-        		if (rc == null) {
-        			listener.getLogger().println("OpenShiftDeployer rep ctrl " + depId + " disappeared !!");
-        			return false;
-        		}
-        		
-        		listener.getLogger().println("OpenShiftDeployer current replica count " + rc.getCurrentReplicaCount());
-        		
-        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount()) {
-        			scaledAppropriately = true;
-        			break;
-        		}
-        		try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-				}
-        	}
-        	
-        	if (scaledAppropriately)
-        		return true;
+//        	int count = 0;
+//        	boolean scaledAppropriately = false;
+//        	while (count < 5) {
+//        		rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, nameSpace);
+//        		if (rc == null) {
+//        			listener.getLogger().println("OpenShiftDeployer rep ctrl " + depId + " disappeared !!");
+//        			return false;
+//        		}
+//        		
+//        		listener.getLogger().println("OpenShiftDeployer current replica count " + rc.getCurrentReplicaCount());
+//        		
+//        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount()) {
+//        			scaledAppropriately = true;
+//        			break;
+//        		}
+//        		try {
+//					Thread.sleep(1000);
+//				} catch (InterruptedException e) {
+//				}
+//        	}
+//        	
+//        	if (scaledAppropriately)
+//        		return true;
         	
     	} else {
     		listener.getLogger().println("OpenShiftDeployer could not get oc client");

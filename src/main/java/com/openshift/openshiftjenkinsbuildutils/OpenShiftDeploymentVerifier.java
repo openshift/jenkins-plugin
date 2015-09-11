@@ -13,21 +13,44 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.internal.restclient.OpenShiftAPIVersion;
+import com.openshift.internal.restclient.URLBuilder;
+import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
+import com.openshift.restclient.OpenShiftException;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+import com.openshift.restclient.capability.CapabilityVisitor;
 import com.openshift.restclient.capability.ICapability;
+import com.openshift.restclient.capability.resources.IBuildTriggerable;
+import com.openshift.restclient.capability.resources.IPodLogRetrieval;
+import com.openshift.restclient.http.IHttpClient;
+import com.openshift.restclient.model.IBuild;
+import com.openshift.restclient.model.IBuildConfig;
+import com.openshift.restclient.model.IDeploymentConfig;
+import com.openshift.restclient.model.IPod;
+import com.openshift.restclient.model.IProject;
 import com.openshift.restclient.model.IReplicationController;
+import com.openshift.restclient.model.IResource;
 
 import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 
 import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,7 +59,7 @@ import java.util.Map;
  * <p>
  * When the user configures the project and enables this builder,
  * {@link DescriptorImpl#newInstance(StaplerRequest)} is invoked
- * and a new {@link OpenShiftScaler} is created. The created
+ * and a new {@link OpenShiftDeploymentVerifier} is created. The created
  * instance is persisted to the project configuration XML by using
  * XStream, so this allows you to use instance fields (like {@link #name})
  * to remember the configuration.
@@ -47,7 +70,7 @@ import java.util.Map;
  *
  * @author Gabe Montero
  */
-public class OpenShiftScaler extends Builder implements ISSLCertificateCallback {
+public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertificateCallback {
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String depCfg = "frontend";
@@ -58,9 +81,9 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftScaler(String apiURL, String depCfg, String nameSpace, String replicaCount, String authToken) {
+    public OpenShiftDeploymentVerifier(String apiURL, String bldCfg, String nameSpace, String replicaCount, String authToken) {
         this.apiURL = apiURL;
-        this.depCfg = depCfg;
+        this.depCfg = bldCfg;
         this.nameSpace = nameSpace;
         this.replicaCount = replicaCount;
         this.authToken = authToken;
@@ -92,11 +115,11 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftScaler in perform");
+    	listener.getLogger().println("OpenShiftDeploymentVerifier in perform");
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
     	authToken = Auth.deriveAuth(authToken, listener);
-    	    	
+    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
     	
@@ -104,125 +127,93 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
     		// seed the auth
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
-        	String depId = null;
-        	IReplicationController rc = null;
-        	// find corresponding rep ctrl and scale it to the right value
-        	long currTime = System.currentTimeMillis();
-        	// in testing with the jenkins-ci sample, the initial deploy after
-        	// a build is kinda slow ... gotta wait more than one minute
-        	while (System.currentTimeMillis() < (currTime + 180000)) {
-            	// get ReplicationController ref
-            	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
-            	
-            	for (String key : rcs.keySet()) {
-            		rc = rcs.get(key);
-            		if (key.startsWith(depCfg)) {
-            			depId = key;
-            			listener.getLogger().println("OpenShiftScaler key into oc scale is " + depId);
-                		listener.getLogger().println("OpenShiftScaler rep ctrl " + rc);
-            			
-    					//TODO assume there is only 1 dep cfg per build
-    					break;
-            		}
-            	}
-            	
-            	// if they want to scale down to 0 and there is not rc to begin with, just punt / consider a no-op
-            	if (depId != null || replicaCount.equals("0"))
-            		break;
-            	else {
-					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then look for rep ctrl again");
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-					}
-            	}
+        	// explicitly set replica count, save that
+        	int count = -1;
+        	if (replicaCount.length() > 0)
+        		count = Integer.parseInt(replicaCount);
+        		
+            						
+        	// if the deployment config for this app specifies a desired replica count of 
+        	// of greater than zero, let's also confirm the deployment occurs;
+        	// first, get the deployment config
+        	Map<String,IDeploymentConfig> dcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
+        	boolean dcWithReplicas = false;
+        	boolean haveDep = false;
+        	boolean scaledAppropriately = false;
+        	for (String key : dcs.keySet()) {
+        		if (key.equals(depCfg)) {
+					haveDep = true;
+        			IDeploymentConfig dc = dcs.get(key);
+        			
+        			// if replicaCount not set, get it from config
+        			if (count == -1)
+        				count = dc.getReplicas();
+        			
+        			if (count > 0) {
+        				dcWithReplicas = true;
+        				
+        				listener.getLogger().println("OpenShiftDeploymentVerifier checking if deployment out there");
+        				
+        				// confirm the deployment has kicked in from completed build;
+        	        	// in testing with the jenkins-ci sample, the initial deploy after
+        	        	// a build is kinda slow ... gotta wait more than one minute
+        				long currTime = System.currentTimeMillis();
+        				IReplicationController rc = null;
+        				while (System.currentTimeMillis() < (currTime + 180000)) {
+        					Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
+        					for (String rckey : rcs.keySet()) {
+        						if (rckey.startsWith(depCfg)) {
+        							rc = rcs.get(rckey);
+        							listener.getLogger().println("OpenShiftDeploymentVerifier found rc " + rckey + ":  " + rc);
+        							break;
+        							
+        						}
+        					}
+        					
+        					if (rc != null) {
+        						listener.getLogger().println("OpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount());
+    			        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount()) {
+    			        			scaledAppropriately = true;
+    			        			break;
+    			        		}
+    							
+        					}
+        					
+        					listener.getLogger().println("OpenShiftDeploymentVerifier don't have rc at right replica count, wait a second, check again, rc = " + rc);
+        					
+			        		try {
+								Thread.sleep(1000);
+							} catch (InterruptedException e) {
+							}
+
+        				}
+        			} else {
+            			//TODO we could check if 0 cfg reps are in fact 0, but I believe
+            			// there is currently not a given that we'll scale down quickly
+    					listener.getLogger().println("OpenShiftDeploymentVerifier dc has zero replicas, moving on");
+        			}
+        			
+        		}
+        		
+        		if (haveDep)
+        			break;
         	}
         	
-        	if (depId == null) {
-        		listener.getLogger().println("OpenShiftScaler did not find any replication controllers for " + depCfg);
-        		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
-        		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
-        		// we refrain from adding yet 1 more config option
-        		if (replicaCount.equals("0"))
-        			return true;
-        		else
-        			return false;
-        	}
         	
-        	// do the oc scale ... may need to retry
-        	currTime = System.currentTimeMillis();
-        	boolean scaleDone = false;
-        	while (System.currentTimeMillis() < (currTime + 60000)) {
-    			BinaryScaleInvocation runner = new BinaryScaleInvocation(replicaCount, depId, nameSpace, client);
-    			InputStream logs = null;
-				// create stream and copy bytes
-				try {
-					logs = new BufferedInputStream(runner.getLogs(true));
-					int b;
-					while ((b = logs.read()) != -1) {
-						listener.getLogger().write(b);
-					}
-					scaleDone = true;
-				} catch (Throwable e) {
-					e.printStackTrace(listener.getLogger());
-				} finally {
-					runner.stop();
-					try {
-						if (logs != null)
-							logs.close();
-					} catch (Throwable e) {
-						e.printStackTrace(listener.getLogger());
-					}
-				}
-				
-				if (logs != null) {
-					break;
-				} else {
-					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then try oc scale again");
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-					}
-				}
-        	}
+        	if (dcWithReplicas && scaledAppropriately )
+        		return true;
         	
-        	if (!scaleDone) {
-        		listener.getLogger().println("OpenShiftScaler could not get oc scale executed");
-        		return false;
-        	}
-        	
-        	return true;
-        	
-//        	// if it exists, confirm rep ctrl is scaled down to where it is suppose to be
-//        	int count = 0;
-//        	boolean scaledAppropriately = false;
-//        	while (count < 5) {
-//        		rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, nameSpace);
-//        		if (rc == null) {
-//        			listener.getLogger().println("OpenShiftScaler rep ctrl " + depId + " disappeared !!");
-//        			return false;
-//        		}
-//        		
-//        		listener.getLogger().println("OpenShiftScaler current replica count " + rc.getCurrentReplicaCount());
-//        		
-//        		if (rc.getCurrentReplicaCount() == Integer.decode(replicaCount)) {
-//        			scaledAppropriately = true;
-//        			break;
-//        		}
-//        		try {
-//					Thread.sleep(1000);
-//				} catch (InterruptedException e) {
-//				}
-//        	}
-//        	
-//        	if (scaledAppropriately)
-//        		return true;
-        	
+        	if (!dcWithReplicas)
+        		return true;
+    				
+        		
+        		
     	} else {
-    		listener.getLogger().println("OpenShiftScaler could not get oc client");
+    		listener.getLogger().println("OpenShiftDeploymentVerifier could not get oc client");
     		return false;
     	}
 
+    	return false;
     }
 
     // Overridden for better type safety.
@@ -234,7 +225,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
     }
 
     /**
-     * Descriptor for {@link OpenShiftScaler}. Used as a singleton.
+     * Descriptor for {@link OpenShiftDeploymentVerifier}. Used as a singleton.
      * The class is marked as public so that it can be accessed from views.
      *
      */
@@ -282,10 +273,17 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
             return FormValidation.ok();
         }
 
+        public FormValidation doCheckNameSpace(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.length() == 0)
+                return FormValidation.error("Please set nameSpace");
+            return FormValidation.ok();
+        }
+        
         public FormValidation doCheckReplicaCount(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set replicaCount");
+                return FormValidation.ok();
             try {
             	Integer.decode(value);
             } catch (NumberFormatException e) {
@@ -294,12 +292,6 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckNameSpace(@QueryParameter String value)
-                throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set nameSpace");
-            return FormValidation.ok();
-        }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
             // Indicates that this builder can be used with all kinds of project types 
@@ -310,7 +302,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Scale deployments in OpenShift";
+            return "Verify deployments in OpenShift";
         }
 
         @Override
