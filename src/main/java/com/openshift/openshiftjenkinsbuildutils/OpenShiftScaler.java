@@ -104,26 +104,42 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
     		// seed the auth
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
-        	// get ReplicationController ref
-        	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
-        	
         	String depId = null;
         	IReplicationController rc = null;
         	// find corresponding rep ctrl and scale it to the right value
-        	for (String key : rcs.keySet()) {
-        		rc = rcs.get(key);
-        		if (key.startsWith(depCfg)) {
-        			depId = key;
-        			listener.getLogger().println("OpenShiftScaler key into oc scale is " + depId);
-            		listener.getLogger().println("OpenShiftScaler rep ctrl " + rc);
-        			
-					//TODO assume there is only 1 dep cfg per build
-					break;
-        		}
+        	long currTime = System.currentTimeMillis();
+        	// in testing with the jenkins-ci sample, the initial deploy after
+        	// a build is kinda slow ... gotta wait more than one minute
+        	while (System.currentTimeMillis() < (currTime + 180000)) {
+            	// get ReplicationController ref
+            	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
+            	
+            	for (String key : rcs.keySet()) {
+            		rc = rcs.get(key);
+            		if (key.startsWith(depCfg)) {
+            			depId = key;
+            			listener.getLogger().println("OpenShiftScaler key into oc scale is " + depId);
+                		listener.getLogger().println("OpenShiftScaler rep ctrl " + rc);
+            			
+    					//TODO assume there is only 1 dep cfg per build
+    					break;
+            		}
+            	}
+            	
+            	// if they want to scale down to 0 and there is not rc to begin with, just punt / consider a no-op
+            	if (depId != null || replicaCount.equals("0"))
+            		break;
+            	else {
+					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then look for rep ctrl again");
+					try {
+						Thread.sleep(10000);
+					} catch (InterruptedException e) {
+					}
+            	}
         	}
         	
         	if (depId == null) {
-        		listener.getLogger().println("OpenShiftSclaer did not find any replication controllers for " + depCfg);
+        		listener.getLogger().println("OpenShiftScaler did not find any replication controllers for " + depCfg);
         		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
         		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
         		// we refrain from adding yet 1 more config option
@@ -134,7 +150,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
         	}
         	
         	// do the oc scale ... may need to retry
-        	long currTime = System.currentTimeMillis();
+        	currTime = System.currentTimeMillis();
         	boolean scaleDone = false;
         	while (System.currentTimeMillis() < (currTime + 60000)) {
     			BinaryScaleInvocation runner = new BinaryScaleInvocation(replicaCount, depId, nameSpace, client);
