@@ -13,4 +13,6 @@ The set includes these Jenkins "build steps", selectable from the `Add build ste
 
 5) "Tag an image in OpenShift": performs the equivalent of an `oc tag` command invocation in order to manipulate tags for images in OpenShift ImageStream's
 
+6) "Verify deployments in OpenShift":  determines whether the expected set of DeploymentConfig's, ReplicationController's, and active replicas are present based on prior use of the scaler (2) and deployer (3) steps
+
 For each required parameter, a default value is provided.  And each parameter field has help text available via clicking the help icon located just right of the parameter input field.
