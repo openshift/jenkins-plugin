@@ -49,6 +49,7 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,7 +116,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftDeploymentVerifier in perform");
+    	listener.getLogger().println("OpenShiftDeploymentVerifier in perform checking for " + depCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
     	authToken = Auth.deriveAuth(authToken, listener);
@@ -152,7 +153,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         			if (count > 0) {
         				dcWithReplicas = true;
         				
-        				listener.getLogger().println("OpenShiftDeploymentVerifier checking if deployment out there");
+        				listener.getLogger().println("OpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
         				
         				// confirm the deployment has kicked in from completed build;
         	        	// in testing with the jenkins-ci sample, the initial deploy after
@@ -161,25 +162,30 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         				IReplicationController rc = null;
         				while (System.currentTimeMillis() < (currTime + 180000)) {
         					Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
+        					// could be more than 1 generation of RC for the deployment;  want to get the lastest one
+        					List<String> keysThatMatch = new ArrayList<String>();
         					for (String rckey : rcs.keySet()) {
         						if (rckey.startsWith(depCfg)) {
-        							rc = rcs.get(rckey);
-        							listener.getLogger().println("OpenShiftDeploymentVerifier found rc " + rckey + ":  " + rc);
-        							break;
-        							
+        							keysThatMatch.add(rckey);
+        							listener.getLogger().println("OpenShiftDeploymentVerifier found rc " + rckey + ":  " + rc);        							
         						}
         					}
         					
-        					if (rc != null) {
-        						listener.getLogger().println("OpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount());
-    			        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount()) {
-    			        			scaledAppropriately = true;
-    			        			break;
-    			        		}
-    							
+        					if (keysThatMatch.size() > 0) {
+            					Collections.sort(keysThatMatch);
+            					rc = rcs.get(keysThatMatch.get(keysThatMatch.size() - 1));
+            					
+            					if (rc != null) {
+            						listener.getLogger().println("OpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount());
+        			        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount()) {
+        			        			scaledAppropriately = true;
+        			        			break;
+        			        		}
+        							
+            					}
         					}
-        					
-        					listener.getLogger().println("OpenShiftDeploymentVerifier don't have rc at right replica count, wait a second, check again, rc = " + rc);
+        					        					
+        					listener.getLogger().println("OpenShiftDeploymentVerifier don't have rc at right replica count, wait a second, check again, keys = " + keysThatMatch + " rc = " + rc);
         					
 			        		try {
 								Thread.sleep(1000);

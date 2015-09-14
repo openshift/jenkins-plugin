@@ -123,8 +123,21 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     		// seed the auth
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
-        	// get BuildConfig ref
-        	IBuildConfig bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, nameSpace);
+			long startTime = System.currentTimeMillis();
+        	IBuildConfig bc = null;
+        	while (bc == null && startTime > (System.currentTimeMillis() - 60000)) {
+        		try {
+                	// get BuildConfig ref
+                	bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, nameSpace);
+        		} catch (Throwable t) {
+        			t.printStackTrace(listener.getLogger());
+        			try {
+						Thread.currentThread().sleep(1000);
+					} catch (InterruptedException e) {
+					}
+        		}
+        	}
+        	
 
         	listener.getLogger().println("OpenShiftBuilder build config retrieved " + bc);
         	
@@ -152,7 +165,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     				
     				boolean foundPod = false;
     				String bldState = null;
-    				long startTime = System.currentTimeMillis();
+    				startTime = System.currentTimeMillis();
     				
     				// Now find build Pod, attempt to dump the logs to the Jenkins console
     				while (!foundPod && startTime > (System.currentTimeMillis() - 60000)) {

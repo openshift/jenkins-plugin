@@ -28,6 +28,9 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -113,23 +116,26 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
         	while (System.currentTimeMillis() < (currTime + 180000)) {
             	// get ReplicationController ref
             	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
+				// could be more than 1 generation of RC for the deployment;  want to get the lastest one
+				List<String> keysThatMatch = new ArrayList<String>();
             	
             	for (String key : rcs.keySet()) {
-            		rc = rcs.get(key);
             		if (key.startsWith(depCfg)) {
-            			depId = key;
-            			listener.getLogger().println("OpenShiftScaler key into oc scale is " + depId);
-                		listener.getLogger().println("OpenShiftScaler rep ctrl " + rc);
-            			
-    					//TODO assume there is only 1 dep cfg per build
-    					break;
+            			keysThatMatch.add(key);
+            			listener.getLogger().println("OpenShiftScaler key into oc scale is " + depId);            			
             		}
+            	}
+            	if (keysThatMatch.size() > 0) {
+                	Collections.sort(keysThatMatch);
+            		depId = keysThatMatch.get(keysThatMatch.size() - 1);
             	}
             	
             	// if they want to scale down to 0 and there is not rc to begin with, just punt / consider a no-op
-            	if (depId != null || replicaCount.equals("0"))
+            	if (depId != null || replicaCount.equals("0")) {
+            		rc = rcs.get(depId);
+            		listener.getLogger().println("OpenShiftScaler rc to use " + rc);
             		break;
-            	else {
+            	} else {
 					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then look for rep ctrl again");
 					try {
 						Thread.sleep(10000);

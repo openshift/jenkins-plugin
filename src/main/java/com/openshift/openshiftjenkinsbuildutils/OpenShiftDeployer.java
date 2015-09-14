@@ -16,10 +16,9 @@ import org.kohsuke.stapler.QueryParameter;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
-import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.ICapability;
-import com.openshift.restclient.model.IReplicationController;
+import com.openshift.restclient.model.IDeploymentConfig;
 
 import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
@@ -99,17 +98,14 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
         	// get ReplicationController ref
-        	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
+        	Map<String, IDeploymentConfig> rcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
         	
         	String depId = null;
-        	IReplicationController rc = null;
         	// find corresponding rep ctrl and scale it to the right value
         	for (String key : rcs.keySet()) {
-        		rc = rcs.get(key);
         		if (key.startsWith(depCfg)) {
         			depId = key;
         			listener.getLogger().println("OpenShiftDeployer key into oc scale is " + depId);
-            		listener.getLogger().println("OpenShiftDeployer rep ctrl " + rc);
         			
 					//TODO assume there is only 1 dep cfg per build
 					break;
