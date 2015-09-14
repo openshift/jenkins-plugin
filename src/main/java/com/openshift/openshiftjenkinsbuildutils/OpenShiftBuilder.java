@@ -13,45 +13,27 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.OpenShiftAPIVersion;
-import com.openshift.internal.restclient.URLBuilder;
-import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
-import com.openshift.restclient.OpenShiftException;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.CapabilityVisitor;
 import com.openshift.restclient.capability.ICapability;
 import com.openshift.restclient.capability.resources.IBuildTriggerable;
 import com.openshift.restclient.capability.resources.IPodLogRetrieval;
-import com.openshift.restclient.http.IHttpClient;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
-import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IPod;
-import com.openshift.restclient.model.IProject;
-import com.openshift.restclient.model.IReplicationController;
-import com.openshift.restclient.model.IResource;
 
 import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 
 import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.net.SocketTimeoutException;
-import java.net.URL;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * OpenShift {@link Builder}.
@@ -109,7 +91,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftBuilder in perform");
+    	listener.getLogger().println("OpenShiftBuilder in perform for " + bldCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
     	authToken = Auth.deriveAuth(authToken, listener);
@@ -222,48 +204,6 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         								}
         							}
             						
-            						// if the deployment config for this app specifies a desired replica count of 
-            						// of greater than zero, let's also confirm the deployment occurs;
-            						// first, get the deployment config
-//            						Map<String,IDeploymentConfig> dcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
-//            						boolean dcWithReplicas = false;
-//    								boolean haveDep = false;
-//            						for (String key : dcs.keySet()) {
-//            							if (key.startsWith(bldCfg)) {
-//            								IDeploymentConfig dc = dcs.get(key);
-//            								if (dc.getReplicas() > 0) {
-//            									dcWithReplicas = true;
-//            									
-//                        						listener.getLogger().println("OpenShiftBuilder checking if deployment out there");
-//                        						
-//                								// confirm the deployment has kicked in from completed build
-//                								currTime = System.currentTimeMillis();
-//                								while (System.currentTimeMillis() < (currTime + 60000)) {
-//                						        	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
-//                						        	for (String rckey : rcs.keySet()) {
-//                						        		if (rckey.startsWith(bldId)) {
-//                						        			listener.getLogger().println("OpenShiftBuilder found dep " + key + ":  " + rcs.get(key));
-//                						        			haveDep = true;
-//                						        			break;
-//                						        		}
-//                						        	}
-//                						        	
-//                						        	if (haveDep)
-//                						        		break;
-//                								}
-//            								}
-//            							}
-//            							
-//            							if (haveDep)
-//            								break;
-//            						}
-//
-//    								
-//    								if (dcWithReplicas && haveDep)
-//    									return true;
-//    								
-//    								if (!dcWithReplicas)
-//    									return true;
     								
             					} else {
             						listener.getLogger().println("OpenShiftBuilder logger for pod " + pod.getName() + " not available");

@@ -95,7 +95,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftScaler in perform");
+    	listener.getLogger().println("OpenShiftScaler in perform for " + depCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
     	authToken = Auth.deriveAuth(authToken, listener);
@@ -122,7 +122,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
             	for (String key : rcs.keySet()) {
             		if (key.startsWith(depCfg)) {
             			keysThatMatch.add(key);
-            			listener.getLogger().println("OpenShiftScaler key into oc scale is " + depId);            			
+            			listener.getLogger().println("OpenShiftScaler key into oc scale is " + key);            			
             		}
             	}
             	if (keysThatMatch.size() > 0) {

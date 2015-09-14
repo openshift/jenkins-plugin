@@ -85,7 +85,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftDeployer in perform");
+    	listener.getLogger().println("OpenShiftDeployer in perform for " + depCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
     	authToken = Auth.deriveAuth(authToken, listener);
@@ -105,7 +105,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         	for (String key : rcs.keySet()) {
         		if (key.startsWith(depCfg)) {
         			depId = key;
-        			listener.getLogger().println("OpenShiftDeployer key into oc scale is " + depId);
+        			listener.getLogger().println("OpenShiftDeployer key into oc deploy is " + depId);
         			
 					//TODO assume there is only 1 dep cfg per build
 					break;
@@ -159,37 +159,13 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         		return false;
         	}
         	
-        	// if it exists, confirm rep ctrl is scaled down to where it is suppose to be
-//        	int count = 0;
-//        	boolean scaledAppropriately = false;
-//        	while (count < 5) {
-//        		rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, nameSpace);
-//        		if (rc == null) {
-//        			listener.getLogger().println("OpenShiftDeployer rep ctrl " + depId + " disappeared !!");
-//        			return false;
-//        		}
-//        		
-//        		listener.getLogger().println("OpenShiftDeployer current replica count " + rc.getCurrentReplicaCount());
-//        		
-//        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount()) {
-//        			scaledAppropriately = true;
-//        			break;
-//        		}
-//        		try {
-//					Thread.sleep(1000);
-//				} catch (InterruptedException e) {
-//				}
-//        	}
-//        	
-//        	if (scaledAppropriately)
-//        		return true;
         	
     	} else {
     		listener.getLogger().println("OpenShiftDeployer could not get oc client");
     		return false;
     	}
 
-    	return false;
+    	return true;
     }
 
     // Overridden for better type safety.

@@ -167,7 +167,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         					for (String rckey : rcs.keySet()) {
         						if (rckey.startsWith(depCfg)) {
         							keysThatMatch.add(rckey);
-        							listener.getLogger().println("OpenShiftDeploymentVerifier found rc " + rckey + ":  " + rc);        							
+        							listener.getLogger().println("OpenShiftDeploymentVerifier found rc " + rckey + ":  " + rcs.get(rckey));        							
         						}
         					}
         					
