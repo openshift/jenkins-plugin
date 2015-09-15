@@ -22,4 +22,7 @@
   <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
     <f:textbox default="" />
   </f:entry>
+  <f:entry title="The indication for following the build log in real time" field="followLog">
+    <f:textbox default="true" />
+  </f:entry>
 </j:jelly>

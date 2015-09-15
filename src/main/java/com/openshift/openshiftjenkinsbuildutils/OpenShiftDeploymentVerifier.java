@@ -82,15 +82,35 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeploymentVerifier(String apiURL, String bldCfg, String nameSpace, String replicaCount, String authToken) {
+    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String nameSpace, String replicaCount, String authToken) {
         this.apiURL = apiURL;
-        this.depCfg = bldCfg;
+        this.depCfg = depCfg;
         this.nameSpace = nameSpace;
         this.replicaCount = replicaCount;
         this.authToken = authToken;
     }
 
-    /**
+    public void setApiURL(String apiURL) {
+		this.apiURL = apiURL;
+	}
+
+	public void setDepCfg(String depCfg) {
+		this.depCfg = depCfg;
+	}
+
+	public void setNameSpace(String nameSpace) {
+		this.nameSpace = nameSpace;
+	}
+
+	public void setReplicaCount(String replicaCount) {
+		this.replicaCount = replicaCount;
+	}
+
+	public void setAuthToken(String authToken) {
+		this.authToken = authToken;
+	}
+
+	/**
      * We'll use this from the <tt>config.jelly</tt>.
      */
     public String getApiURL() {

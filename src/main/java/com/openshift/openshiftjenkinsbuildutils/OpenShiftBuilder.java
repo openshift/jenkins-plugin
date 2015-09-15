@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.cert.X509Certificate;
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * OpenShift {@link Builder}.
@@ -53,20 +54,22 @@ import java.util.List;
  * @author Gabe Montero
  */
 public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback {
-
+	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String bldCfg = "frontend";
     private String nameSpace = "test";
     private String authToken = "";
+    private String followLog = "true";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken) {
+    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken, String followLog) {
         this.apiURL = apiURL;
         this.bldCfg = bldCfg;
         this.nameSpace = nameSpace;
         this.authToken = authToken;
+        this.followLog = followLog;
     }
 
     /**
@@ -87,6 +90,10 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 	public String getAuthToken() {
 		return authToken;
 	}
+	
+	public String getFollowLog() {
+		return followLog;
+	}
 
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
@@ -97,6 +104,8 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     	authToken = Auth.deriveAuth(authToken, listener);
     	
     	String bldId = null;
+    	boolean follow = Boolean.parseBoolean(followLog);
+    	listener.getLogger().println("OpenShiftBuilder logger follow " + follow);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
@@ -176,7 +185,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             							bld = client.get(ResourceKind.BUILD, bldId, nameSpace);
             							bldState = bld.getStatus();
             							listener.getLogger().println("OpenShiftBuilder bld state:  " + bldState);
-            							if ("Pending".equals(bldState)) {
+            							if ("Pending".equals(bldState) || "New".equals(bldState)) {
             								try {
     											Thread.sleep(1000);
     										} catch (InterruptedException e) {
@@ -191,8 +200,12 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             						InputStream logs = new BufferedInputStream(logger.getLogs(true));
             						int b;
             						try {
+            							// we still process the build stream if followLogs is false, as 
+            							// it is a good indication of build progress (vs. periodically polling);
+            							// we simply do not dump the data to the Jenkins console if set to false
         								while ((b = logs.read()) != -1) {
-        									listener.getLogger().write(b);
+        									if (follow)
+        										listener.getLogger().write(b);
         								}
         							} catch (IOException e) {
         								e.printStackTrace(listener.getLogger());
@@ -262,7 +275,27 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 
     }
 
-    // Overridden for better type safety.
+    public void setApiURL(String apiURL) {
+		this.apiURL = apiURL;
+	}
+
+	public void setBldCfg(String bldCfg) {
+		this.bldCfg = bldCfg;
+	}
+
+	public void setNameSpace(String nameSpace) {
+		this.nameSpace = nameSpace;
+	}
+
+	public void setAuthToken(String authToken) {
+		this.authToken = authToken;
+	}
+
+	public void setFollowLog(String followLog) {
+		this.followLog = followLog;
+	}
+
+	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
     @Override
@@ -325,7 +358,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
                 return FormValidation.error("Please set nameSpace");
             return FormValidation.ok();
         }
-
+        
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
             // Indicates that this builder can be used with all kinds of project types 
             return true;
