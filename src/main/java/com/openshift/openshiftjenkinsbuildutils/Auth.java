@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 
-import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 
 public class Auth {
 	private static final String AUTH_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/token";
@@ -26,7 +26,7 @@ public class Auth {
 		return useCert;
 	}
 
-	public static String deriveAuth(String at, BuildListener listener) {
+	public static String deriveAuth(String at, TaskListener listener) {
 		String authToken = at;
 		
     	if (authToken == null) {
