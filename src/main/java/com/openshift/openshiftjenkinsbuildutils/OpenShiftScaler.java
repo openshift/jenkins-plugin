@@ -9,10 +9,14 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
+import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.internal.restclient.http.HttpClientException;
+import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
+import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
@@ -27,6 +31,9 @@ import javax.servlet.ServletException;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -155,33 +162,76 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
         			return false;
         	}
         	
-        	// do the oc scale ... may need to retry
-        	currTime = System.currentTimeMillis();
+        	// do the oc scale ... may need to retry        	
         	boolean scaleDone = false;
+        	currTime = System.currentTimeMillis();
         	while (System.currentTimeMillis() < (currTime + 60000)) {
-    			BinaryScaleInvocation runner = new BinaryScaleInvocation(replicaCount, depId, nameSpace, client);
-    			InputStream logs = null;
-				// create stream and copy bytes
-				try {
-					logs = new BufferedInputStream(runner.getLogs(true));
-					int b;
-					while ((b = logs.read()) != -1) {
-						listener.getLogger().write(b);
-					}
-					scaleDone = true;
-				} catch (Throwable e) {
-					e.printStackTrace(listener.getLogger());
-				} finally {
-					runner.stop();
-					try {
-						if (logs != null)
-							logs.close();
-					} catch (Throwable e) {
-						e.printStackTrace(listener.getLogger());
-					}
-				}
+//    			BinaryScaleInvocation runner = new BinaryScaleInvocation(replicaCount, depId, nameSpace, client);
+//    			InputStream logs = null;
+//				// create stream and copy bytes
+//				try {
+//					logs = new BufferedInputStream(runner.getLogs(true));
+//					int b;
+//					while ((b = logs.read()) != -1) {
+//						listener.getLogger().write(b);
+//					}
+//					scaleDone = true;
+//				} catch (Throwable e) {
+//					e.printStackTrace(listener.getLogger());
+//				} finally {
+//					runner.stop();
+//					try {
+//						if (logs != null)
+//							logs.close();
+//					} catch (Throwable e) {
+//						e.printStackTrace(listener.getLogger());
+//					}
+//				}
+//				
+//				if (logs != null) {
+//					break;
+//				} else {
+//					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then try oc scale again");
+//					try {
+//						Thread.sleep(10000);
+//					} catch (InterruptedException e) {
+//					}
+//				}
+//        	}
+        		// Find the right node in the json and update it
+        		// refetch to avoid optimistic update collision on k8s side
+	        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, nameSpace);
+	        	ModelNode rcNode = rcImpl.getNode();
+	        	ModelNode rcSpec = rcNode.get("spec");
+	        	ModelNode rcReplicas = rcSpec.get("replicas");
+	        	listener.getLogger().println("OpenShiftScaler desired replica count from JSON " + rcReplicas.asString());
+	        	rcReplicas.set(Integer.decode(replicaCount));
+	        	String rcJSON = rcImpl.getNode().toJSONString(true);
+	        	listener.getLogger().println("OpenShiftScaler rc JSON after replica update " + rcJSON);
+	        	
+	        	// do the REST / HTTP PUT call
+	        	URL url = null;
+	        	try {
+	        		listener.getLogger().println("OpenShift PUT URI " + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
+	    			url = new URL(apiURL + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
+	    		} catch (MalformedURLException e1) {
+	    			e1.printStackTrace(listener.getLogger());
+	    		}
+	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+	    				null, "application/json", null, this, null, null);
+	    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+	    		String response = null;
+	    		try {
+	    			response = urlClient.put(url, 10 * 1000, rcImpl);
+	    			listener.getLogger().println("OpenShiftScaler REST PUT response " + response);
+	    			scaleDone = true;
+	    		} catch (SocketTimeoutException e1) {
+	    			e1.printStackTrace(listener.getLogger());
+	    		} catch (HttpClientException e1) {
+	    			e1.printStackTrace(listener.getLogger());
+	    		}
 				
-				if (logs != null) {
+				if (scaleDone) {
 					break;
 				} else {
 					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then try oc scale again");
@@ -190,7 +240,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
 					} catch (InterruptedException e) {
 					}
 				}
-        	}
+	    	}
         	
         	if (!scaleDone) {
         		listener.getLogger().println("OpenShiftScaler could not get oc scale executed");
@@ -198,32 +248,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
         	}
         	
         	return true;
-        	
-//        	// if it exists, confirm rep ctrl is scaled down to where it is suppose to be
-//        	int count = 0;
-//        	boolean scaledAppropriately = false;
-//        	while (count < 5) {
-//        		rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, nameSpace);
-//        		if (rc == null) {
-//        			listener.getLogger().println("OpenShiftScaler rep ctrl " + depId + " disappeared !!");
-//        			return false;
-//        		}
-//        		
-//        		listener.getLogger().println("OpenShiftScaler current replica count " + rc.getCurrentReplicaCount());
-//        		
-//        		if (rc.getCurrentReplicaCount() == Integer.decode(replicaCount)) {
-//        			scaledAppropriately = true;
-//        			break;
-//        		}
-//        		try {
-//					Thread.sleep(1000);
-//				} catch (InterruptedException e) {
-//				}
-//        	}
-//        	
-//        	if (scaledAppropriately)
-//        		return true;
-        	
+        	        	
     	} else {
     		listener.getLogger().println("OpenShiftScaler could not get oc client");
     		return false;

@@ -109,7 +109,6 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 
 	private String getCommitId(TaskListener listener) {
     	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, this);
     	URL url = null;
     	try {
 			url = new URL(apiURL + "/oapi/v1/namespaces/test/imagestreams/" + imageStreamName);
