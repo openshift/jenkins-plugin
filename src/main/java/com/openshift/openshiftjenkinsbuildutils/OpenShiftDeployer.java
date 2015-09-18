@@ -9,16 +9,22 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
+import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.internal.restclient.http.HttpClientException;
+import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
+import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
+import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.ICapability;
 import com.openshift.restclient.model.IDeploymentConfig;
+import com.openshift.restclient.model.IReplicationController;
 
 import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
@@ -26,6 +32,9 @@ import javax.servlet.ServletException;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.Map;
 
@@ -98,60 +107,118 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
         	// get ReplicationController ref
-        	Map<String, IDeploymentConfig> rcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
-        	
-        	String depId = null;
-        	// find corresponding rep ctrl and scale it to the right value
-        	for (String key : rcs.keySet()) {
-        		if (key.startsWith(depCfg)) {
-        			depId = key;
-        			listener.getLogger().println("OpenShiftDeployer key into oc deploy is " + depId);
-        			
-					//TODO assume there is only 1 dep cfg per build
-					break;
-        		}
-        	}
-        	
-        	if (depId == null) {
-        		listener.getLogger().println("OpenShiftDeployer did not find any replication controllers for " + depCfg);
-        		return false;
-        	}
+//        	Map<String, IDeploymentConfig> rcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
+//        	
+//        	String depId = null;
+//        	// find corresponding rep ctrl and scale it to the right value
+//        	for (String key : rcs.keySet()) {
+//        		if (key.startsWith(depCfg)) {
+//        			depId = key;
+//        			listener.getLogger().println("OpenShiftDeployer key into oc deploy is " + depId);
+//        			
+//					//TODO assume there is only 1 dep cfg per build
+//					break;
+//        		}
+//        	}
+//        	
+//        	if (depId == null) {
+//        		listener.getLogger().println("OpenShiftDeployer did not find any replication controllers for " + depCfg);
+//        		return false;
+//        	}
         	
         	// do the oc deploy ... may need to retry
         	long currTime = System.currentTimeMillis();
         	boolean deployDone = false;
         	while (System.currentTimeMillis() < (currTime + 60000)) {
-    			BinaryDeployInvocation runner = new BinaryDeployInvocation(depCfg, nameSpace, client);
-    			InputStream logs = null;
-				// create stream and copy bytes
-				try {
-					logs = new BufferedInputStream(runner.getLogs(true));
-					int b;
-					while ((b = logs.read()) != -1) {
-						listener.getLogger().write(b);
-					}
-					deployDone = true;
-				} catch (Throwable e) {
-					e.printStackTrace(listener.getLogger());
-				} finally {
-					runner.stop();
-					try {
-						if (logs != null)
-							logs.close();
-					} catch (Throwable e) {
-						e.printStackTrace(listener.getLogger());
-					}
-				}
-				
-				if (logs != null) {
-					break;
-				} else {
-					listener.getLogger().println("OpenShiftDeployer wait 10 seconds, then try oc deploy again");
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-					}
-				}
+//    			BinaryDeployInvocation runner = new BinaryDeployInvocation(depCfg, nameSpace, client);
+//    			InputStream logs = null;
+//				// create stream and copy bytes
+//				try {
+//					logs = new BufferedInputStream(runner.getLogs(true));
+//					int b;
+//					while ((b = logs.read()) != -1) {
+//						listener.getLogger().write(b);
+//					}
+//					deployDone = true;
+//				} catch (Throwable e) {
+//					e.printStackTrace(listener.getLogger());
+//				} finally {
+//					runner.stop();
+//					try {
+//						if (logs != null)
+//							logs.close();
+//					} catch (Throwable e) {
+//						e.printStackTrace(listener.getLogger());
+//					}
+//				}
+//				
+//				if (logs != null) {
+//					break;
+//				} else {
+//					listener.getLogger().println("OpenShiftDeployer wait 10 seconds, then try oc deploy again");
+//					try {
+//						Thread.sleep(10000);
+//					} catch (InterruptedException e) {
+//					}
+//				}
+        		DeploymentConfig dcImpl = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, nameSpace);
+				int latestVersion = -1;
+        		if (dcImpl != null) {
+        			ModelNode dcNode = dcImpl.getNode();
+        			listener.getLogger().println("OpenShiftDeployer dc json " + dcNode.asString());
+        			ModelNode dcStatus = dcNode.get("status");
+        			listener.getLogger().println("OpenShiftDeployer status json " + dcStatus.asString());
+        			ModelNode dcLatestVersion = dcStatus.get("latestVersion");
+        			listener.getLogger().println("OpenShiftDeployer version json " + dcStatus.asString());
+        			if (dcLatestVersion != null) {
+        				try {
+        					latestVersion = dcLatestVersion.asInt();
+        				} catch (Throwable t) {
+        					
+        				}
+        			}
+        			
+        			// oc deploy gets the rc after the dc prior to putting the dc;
+        			// we'll do the same
+        			if (latestVersion != -1) {
+        				IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, nameSpace);
+        				
+        				// now lets update the latest version of the dc
+        				dcLatestVersion.set(latestVersion + 1);
+        				
+        				// and now lets PUT the updated dc
+        				URL url = null;
+    					try {
+							url = new URL(apiURL + "/oapi/v1/namespaces/test/deploymentconfigs/" + depCfg);
+						} catch (MalformedURLException e) {
+							e.printStackTrace(listener.getLogger());
+						}
+    		    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+    		    				null, "application/json", null, this, null, null);
+    		    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+    		    		String response = null;
+    		    		try {
+    		    			response = urlClient.put(url, 10 * 1000, dcImpl);
+    		    			listener.getLogger().println("OpenShiftDeployer REST PUT response " + response);
+    		    			deployDone = true;
+    		    		} catch (SocketTimeoutException e1) {
+    		    			e1.printStackTrace(listener.getLogger());
+    		    		} catch (HttpClientException e1) {
+    		    			e1.printStackTrace(listener.getLogger());
+    		    		}
+    					
+    					if (deployDone) {
+    						break;
+    					} else {
+    						listener.getLogger().println("OpenShiftDeployer wait 10 seconds, then try oc scale again");
+    						try {
+    							Thread.sleep(10000);
+    						} catch (InterruptedException e) {
+    						}
+    					}
+        				
+        			}
+        		}
         	}
         	
         	if (!deployDone) {
