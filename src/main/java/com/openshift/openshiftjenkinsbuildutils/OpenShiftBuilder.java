@@ -13,6 +13,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.internal.restclient.http.HttpClientException;
+import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
@@ -32,6 +34,9 @@ import javax.servlet.ServletException;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.logging.Logger;
@@ -173,10 +178,10 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         						listener.getLogger().println("OpenShiftBuilder found build pod " + pod);
         						
             					// get log "retrieve" and dump build logs
-            					IPodLogRetrieval logger = pod.getCapability(IPodLogRetrieval.class);
-            					listener.getLogger().println("OpenShiftBuilder obtained pod logger " + logger);
+//            					IPodLogRetrieval logger = pod.getCapability(IPodLogRetrieval.class);
+//            					listener.getLogger().println("OpenShiftBuilder obtained pod logger " + logger);
             					
-            					if (logger != null) {
+//            					if (logger != null) {
             						
             						// get internal OS Java REST Client error if access pod logs while bld is in Pending state
             						// instead of Running, Complete, or Failed
@@ -197,31 +202,50 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             						
             						
             						// create stream and copy bytes
-            						InputStream logs = new BufferedInputStream(logger.getLogs(true));
-            						int b;
+            				    	URL url = null;
+            				    	try {
+            							url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/builds/" + bldId + "/log?follow=true");
+            						} catch (MalformedURLException e1) {
+            							e1.printStackTrace(listener.getLogger());
+            						}
+            						UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+            								null, "application/json", null, this, null, null);
+            						urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+            						String response = null;
             						try {
-            							// we still process the build stream if followLogs is false, as 
-            							// it is a good indication of build progress (vs. periodically polling);
-            							// we simply do not dump the data to the Jenkins console if set to false
-        								while ((b = logs.read()) != -1) {
-        									if (follow)
-        										listener.getLogger().write(b);
-        								}
-        							} catch (IOException e) {
-        								e.printStackTrace(listener.getLogger());
-        							} finally {
-        								try {
-        									logs.close();
-        								} catch (final IOException e) {
-        									e.printStackTrace(listener.getLogger());
-        								}
-        							}
+            							response = urlClient.get(url, 2 * 60 * 1000);
+            						} catch (SocketTimeoutException e1) {
+            							e1.printStackTrace(listener.getLogger());
+            						} catch (HttpClientException e1) {
+            							e1.printStackTrace(listener.getLogger());
+            						}
+            						if (follow)
+            							listener.getLogger().println(response);
+//            						InputStream logs = new BufferedInputStream(logger.getLogs(true));
+//            						int b;
+//            						try {
+//            							// we still process the build stream if followLogs is false, as 
+//            							// it is a good indication of build progress (vs. periodically polling);
+//            							// we simply do not dump the data to the Jenkins console if set to false
+//        								while ((b = logs.read()) != -1) {
+//        									if (follow)
+//        										listener.getLogger().write(b);
+//        								}
+//        							} catch (IOException e) {
+//        								e.printStackTrace(listener.getLogger());
+//        							} finally {
+//        								try {
+//        									logs.close();
+//        								} catch (final IOException e) {
+//        									e.printStackTrace(listener.getLogger());
+//        								}
+//        							}
             						
     								
-            					} else {
-            						listener.getLogger().println("OpenShiftBuilder logger for pod " + pod.getName() + " not available");
-            						bldState = pod.getStatus();
-            					}
+//            					} else {
+//            						listener.getLogger().println("OpenShiftBuilder logger for pod " + pod.getName() + " not available");
+//            						bldState = pod.getStatus();
+//            					}
         					}
         					
         					if (foundPod)

@@ -111,7 +111,7 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
     	// get oc client (sometime REST, sometimes Exec of oc command
     	URL url = null;
     	try {
-			url = new URL(apiURL + "/oapi/v1/namespaces/test/imagestreams/" + imageStreamName);
+			url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName);
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 		}
