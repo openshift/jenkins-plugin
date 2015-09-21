@@ -189,7 +189,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         				// and now lets PUT the updated dc
         				URL url = null;
     					try {
-							url = new URL(apiURL + "/oapi/v1/namespaces/test/deploymentconfigs/" + depCfg);
+							url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/deploymentconfigs/" + depCfg);
 						} catch (MalformedURLException e) {
 							e.printStackTrace(listener.getLogger());
 						}

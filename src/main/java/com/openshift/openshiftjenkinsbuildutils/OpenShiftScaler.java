@@ -213,7 +213,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
 	        	URL url = null;
 	        	try {
 	        		listener.getLogger().println("OpenShift PUT URI " + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
-	    			url = new URL(apiURL + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
+	    			url = new URL(apiURL + "/api/v1/namespaces/"+nameSpace+"/replicationcontrollers/" + depId);
 	    		} catch (MalformedURLException e1) {
 	    			e1.printStackTrace(listener.getLogger());
 	    		}

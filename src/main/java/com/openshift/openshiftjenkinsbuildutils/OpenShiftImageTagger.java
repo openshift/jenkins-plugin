@@ -9,10 +9,14 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
+import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.internal.restclient.http.HttpClientException;
+import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
+import com.openshift.internal.restclient.model.ImageStream;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
@@ -27,8 +31,12 @@ import javax.servlet.ServletException;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.Map;
+import java.util.StringTokenizer;
 
 /**
  * OpenShift {@link Builder}.
@@ -105,28 +113,66 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
         	//tag image
-			BinaryTagImageInvocation runner = new BinaryTagImageInvocation(testTag, prodTag, nameSpace, client);
-			InputStream logs = null;
 			boolean tagDone = false;
-			// create stream and copy bytes
-			try {
-				logs = new BufferedInputStream(runner.getLogs(true));
-				int b;
-				while ((b = logs.read()) != -1) {
-					listener.getLogger().write(b);
-				}
-				tagDone = true;
-			} catch (Throwable e) {
-				e.printStackTrace(listener.getLogger());
-			} finally {
-				runner.stop();
-				try {
-					if (logs != null)
-						logs.close();
-				} catch (Throwable e) {
-					e.printStackTrace(listener.getLogger());
-				}
+//			BinaryTagImageInvocation runner = new BinaryTagImageInvocation(testTag, prodTag, nameSpace, client);
+//			InputStream logs = null;
+//			// create stream and copy bytes
+//			try {
+//				logs = new BufferedInputStream(runner.getLogs(true));
+//				int b;
+//				while ((b = logs.read()) != -1) {
+//					listener.getLogger().write(b);
+//				}
+//				tagDone = true;
+//			} catch (Throwable e) {
+//				e.printStackTrace(listener.getLogger());
+//			} finally {
+//				runner.stop();
+//				try {
+//					if (logs != null)
+//						logs.close();
+//				} catch (Throwable e) {
+//					e.printStackTrace(listener.getLogger());
+//				}
+//			}
+			StringTokenizer st = new StringTokenizer(prodTag, ":");
+			String imageStreamName = null;
+			String tagName = null;
+			if (st.countTokens() > 1) {
+				imageStreamName = st.nextToken();
+				tagName = st.nextToken();
+				ImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, nameSpace);
+				ModelNode isNode = isImpl.getNode();
+				listener.getLogger().println("OpenShiftImageTagger isNode " + isNode.asString());
+				ModelNode isSpec = isNode.get("spec");
+				ModelNode isTags = isSpec.get("tags");
+				String tagStr="{\"name\": \""+tagName+"\",\"from\": {\"kind\": \"ImageStreamTag\",\"name\": \""+testTag+"\"}}";
+				ModelNode isTag = ModelNode.fromJSONString(tagStr);
+				isTags.add(isTag);
+				listener.getLogger().println("OpenShiftImageTagger isTags after " + isTags.asString());
+	        	// do the REST / HTTP PUT call
+	        	URL url = null;
+	        	try {
+	        		listener.getLogger().println("OpenShiftImageTagger PUT URI " + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName);
+	    			url = new URL(apiURL + "/oapi/v1/namespaces/"+ nameSpace+"/imagestreams/" + imageStreamName);
+	    		} catch (MalformedURLException e1) {
+	    			e1.printStackTrace(listener.getLogger());
+	    		}
+	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+	    				null, "application/json", null, this, null, null);
+	    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+	    		String response = null;
+	    		try {
+	    			response = urlClient.put(url, 10 * 1000, isImpl);
+	    			listener.getLogger().println("OpenShiftImageTagger REST PUT response " + response);
+	    			tagDone = true;
+	    		} catch (SocketTimeoutException e1) {
+	    			e1.printStackTrace(listener.getLogger());
+	    		} catch (HttpClientException e1) {
+	    			e1.printStackTrace(listener.getLogger());
+	    		}
 			}
+			
 			
 			if (tagDone) {
 				listener.getLogger().println("OpenShiftImageTagger image tagged");
