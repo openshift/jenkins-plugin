@@ -166,38 +166,6 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
         	boolean scaleDone = false;
         	currTime = System.currentTimeMillis();
         	while (System.currentTimeMillis() < (currTime + 60000)) {
-//    			BinaryScaleInvocation runner = new BinaryScaleInvocation(replicaCount, depId, nameSpace, client);
-//    			InputStream logs = null;
-//				// create stream and copy bytes
-//				try {
-//					logs = new BufferedInputStream(runner.getLogs(true));
-//					int b;
-//					while ((b = logs.read()) != -1) {
-//						listener.getLogger().write(b);
-//					}
-//					scaleDone = true;
-//				} catch (Throwable e) {
-//					e.printStackTrace(listener.getLogger());
-//				} finally {
-//					runner.stop();
-//					try {
-//						if (logs != null)
-//							logs.close();
-//					} catch (Throwable e) {
-//						e.printStackTrace(listener.getLogger());
-//					}
-//				}
-//				
-//				if (logs != null) {
-//					break;
-//				} else {
-//					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then try oc scale again");
-//					try {
-//						Thread.sleep(10000);
-//					} catch (InterruptedException e) {
-//					}
-//				}
-//        	}
         		// Find the right node in the json and update it
         		// refetch to avoid optimistic update collision on k8s side
 	        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, nameSpace);

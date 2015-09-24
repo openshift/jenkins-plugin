@@ -106,61 +106,11 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
     		// seed the auth
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
-        	// get ReplicationController ref
-//        	Map<String, IDeploymentConfig> rcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
-//        	
-//        	String depId = null;
-//        	// find corresponding rep ctrl and scale it to the right value
-//        	for (String key : rcs.keySet()) {
-//        		if (key.startsWith(depCfg)) {
-//        			depId = key;
-//        			listener.getLogger().println("OpenShiftDeployer key into oc deploy is " + depId);
-//        			
-//					//TODO assume there is only 1 dep cfg per build
-//					break;
-//        		}
-//        	}
-//        	
-//        	if (depId == null) {
-//        		listener.getLogger().println("OpenShiftDeployer did not find any replication controllers for " + depCfg);
-//        		return false;
-//        	}
         	
         	// do the oc deploy ... may need to retry
         	long currTime = System.currentTimeMillis();
         	boolean deployDone = false;
         	while (System.currentTimeMillis() < (currTime + 60000)) {
-//    			BinaryDeployInvocation runner = new BinaryDeployInvocation(depCfg, nameSpace, client);
-//    			InputStream logs = null;
-//				// create stream and copy bytes
-//				try {
-//					logs = new BufferedInputStream(runner.getLogs(true));
-//					int b;
-//					while ((b = logs.read()) != -1) {
-//						listener.getLogger().write(b);
-//					}
-//					deployDone = true;
-//				} catch (Throwable e) {
-//					e.printStackTrace(listener.getLogger());
-//				} finally {
-//					runner.stop();
-//					try {
-//						if (logs != null)
-//							logs.close();
-//					} catch (Throwable e) {
-//						e.printStackTrace(listener.getLogger());
-//					}
-//				}
-//				
-//				if (logs != null) {
-//					break;
-//				} else {
-//					listener.getLogger().println("OpenShiftDeployer wait 10 seconds, then try oc deploy again");
-//					try {
-//						Thread.sleep(10000);
-//					} catch (InterruptedException e) {
-//					}
-//				}
         		DeploymentConfig dcImpl = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, nameSpace);
 				int latestVersion = -1;
         		if (dcImpl != null) {

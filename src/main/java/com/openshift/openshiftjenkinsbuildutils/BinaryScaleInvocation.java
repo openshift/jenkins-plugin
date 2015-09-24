@@ -11,6 +11,42 @@ import com.openshift.restclient.capability.resources.IPodLogRetrieval;
 import com.trilead.ssh2.util.IOUtils;
 
 public class BinaryScaleInvocation extends AbstractOpenShiftBinaryCapability implements IPodLogRetrieval {
+	
+	// we are replacing this use of this class with REST flow in OpenShiftScaler, but leave this class present
+	// in the interim.  Just in case, here is an example of how this class would be used:
+//	BinaryScaleInvocation runner = new BinaryScaleInvocation(replicaCount, depId, nameSpace, client);
+//	InputStream logs = null;
+//	// create stream and copy bytes
+//	try {
+//		logs = new BufferedInputStream(runner.getLogs(true));
+//		int b;
+//		while ((b = logs.read()) != -1) {
+//			listener.getLogger().write(b);
+//		}
+//		scaleDone = true;
+//	} catch (Throwable e) {
+//		e.printStackTrace(listener.getLogger());
+//	} finally {
+//		runner.stop();
+//		try {
+//			if (logs != null)
+//				logs.close();
+//		} catch (Throwable e) {
+//			e.printStackTrace(listener.getLogger());
+//		}
+//	}
+//	
+//	if (logs != null) {
+//		break;
+//	} else {
+//		listener.getLogger().println("OpenShiftScaler wait 10 seconds, then try oc scale again");
+//		try {
+//			Thread.sleep(10000);
+//		} catch (InterruptedException e) {
+//		}
+//	}
+//}
+	
 
 	private final String replicaCount;
 	private final String deployment;

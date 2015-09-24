@@ -6,11 +6,7 @@ import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.security.cert.X509Certificate;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
@@ -25,15 +21,8 @@ import org.kohsuke.stapler.StaplerRequest;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClientBuilder;
-import com.openshift.restclient.ClientFactory;
-import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
-import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-import com.openshift.restclient.http.IHttpClient;
-import com.openshift.restclient.images.DockerImageURI;
-import com.openshift.restclient.model.IImageStream;
 
 import hudson.Extension;
 import hudson.FilePath;

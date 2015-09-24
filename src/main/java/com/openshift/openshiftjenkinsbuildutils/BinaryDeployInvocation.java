@@ -12,6 +12,40 @@ import com.trilead.ssh2.util.IOUtils;
 
 public class BinaryDeployInvocation extends AbstractOpenShiftBinaryCapability implements IPodLogRetrieval {
 
+	// while the class is still present, we've replaced it with a REST flow in OpenShiftDeployer. the
+	// following is an example of how this class was leveraged in OpenShiftDeployer:
+//	BinaryDeployInvocation runner = new BinaryDeployInvocation(depCfg, nameSpace, client);
+//	InputStream logs = null;
+//	// create stream and copy bytes
+//	try {
+//		logs = new BufferedInputStream(runner.getLogs(true));
+//		int b;
+//		while ((b = logs.read()) != -1) {
+//			listener.getLogger().write(b);
+//		}
+//		deployDone = true;
+//	} catch (Throwable e) {
+//		e.printStackTrace(listener.getLogger());
+//	} finally {
+//		runner.stop();
+//		try {
+//			if (logs != null)
+//				logs.close();
+//		} catch (Throwable e) {
+//			e.printStackTrace(listener.getLogger());
+//		}
+//	}
+//	
+//	if (logs != null) {
+//		break;
+//	} else {
+//		listener.getLogger().println("OpenShiftDeployer wait 10 seconds, then try oc deploy again");
+//		try {
+//			Thread.sleep(10000);
+//		} catch (InterruptedException e) {
+//		}
+//	}
+	
 	private final String deployment;
 	private final String nameSpace;
 	private StringBuilder args;

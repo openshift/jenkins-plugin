@@ -234,7 +234,7 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Get lastest OpenShift build status";
+            return "Get latest OpenShift build status";
         }
 
         @Override
