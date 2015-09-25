@@ -45,15 +45,17 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String nameSpace = "test";
     private String authToken = "";
+    private String verbose = "false";
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-	public OpenShiftImageStreams(String imageStreamName, String tag, String apiURL, String nameSpace, String authToken) {
+	public OpenShiftImageStreams(String imageStreamName, String tag, String apiURL, String nameSpace, String authToken, String verbose) {
     	this.imageStreamName = imageStreamName;
     	this.tag = tag;
     	this.apiURL = apiURL;
     	this.nameSpace = nameSpace;
     	this.authToken = authToken;
+    	this.verbose = verbose;
 	}
 
 	public String getApiURL() {
@@ -96,58 +98,81 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 		this.tag = tag;
 	}
 
+	public String getVerbose() {
+		return verbose;
+	}
+
+	public void setVerbose(String verbose) {
+		this.verbose = verbose;
+	}
+
 	private String getCommitId(TaskListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
+		
     	// get oc client (sometime REST, sometimes Exec of oc command
     	URL url = null;
     	try {
 			url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName);
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
+			return null;
 		}
 		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
 				null, "application/json", null, this, null, null);
+    	// obtain auth token from defined spot in OpenShift Jenkins image
+    	authToken = Auth.deriveAuth(authToken, listener, Boolean.parseBoolean(verbose));
 		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
 		String response = null;
 		try {
 			response = urlClient.get(url, 2 * 60 * 1000);
 		} catch (SocketTimeoutException e1) {
 			e1.printStackTrace(listener.getLogger());
+			return null;
 		} catch (HttpClientException e1) {
 			e1.printStackTrace(listener.getLogger());
+			return null;
 		}
 		
-		listener.getLogger().println("OpenShiftImageStreams response from rest call " + response);
+		if (chatty)
+			listener.getLogger().println("\n\nOpenShiftImageStreams response from rest call " + response);
+		// we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
 		String commitId = null;
 		if (response != null) {
 			ModelNode node = ModelNode.fromJSONString(response);
-			listener.getLogger().println("OpenShiftImageStreams after json processing " + node);
+			if (chatty)
+				listener.getLogger().println("\n\nOpenShiftImageStreams after json processing " + node);
 			if (node != null) {
 				ModelNode status = node.get("status");
-				listener.getLogger().println("OpenShiftImageStreams status element " + status);
+				if (chatty)
+					listener.getLogger().println("\n\nOpenShiftImageStreams status element " + status);
 			
 				if (status != null) {
 					ModelNode tags = status.get("tags");
-					listener.getLogger().println("OpenShiftImageStreams tags element " + tags);
+					if (chatty)
+						listener.getLogger().println("\n\nOpenShiftImageStreams tags element " + tags);
 					if (tags != null) {
 						List<ModelNode> tagWrappers = tags.asList();
-						listener.getLogger().println("OpenShiftImageStreams tag wrappers " + tagWrappers);
+						if (chatty)
+							listener.getLogger().println("\n\nOpenShiftImageStreams tag wrappers " + tagWrappers);
 						if (tagWrappers != null) {
 							for (ModelNode tagWrapper : tagWrappers) {
-								listener.getLogger().println("OpenShiftImageStreams tag wrapper " + tagWrapper);
+								if (chatty)
+									listener.getLogger().println("\n\nOpenShiftImageStreams tag wrapper " + tagWrapper);
 								ModelNode tag = tagWrapper.get("tag");
 								ModelNode items = tagWrapper.get("items");
-								listener.getLogger().println("OpenShiftImageStreams tag  " + tag.asString() + ", comparing to " + this.tag + ",  items " + items);
+								if (chatty)
+									listener.getLogger().println("\n\nOpenShiftImageStreams tag  " + tag.asString() + ", comparing to " + this.tag + ",  items " + items);
 								if (tag != null && tag.asString().equals(this.tag) && items != null) {
 									List<ModelNode> itemWrappers = items.asList();
 									for (ModelNode itemWrapper : itemWrappers) {
 										ModelNode created = itemWrapper.get("created");
 										ModelNode dockerImageReference = itemWrapper.get("dockerImageReference");
 										ModelNode image = itemWrapper.get("image");
-										listener.getLogger().println("OpenShiftImageStreams created " + created + " dockerImg " + dockerImageReference +
+										if (chatty)
+											listener.getLogger().println("\n\nOpenShiftImageStreams created " + created + " dockerImg " + dockerImageReference +
 												" image " + image);
 										if (image != null) {
 											commitId = image.asString();
-											// usually the latest one is the first element, so break
 											break;
 										}
 									}
@@ -162,52 +187,10 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 			
 		}
 		
-		listener.getLogger().println("OpenShiftImageStreams commit ID is " + commitId);
+		// always print this
+		listener.getLogger().println("\n\nOpenShiftImageStreams image ID used for Jenkins 'commitId' is " + commitId);
 		return commitId;
-
     	
-//		Map<String,IImageStream> ourIms = new HashMap<String,IImageStream>();
-//    	if (client != null) {
-//    		// seed the auth
-//        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
-//        	
-//			long currTime = System.currentTimeMillis();
-//			while (System.currentTimeMillis() < (currTime + 60000)) {
-//				List<IImageStream> ims = client.list(ResourceKind.IMAGE_STREAM, nameSpace);
-//				for (IImageStream is : ims) {
-//					listener.getLogger().println("OpenShiftImageStreams image stream:  " + is.getName());					
-//					listener.getLogger().println("OpenShiftImageStreams with annotations:  " + is.getAnnotations());					
-//					listener.getLogger().println("OpenShiftImageStreams with labels:  " + is.getLabels());
-//					DockerImageURI diu = is.getDockerImageRepository();
-//					if (diu != null) {
-//						listener.getLogger().println("OpenShiftImageStreams with docker tag:  " + diu.getTag());
-//						listener.getLogger().println("OpenShiftImageStreams with abs uri:  " + diu.getAbsoluteUri());					
-//						listener.getLogger().println("OpenShiftImageStreams with base uri:  " + diu.getBaseUri());
-//						listener.getLogger().println("OpenShiftImageStreams with host:  " + diu.getRepositoryHost());
-//						listener.getLogger().println("OpenShiftImageStreams with uri - host:  " + diu.getUriWithoutHost());
-//						listener.getLogger().println("OpenShiftImageStreams with uri - tag:  " + diu.getUriWithoutTag());
-//						listener.getLogger().println("OpenShiftImageStreams with user:  " + diu.getUserName());					
-//					}
-//					
-//					
-//					ourIms.put(is.getName(), is);
-//				}
-//				
-//				if (ourIms.size() > 0) {
-//					break;
-//				} else {
-//					listener.getLogger().println("OpenShiftImageStreams don't have any IMs yet, try again");
-//					try {
-//						Thread.sleep(1000);
-//					} catch (InterruptedException e) {
-//					}
-//				}
-//				
-//			}
-//    	} else {
-//    		listener.getLogger().println("OpenShiftImageStreams could not get oc client");
-//    	}
-//    	return ourIms;
 	}
 	
 	
@@ -219,7 +202,7 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 		String bldName = null;
 		if (build != null)
 			bldName = build.getDisplayName();
-		listener.getLogger().println("OpenShiftImageStreams checkout called for " + bldName);
+		listener.getLogger().println("\n\nOpenShiftImageStreams checkout called for " + bldName);
 		// don't need to check out into jenkins workspace ... our bld/slave images/pods deal with that 
 	}
 
@@ -235,9 +218,7 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 		String bldName = null;
 		if (build != null)
 			bldName = build.getDisplayName();
-		listener.getLogger().println("OpenShiftImageStreams calcRevisionsFromBuild for " + bldName);
-    	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+		listener.getLogger().println("\n\nOpenShiftImageStreams calcRevisionsFromBuild for " + bldName);
     	
     	String commitId = this.getCommitId(listener);
 			
@@ -245,7 +226,7 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 		if (commitId != null)
 			currIMSState = new ImageStreamRevisionState(commitId);
 		
-		listener.getLogger().println("OpenShiftImageStreams calcRevisionsFromBuild returning " + currIMSState);
+		listener.getLogger().println("\n\nOpenShiftImageStreams calcRevisionsFromBuild returning " + currIMSState);
 		
 		return currIMSState;
 	}
@@ -255,9 +236,7 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 			AbstractProject<?, ?> project, Launcher launcher,
 			FilePath workspace, TaskListener listener, SCMRevisionState baseline)
 			throws IOException, InterruptedException {
-		listener.getLogger().println("OpenShiftImageStreams compareRemoteRevisionWith");
-    	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+		listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith");
     	
     	String commitId = this.getCommitId(listener);
 		
@@ -265,7 +244,7 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 		if (commitId != null)
 			currIMSState = new ImageStreamRevisionState(commitId);
 		
-		listener.getLogger().println("OpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
+		listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
 				" with lastest " + currIMSState);
 		boolean changes = false;
 		if (baseline != null && baseline instanceof ImageStreamRevisionState && currIMSState != null)

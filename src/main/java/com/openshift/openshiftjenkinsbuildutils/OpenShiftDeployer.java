@@ -61,15 +61,17 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
     private String depCfg = "frontend";
     private String nameSpace = "test";
     private String authToken = "";
+    private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeployer(String apiURL, String depCfg, String nameSpace, String authToken) {
+    public OpenShiftDeployer(String apiURL, String depCfg, String nameSpace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.depCfg = depCfg;
         this.nameSpace = nameSpace;
         this.authToken = authToken;
+        this.verbose = verbose;
     }
 
     /**
@@ -91,13 +93,18 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
 		return authToken;
 	}
 
-    @Override
+    public String getVerbose() {
+		return verbose;
+	}
+
+	@Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftDeployer in perform for " + depCfg);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeployer in perform for " + depCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+    	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
@@ -115,11 +122,14 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
 				int latestVersion = -1;
         		if (dcImpl != null) {
         			ModelNode dcNode = dcImpl.getNode();
-        			listener.getLogger().println("OpenShiftDeployer dc json " + dcNode.asString());
+        			if (chatty)
+        				listener.getLogger().println("\nOpenShiftDeployer dc json " + dcNode.asString());
         			ModelNode dcStatus = dcNode.get("status");
-        			listener.getLogger().println("OpenShiftDeployer status json " + dcStatus.asString());
+        			if (chatty)
+        				listener.getLogger().println("\nOpenShiftDeployer status json " + dcStatus.asString());
         			ModelNode dcLatestVersion = dcStatus.get("latestVersion");
-        			listener.getLogger().println("OpenShiftDeployer version json " + dcStatus.asString());
+        			if (chatty)
+        				listener.getLogger().println("\nOpenShiftDeployer version json " + dcStatus.asString());
         			if (dcLatestVersion != null) {
         				try {
         					latestVersion = dcLatestVersion.asInt();
@@ -142,6 +152,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
 							url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/deploymentconfigs/" + depCfg);
 						} catch (MalformedURLException e) {
 							e.printStackTrace(listener.getLogger());
+							return false;
 						}
     		    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
     		    				null, "application/json", null, this, null, null);
@@ -149,18 +160,19 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
     		    		String response = null;
     		    		try {
     		    			response = urlClient.put(url, 10 * 1000, dcImpl);
-    		    			listener.getLogger().println("OpenShiftDeployer REST PUT response " + response);
+    		    			listener.getLogger().println("\n\nOpenShiftDeployer REST PUT response " + response);
     		    			deployDone = true;
     		    		} catch (SocketTimeoutException e1) {
-    		    			e1.printStackTrace(listener.getLogger());
+    		    			if (chatty) e1.printStackTrace(listener.getLogger());
     		    		} catch (HttpClientException e1) {
-    		    			e1.printStackTrace(listener.getLogger());
+    		    			if (chatty) e1.printStackTrace(listener.getLogger());
     		    		}
     					
     					if (deployDone) {
     						break;
     					} else {
-    						listener.getLogger().println("OpenShiftDeployer wait 10 seconds, then try oc scale again");
+    						if (chatty)
+    	        				listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc scale again");
     						try {
     							Thread.sleep(10000);
     						} catch (InterruptedException e) {
@@ -172,16 +184,17 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         	}
         	
         	if (!deployDone) {
-        		listener.getLogger().println("OpenShiftDeployer could not get oc deploy executed");
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not get oc deploy executed");
         		return false;
         	}
         	
         	
     	} else {
-    		listener.getLogger().println("OpenShiftDeployer could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not get oc client");
     		return false;
     	}
 
+    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer exit successfully");
     	return true;
     }
 

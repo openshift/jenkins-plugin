@@ -78,15 +78,17 @@ public class OpenShiftServiceVerifier extends Builder implements ISSLCertificate
     private String svcName = "frontend";
     private String nameSpace = "test";
     private String authToken = "";
+    private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftServiceVerifier(String apiURL, String svcName, String nameSpace, String authToken) {
+    public OpenShiftServiceVerifier(String apiURL, String svcName, String nameSpace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.svcName = svcName;
         this.nameSpace = nameSpace;
         this.authToken = authToken;
+        this.verbose = verbose;
     }
 
     /**
@@ -108,13 +110,18 @@ public class OpenShiftServiceVerifier extends Builder implements ISSLCertificate
 		return authToken;
 	}
 
-    @Override
+    public String getVerbose() {
+		return verbose;
+	}
+
+	@Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftServiceVerifier in perform");
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftServiceVerifier in perform");
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+    	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
@@ -139,25 +146,30 @@ public class OpenShiftServiceVerifier extends Builder implements ISSLCertificate
     		URLConnection conn = null;
         	while (tryCount < 100) {
         		tryCount++;
-        		listener.getLogger().println("OpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
+        		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
         		try {
 					conn = url.openConnection();
 				} catch (IOException e) {
-					e.printStackTrace(listener.getLogger());
+					if (chatty) e.printStackTrace(listener.getLogger());
 				}
         		if (conn != null)
         			break;
         	}
         	
         	if (conn != null) {
-        		listener.getLogger().println("OpenShiftServiceVerifier successful connection made");
+        		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection made");
         		return true;
         	}
         	
     	} else {
-    		listener.getLogger().println("OpenShiftServiceVerifier could not get oc client");
+    		listener.getLogger().println("\n\nOpenShiftServiceVerifier could not get oc client");
     		return false;
     	}
+
+    	if (!chatty)
+    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection could not be made, re-run with verbose logging to assist with diagnostics");
+    	else
+    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection made, review verbose logging above to help determine the problem");
 
     	return false;
     }

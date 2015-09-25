@@ -78,16 +78,18 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
     private String nameSpace = "test";
     private String replicaCount = "0";
     private String authToken = "";
+    private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String nameSpace, String replicaCount, String authToken) {
+    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String nameSpace, String replicaCount, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.depCfg = depCfg;
         this.nameSpace = nameSpace;
         this.replicaCount = replicaCount;
         this.authToken = authToken;
+        this.verbose = verbose;
     }
 
     public void setApiURL(String apiURL) {
@@ -108,6 +110,14 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
 
 	public void setAuthToken(String authToken) {
 		this.authToken = authToken;
+	}
+
+	public String getVerbose() {
+		return verbose;
+	}
+
+	public void setVerbose(String verbose) {
+		this.verbose = verbose;
 	}
 
 	/**
@@ -135,11 +145,12 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
 
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+    	boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftDeploymentVerifier in perform checking for " + depCfg);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+    	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
@@ -173,7 +184,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         			if (count > 0) {
         				dcWithReplicas = true;
         				
-        				listener.getLogger().println("OpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
+        				if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
         				
         				// confirm the deployment has kicked in from completed build;
         	        	// in testing with the jenkins-ci sample, the initial deploy after
@@ -187,7 +198,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         					for (String rckey : rcs.keySet()) {
         						if (rckey.startsWith(depCfg)) {
         							keysThatMatch.add(rckey);
-        							listener.getLogger().println("OpenShiftDeploymentVerifier found rc " + rckey + ":  " + rcs.get(rckey));        							
+        							if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier found rc " + rckey + ":  " + rcs.get(rckey));        							
         						}
         					}
         					
@@ -196,7 +207,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
             					rc = rcs.get(keysThatMatch.get(keysThatMatch.size() - 1));
             					
             					if (rc != null) {
-            						listener.getLogger().println("OpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount());
+            						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount());
         			        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount()) {
         			        			scaledAppropriately = true;
         			        			break;
@@ -205,7 +216,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
             					}
         					}
         					        					
-        					listener.getLogger().println("OpenShiftDeploymentVerifier don't have rc at right replica count, wait a second, check again, keys = " + keysThatMatch + " rc = " + rc);
+        					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier don't have rc at right replica count, wait a second, check again, keys = " + keysThatMatch + " rc = " + rc);
         					
 			        		try {
 								Thread.sleep(1000);
@@ -216,7 +227,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         			} else {
             			//TODO we could check if 0 cfg reps are in fact 0, but I believe
             			// there is currently not a given that we'll scale down quickly
-    					listener.getLogger().println("OpenShiftDeploymentVerifier dc has zero replicas, moving on");
+    					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier dc has zero replicas, moving on");
         			}
         			
         		}
@@ -226,19 +237,24 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         	}
         	
         	
-        	if (dcWithReplicas && scaledAppropriately )
+        	if (dcWithReplicas && scaledAppropriately ) {
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled with appropriate number of replicas");
         		return true;
+        	}
         	
-        	if (!dcWithReplicas)
+        	if (!dcWithReplicas) {
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled approrpiately with no replicas");
         		return true;
+        	}
     				
         		
         		
     	} else {
-    		listener.getLogger().println("OpenShiftDeploymentVerifier could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier could not get oc client");
     		return false;
     	}
 
+    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier exit unsuccessfully, appropriate number of replicas not reached");
     	return false;
     }
 

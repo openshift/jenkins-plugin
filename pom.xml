@@ -57,6 +57,11 @@
       <id>repository.jboss.org</id>
       <url>https://repository.jboss.org/nexus/content/repositories/releases</url>
     </repository>
+    <repository>
+      <id>my-local-repo</id>
+      <url>file://${basedir}/my-local-repo</url>
+    </repository>
+    
   </repositories>
   
   <pluginRepositories>
@@ -71,7 +76,18 @@
 	    <groupId>com.openshift</groupId>
 	    <artifactId>openshift-restclient-java</artifactId>
 	    <version>3.0.0-SNAPSHOT</version>
-	</dependency>  
+	</dependency>
+	
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.3.1</version>
+    </dependency>
+	<dependency>
+	    <groupId>org.csanchez.jenkins.plugins</groupId>
+	    <artifactId>kubernetes</artifactId>
+	    <version>0.4-SNAPSHOT</version>
+ 	</dependency>  
   </dependencies>
 
 </project>

@@ -62,16 +62,18 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
     private String prodTag = "origin-nodejs-sample:prod";
     private String nameSpace = "test";
     private String authToken = "";
+    private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String nameSpace, String authToken) {
+    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String nameSpace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.testTag = testTag;
         this.nameSpace = nameSpace;
         this.prodTag = prodTag;
         this.authToken = authToken;
+        this.verbose = verbose;
     }
 
     /**
@@ -97,13 +99,18 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
 		return authToken;
 	}
 
-    @Override
+    public String getVerbose() {
+		return verbose;
+	}
+
+	@Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftImageTagger in perform");
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform");
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+    	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
@@ -114,27 +121,6 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
         	
         	//tag image
 			boolean tagDone = false;
-//			BinaryTagImageInvocation runner = new BinaryTagImageInvocation(testTag, prodTag, nameSpace, client);
-//			InputStream logs = null;
-//			// create stream and copy bytes
-//			try {
-//				logs = new BufferedInputStream(runner.getLogs(true));
-//				int b;
-//				while ((b = logs.read()) != -1) {
-//					listener.getLogger().write(b);
-//				}
-//				tagDone = true;
-//			} catch (Throwable e) {
-//				e.printStackTrace(listener.getLogger());
-//			} finally {
-//				runner.stop();
-//				try {
-//					if (logs != null)
-//						logs.close();
-//				} catch (Throwable e) {
-//					e.printStackTrace(listener.getLogger());
-//				}
-//			}
 			StringTokenizer st = new StringTokenizer(prodTag, ":");
 			String imageStreamName = null;
 			String tagName = null;
@@ -143,20 +129,21 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
 				tagName = st.nextToken();
 				ImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, nameSpace);
 				ModelNode isNode = isImpl.getNode();
-				listener.getLogger().println("OpenShiftImageTagger isNode " + isNode.asString());
+				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isNode " + isNode.asString());
 				ModelNode isSpec = isNode.get("spec");
 				ModelNode isTags = isSpec.get("tags");
 				String tagStr="{\"name\": \""+tagName+"\",\"from\": {\"kind\": \"ImageStreamTag\",\"name\": \""+testTag+"\"}}";
 				ModelNode isTag = ModelNode.fromJSONString(tagStr);
 				isTags.add(isTag);
-				listener.getLogger().println("OpenShiftImageTagger isTags after " + isTags.asString());
+				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isTags after " + isTags.asString());
 	        	// do the REST / HTTP PUT call
 	        	URL url = null;
 	        	try {
-	        		listener.getLogger().println("OpenShiftImageTagger PUT URI " + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName);
+	        		if (chatty) listener.getLogger().println("\nOpenShiftImageTagger PUT URI " + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName);
 	    			url = new URL(apiURL + "/oapi/v1/namespaces/"+ nameSpace+"/imagestreams/" + imageStreamName);
 	    		} catch (MalformedURLException e1) {
 	    			e1.printStackTrace(listener.getLogger());
+	    			return false;
 	    		}
 	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
 	    				null, "application/json", null, this, null, null);
@@ -164,26 +151,30 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
 	    		String response = null;
 	    		try {
 	    			response = urlClient.put(url, 10 * 1000, isImpl);
-	    			listener.getLogger().println("OpenShiftImageTagger REST PUT response " + response);
+	    			if (chatty) listener.getLogger().println("\nOpenShiftImageTagger REST PUT response " + response);
 	    			tagDone = true;
 	    		} catch (SocketTimeoutException e1) {
-	    			e1.printStackTrace(listener.getLogger());
+	    			if (chatty) e1.printStackTrace(listener.getLogger());
 	    		} catch (HttpClientException e1) {
-	    			e1.printStackTrace(listener.getLogger());
+	    			if (chatty) e1.printStackTrace(listener.getLogger());
 	    		}
 			}
 			
 			
 			if (tagDone) {
-				listener.getLogger().println("OpenShiftImageTagger image tagged");
+				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger image stream now has tags: " + testTag + ", " + prodTag);
 				return true;
 			}
 			
     	} else {
-    		listener.getLogger().println("OpenShiftImageTagger could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not get oc client");
     		return false;
     	}
 
+    	if (!chatty)
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not apply tags, re-run with verbose on to get diagnostics");
+    	else 
+			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not apply tags, review logging above to help determine the problem");
     	return false;
     }
 

@@ -55,15 +55,17 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
     private String bldCfg = "frontend";
     private String nameSpace = "test";
     private String authToken = "";
+    private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String nameSpace, String authToken) {
+    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String nameSpace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.bldCfg = bldCfg;
         this.nameSpace = nameSpace;
         this.authToken = authToken;
+        this.verbose = verbose;
     }
 
     /**
@@ -85,13 +87,18 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
 		return authToken;
 	}
 	
-    @Override
+    public String getVerbose() {
+		return verbose;
+	}
+
+	@Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftBuildVerifier in perform for " + bldCfg);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+    	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
@@ -117,11 +124,13 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
 				if (ourKeys.size() > 0) {
 					Collections.sort(ourKeys);
 					IBuild bld = ourBlds.get(ourKeys.get(ourKeys.size() - 1));
-					listener.getLogger().println("OpenShiftBuildVerifier latest bld id " + ourKeys.get(ourKeys.size() - 1));
+					if (chatty)
+						listener.getLogger().println("\nOpenShiftBuildVerifier latest bld id " + ourKeys.get(ourKeys.size() - 1));
 					bldState = bld.getStatus();
 				}
 				
-				listener.getLogger().println("OpenShiftBuildVerifier post bld launch bld state:  " + bldState);
+				if (chatty)
+					listener.getLogger().println("\nOpenShiftBuildVerifier post bld launch bld state:  " + bldState);
 				if (bldState == null || !bldState.equals("Complete")) {
 					try {
 						Thread.sleep(1000);
@@ -133,13 +142,15 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
 			}
 			
 			if (bldState == null || !bldState.equals("Complete")) {
-				listener.getLogger().println("OpenShiftBuildVerifier build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
+				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
 				return false;
-			} else 
+			} else {
+				listener.getLogger().println("\nBUILD STEP EXIT: OpenShiftBuildVerifier exit successfully");
 				return true;
+			}
     				        		
     	} else {
-    		listener.getLogger().println("OpenShiftBuildVerifier could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier could not get oc client");
     		return false;
     	}
 

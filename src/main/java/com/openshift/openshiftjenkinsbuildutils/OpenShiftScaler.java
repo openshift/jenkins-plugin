@@ -64,16 +64,18 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
     private String nameSpace = "test";
     private String replicaCount = "0";
     private String authToken = "";
+    private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftScaler(String apiURL, String depCfg, String nameSpace, String replicaCount, String authToken) {
+    public OpenShiftScaler(String apiURL, String depCfg, String nameSpace, String replicaCount, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.depCfg = depCfg;
         this.nameSpace = nameSpace;
         this.replicaCount = replicaCount;
         this.authToken = authToken;
+        this.verbose = verbose;
     }
 
     /**
@@ -99,13 +101,18 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
 		return authToken;
 	}
 
-    @Override
+    public String getVerbose() {
+		return verbose;
+	}
+
+	@Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftScaler in perform for " + depCfg);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftScaler in perform for " + depCfg + " wanting to get to replica count " + replicaCount);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+    	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
@@ -129,7 +136,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
             	for (String key : rcs.keySet()) {
             		if (key.startsWith(depCfg)) {
             			keysThatMatch.add(key);
-            			listener.getLogger().println("OpenShiftScaler key into oc scale is " + key);            			
+            			if (chatty) listener.getLogger().println("\nOpenShiftScaler key into oc scale is " + key);            			
             		}
             	}
             	if (keysThatMatch.size() > 0) {
@@ -140,10 +147,10 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
             	// if they want to scale down to 0 and there is not rc to begin with, just punt / consider a no-op
             	if (depId != null || replicaCount.equals("0")) {
             		rc = rcs.get(depId);
-            		listener.getLogger().println("OpenShiftScaler rc to use " + rc);
+            		if (chatty) listener.getLogger().println("\nOpenShiftScaler rc to use " + rc);
             		break;
             	} else {
-					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then look for rep ctrl again");
+					if (chatty) listener.getLogger().println("\nOpenShiftScaler wait 10 seconds, then look for rep ctrl again");
 					try {
 						Thread.sleep(10000);
 					} catch (InterruptedException e) {
@@ -152,7 +159,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
         	}
         	
         	if (depId == null) {
-        		listener.getLogger().println("OpenShiftScaler did not find any replication controllers for " + depCfg);
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler did not find any replication controllers for " + depCfg);
         		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
         		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
         		// we refrain from adding yet 1 more config option
@@ -172,18 +179,19 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
 	        	ModelNode rcNode = rcImpl.getNode();
 	        	ModelNode rcSpec = rcNode.get("spec");
 	        	ModelNode rcReplicas = rcSpec.get("replicas");
-	        	listener.getLogger().println("OpenShiftScaler desired replica count from JSON " + rcReplicas.asString());
+	        	if (chatty) listener.getLogger().println("\nOpenShiftScaler desired replica count from JSON " + rcReplicas.asString());
 	        	rcReplicas.set(Integer.decode(replicaCount));
 	        	String rcJSON = rcImpl.getNode().toJSONString(true);
-	        	listener.getLogger().println("OpenShiftScaler rc JSON after replica update " + rcJSON);
+	        	if (chatty) listener.getLogger().println("\nOpenShiftScaler rc JSON after replica update " + rcJSON);
 	        	
 	        	// do the REST / HTTP PUT call
 	        	URL url = null;
 	        	try {
-	        		listener.getLogger().println("OpenShift PUT URI " + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
+	        		if (chatty) listener.getLogger().println("\nOpenShift PUT URI " + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
 	    			url = new URL(apiURL + "/api/v1/namespaces/"+nameSpace+"/replicationcontrollers/" + depId);
 	    		} catch (MalformedURLException e1) {
 	    			e1.printStackTrace(listener.getLogger());
+	    			return false;
 	    		}
 	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
 	    				null, "application/json", null, this, null, null);
@@ -191,18 +199,18 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
 	    		String response = null;
 	    		try {
 	    			response = urlClient.put(url, 10 * 1000, rcImpl);
-	    			listener.getLogger().println("OpenShiftScaler REST PUT response " + response);
+	    			if (chatty) listener.getLogger().println("\nOpenShiftScaler REST PUT response " + response);
 	    			scaleDone = true;
 	    		} catch (SocketTimeoutException e1) {
-	    			e1.printStackTrace(listener.getLogger());
+	    			if (chatty) e1.printStackTrace(listener.getLogger());
 	    		} catch (HttpClientException e1) {
-	    			e1.printStackTrace(listener.getLogger());
+	    			if (chatty) e1.printStackTrace(listener.getLogger());
 	    		}
 				
 				if (scaleDone) {
 					break;
 				} else {
-					listener.getLogger().println("OpenShiftScaler wait 10 seconds, then try oc scale again");
+					if (chatty) listener.getLogger().println("\nOpenShiftScaler will wait 10 seconds, then try to scale again");
 					try {
 						Thread.sleep(10000);
 					} catch (InterruptedException e) {
@@ -211,14 +219,15 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
 	    	}
         	
         	if (!scaleDone) {
-        		listener.getLogger().println("OpenShiftScaler could not get oc scale executed");
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
         		return false;
         	}
         	
+        	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler got the scale request through");
         	return true;
         	        	
     	} else {
-    		listener.getLogger().println("OpenShiftScaler could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
     		return false;
     	}
 

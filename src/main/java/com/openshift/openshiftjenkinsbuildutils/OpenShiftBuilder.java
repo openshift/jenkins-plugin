@@ -64,17 +64,19 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     private String bldCfg = "frontend";
     private String nameSpace = "test";
     private String authToken = "";
-    private String followLog = "true";
+    private String followLog = "false";
+    private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken, String followLog) {
+    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken, String followLog, String verbose) {
         this.apiURL = apiURL;
         this.bldCfg = bldCfg;
         this.nameSpace = nameSpace;
         this.authToken = authToken;
         this.followLog = followLog;
+        this.verbose = verbose;
     }
 
     /**
@@ -100,17 +102,23 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 		return followLog;
 	}
 
-    @Override
+    public String getVerbose() {
+		return verbose;
+	}
+
+	@Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("OpenShiftBuilder in perform for " + bldCfg);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener);
+    	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	
     	String bldId = null;
     	boolean follow = Boolean.parseBoolean(followLog);
-    	listener.getLogger().println("OpenShiftBuilder logger follow " + follow);
+    	if (chatty)
+    		listener.getLogger().println("\nOpenShiftBuilder logger follow " + follow);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
@@ -135,7 +143,8 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         	}
         	
 
-        	listener.getLogger().println("OpenShiftBuilder build config retrieved " + bc);
+        	if (chatty)
+        		listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc);
         	
         	if (bc != null) {
         		
@@ -148,15 +157,12 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     			}, null);
     			
     			if(bld == null) {
-    				listener.getLogger().println("OpenShiftBuilder triggered build is null");
+    				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder triggered build is null");
     				return false;
     			} else {
     				bldId = bld.getName();
-    				listener.getLogger().println("OpenShiftBuilder triggered build id is " + bldId);
-    				
-    				//TODO look at the two buildlogs.go files in origin
-    				// and change to DefaultClient.java I made
-    				//IResource bldlogs = ((com.openshift.internal.restclient.DefaultClient)client).get(ResourceKind.BUILD, bldId, nameSpace, "log");
+    				if (chatty)
+    					listener.getLogger().println("\nOpenShiftBuilder triggered build id is " + bldId);
     				
     				
     				boolean foundPod = false;
@@ -170,16 +176,21 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     					// entries when compared with say running oc from the cmd line
         				List<IPod> pods = client.list(ResourceKind.POD, nameSpace);
         				for (IPod pod : pods) {
-        					listener.getLogger().println("OpenShiftBuilder found pod " + pod.getName());
+        					if (chatty)
+        						listener.getLogger().println("\nOpenShiftBuilder found pod " + pod.getName());
      
         					// build pod starts with build id
         					if(pod.getName().startsWith(bldId)) {
         						foundPod = true;
-        						listener.getLogger().println("OpenShiftBuilder found build pod " + pod);
+        						if (chatty)
+        							listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
         						
+        						//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
+        						// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
+        						// complete        						
             					// get log "retrieve" and dump build logs
 //            					IPodLogRetrieval logger = pod.getCapability(IPodLogRetrieval.class);
-//            					listener.getLogger().println("OpenShiftBuilder obtained pod logger " + logger);
+//            					listener.getLogger().println("\n\nOpenShiftBuilder obtained pod logger " + logger);
             					
 //            					if (logger != null) {
             						
@@ -189,7 +200,8 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             						while (System.currentTimeMillis() < (currTime + 60000)) {
             							bld = client.get(ResourceKind.BUILD, bldId, nameSpace);
             							bldState = bld.getStatus();
-            							listener.getLogger().println("OpenShiftBuilder bld state:  " + bldState);
+            							if (chatty)
+            								listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
             							if ("Pending".equals(bldState) || "New".equals(bldState)) {
             								try {
     											Thread.sleep(1000);
@@ -207,6 +219,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             							url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/builds/" + bldId + "/log?follow=true");
             						} catch (MalformedURLException e1) {
             							e1.printStackTrace(listener.getLogger());
+            							return false;
             						}
             						UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
             								null, "application/json", null, this, null, null);
@@ -216,11 +229,17 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             							response = urlClient.get(url, 2 * 60 * 1000);
             						} catch (SocketTimeoutException e1) {
             							e1.printStackTrace(listener.getLogger());
+            							return false;
             						} catch (HttpClientException e1) {
             							e1.printStackTrace(listener.getLogger());
+            							return false;
             						}
             						if (follow)
             							listener.getLogger().println(response);
+            						
+            						//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
+            						// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
+            						// complete        						
 //            						InputStream logs = new BufferedInputStream(logger.getLogs(true));
 //            						int b;
 //            						try {
@@ -243,7 +262,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             						
     								
 //            					} else {
-//            						listener.getLogger().println("OpenShiftBuilder logger for pod " + pod.getName() + " not available");
+//            						listener.getLogger().println("\n\nOpenShiftBuilder logger for pod " + pod.getName() + " not available");
 //            						bldState = pod.getStatus();
 //            					}
         					}
@@ -260,7 +279,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     				}
     				
     				if (!foundPod) {
-    					listener.getLogger().println("OpenShiftBuilder did not find build pod for " + bldId + " in time.  If possible interrogate the OpenShift server with the oc command and inspect the server logs.");
+    					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder did not find build pod for " + bldId + " in time.  If possible interrogate the OpenShift server with the oc command and inspect the server logs.");
     					return false;
     				}
     				
@@ -268,7 +287,8 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 					while (System.currentTimeMillis() < (currTime + 60000)) {
 						bld = client.get(ResourceKind.BUILD, bldId, nameSpace);
 						bldState = bld.getStatus();
-						listener.getLogger().println("OpenShiftBuilder post bld launch bld state:  " + bldState);
+						if (chatty)
+							listener.getLogger().println("\nOpenShiftBuilder post bld launch bld state:  " + bldState);
 						if (!bldState.equals("Complete")) {
 							try {
 								Thread.sleep(1000);
@@ -279,21 +299,22 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 						}
 					}
     				if (bldState == null || !bldState.equals("Complete")) {
-    					listener.getLogger().println("OpenShiftBuilder build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
+    					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
     					return false;
-    				} else 
+    				} else {
+    					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully");
     					return true;
-    				
+    				}
     				
     			}
         		
         		
         	} else {
-        		listener.getLogger().println("OpenShiftBuilder could not get build config");
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder could not get build config");
         		return false;
         	}
     	} else {
-    		listener.getLogger().println("OpenShiftBuilder could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder could not get oc client");
     		return false;
     	}
 
