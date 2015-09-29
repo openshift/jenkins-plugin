@@ -22,6 +22,9 @@
   <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
     <f:textbox default="" />
   </f:entry>
+  <f:entry title="Specify the commit hash the build should be run from" field="commitID">
+    <f:textbox default="" />
+  </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
     <f:textbox default="false" />
   </f:entry>

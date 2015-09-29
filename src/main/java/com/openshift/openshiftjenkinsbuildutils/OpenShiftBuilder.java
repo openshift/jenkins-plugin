@@ -9,12 +9,14 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
+import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
+import com.openshift.internal.restclient.model.build.BuildRequest;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
@@ -27,6 +29,7 @@ import com.openshift.restclient.capability.resources.IPodLogRetrieval;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IPod;
+import com.openshift.restclient.model.build.IBuildRequest;
 
 import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
@@ -64,19 +67,21 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     private String bldCfg = "frontend";
     private String nameSpace = "test";
     private String authToken = "";
+    private String commitID = "";
     private String followLog = "false";
     private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken, String followLog, String verbose) {
+    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken, String followLog, String verbose, String commitID) {
         this.apiURL = apiURL;
         this.bldCfg = bldCfg;
         this.nameSpace = nameSpace;
         this.authToken = authToken;
         this.followLog = followLog;
         this.verbose = verbose;
+        this.commitID = commitID;
     }
 
     /**
@@ -104,6 +109,38 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 
     public String getVerbose() {
 		return verbose;
+	}
+
+	public String getCommitID() {
+		return commitID;
+	}
+
+	public void setCommitID(String commitID) {
+		this.commitID = commitID;
+	}
+
+	public void setVerbose(String verbose) {
+		this.verbose = verbose;
+	}
+
+    public void setApiURL(String apiURL) {
+		this.apiURL = apiURL;
+	}
+
+	public void setBldCfg(String bldCfg) {
+		this.bldCfg = bldCfg;
+	}
+
+	public void setNameSpace(String nameSpace) {
+		this.nameSpace = nameSpace;
+	}
+
+	public void setAuthToken(String authToken) {
+		this.authToken = authToken;
+	}
+
+	public void setFollowLog(String followLog) {
+		this.followLog = followLog;
 	}
 
 	@Override
@@ -149,12 +186,28 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         	if (bc != null) {
         		
         		// Trigger / start build
-    			IBuild bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-
-    				public IBuild visit(IBuildTriggerable triggerable) {
-    					return triggerable.trigger();
-    				}
-    			}, null);
+//    			IBuild bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+//
+//    				public IBuild visit(IBuildTriggerable triggerable) {
+//    					return triggerable.trigger();
+//    				}
+//    			}, null);
+        		        	
+    			IBuildRequest request = client.getResourceFactory().stub(ResourceKind.BUILD_REQUEST, bc.getName());
+    			if (commitID != null && commitID.length() > 0) {
+        			BuildRequest requestImpl = (BuildRequest)request;
+        			ModelNode node = requestImpl.getNode();
+        			if (chatty)
+        				listener.getLogger().println("\nOpenShiftBuilder json for build request " + node.asString());
+        			String revisionJSONStr="{\"type\": \"Git\",\"git\": {\"commit\": \""+commitID+"\",\"author\":{},\"committer\":{}}}";
+        			ModelNode revision = ModelNode.fromJSONString(revisionJSONStr);
+        			if (chatty)
+        				listener.getLogger().println("\nOpenShiftBuilder json for revision " + revision.asString());
+        			node.get("revision").set(revision);
+        			if (chatty)
+        				listener.getLogger().println("\nOpenShiftBuilder json of build request after udpate " + node.asString());
+    			}
+    			IBuild bld = client.create(bc.getKind(), bc.getNamespace(), bc.getName(), "instantiate", request);
     			
     			if(bld == null) {
     				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder triggered build is null");
@@ -319,26 +372,6 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     	}
 
     }
-
-    public void setApiURL(String apiURL) {
-		this.apiURL = apiURL;
-	}
-
-	public void setBldCfg(String bldCfg) {
-		this.bldCfg = bldCfg;
-	}
-
-	public void setNameSpace(String nameSpace) {
-		this.nameSpace = nameSpace;
-	}
-
-	public void setAuthToken(String authToken) {
-		this.authToken = authToken;
-	}
-
-	public void setFollowLog(String followLog) {
-		this.followLog = followLog;
-	}
 
 	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
