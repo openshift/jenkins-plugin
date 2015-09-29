@@ -10,10 +10,12 @@ import java.util.List;
 
 import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
+//import javax.ws.rs.core.Response;
 
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
+//import org.apache.cxf.jaxrs.client.WebClient;
 import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -132,6 +134,11 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 			e1.printStackTrace(listener.getLogger());
 			return null;
 		}
+		
+		//TODO see io.fabric8.kubernetes.api.KubernetesClient.doTriggerBuild(String, String, String, String) for simple invocation form WebClient
+//		WebClient webClient = Auth.getAuthorizedClient(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName, authToken, null, listener, chatty);
+//		Response resp = webClient.get();
+//		listener.getLogger().println("\n\n\n GGMGGMGGM entity from web client resp is " + resp.getEntity() + " \n\n\n\n");
 		
 		if (chatty)
 			listener.getLogger().println("\n\nOpenShiftImageStreams response from rest call " + response);

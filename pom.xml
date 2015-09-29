@@ -83,11 +83,6 @@
       <artifactId>httpclient</artifactId>
       <version>4.3.1</version>
     </dependency>
-	<dependency>
-	    <groupId>org.csanchez.jenkins.plugins</groupId>
-	    <artifactId>kubernetes</artifactId>
-	    <version>0.4-SNAPSHOT</version>
- 	</dependency>  
   </dependencies>
 
 </project>

@@ -1,33 +1,33 @@
 package com.openshift.openshiftjenkinsbuildutils;
 
-import io.fabric8.kubernetes.api.ExceptionResponseMapper;
-import io.fabric8.kubernetes.api.KubernetesFactory;
-import io.fabric8.utils.cxf.AuthorizationHeaderFilter;
-import io.fabric8.utils.cxf.WebClients;
+//import io.fabric8.kubernetes.api.ExceptionResponseMapper;
+//import io.fabric8.kubernetes.api.KubernetesFactory;
+//import io.fabric8.utils.cxf.AuthorizationHeaderFilter;
+//import io.fabric8.utils.cxf.WebClients;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.net.URI;
+//import java.net.URI;
 import java.util.ArrayList;
-import java.util.List;
+//import java.util.List;
 
 import hudson.model.TaskListener;
 
-import org.apache.cxf.configuration.security.AuthorizationPolicy;
-import org.apache.cxf.jaxrs.client.WebClient;
-import org.apache.cxf.message.Message;
-import org.apache.cxf.transport.http.HTTPConduit;
-import org.apache.cxf.transport.http.auth.HttpAuthSupplier;
-import org.csanchez.jenkins.plugins.kubernetes.BearerTokenCredential;
-import org.csanchez.jenkins.plugins.kubernetes.BearerTokenCredentialImpl;
-
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.jaxrs.cfg.Annotations;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+//import org.apache.cxf.configuration.security.AuthorizationPolicy;
+//import org.apache.cxf.jaxrs.client.WebClient;
+//import org.apache.cxf.message.Message;
+//import org.apache.cxf.transport.http.HTTPConduit;
+//import org.apache.cxf.transport.http.auth.HttpAuthSupplier;
+//import org.csanchez.jenkins.plugins.kubernetes.BearerTokenCredential;
+//import org.csanchez.jenkins.plugins.kubernetes.BearerTokenCredentialImpl;
+//
+//import com.cloudbees.plugins.credentials.CredentialsScope;
+//import com.fasterxml.jackson.databind.ObjectMapper;
+//import com.fasterxml.jackson.jaxrs.cfg.Annotations;
+//import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 public class Auth {
 	private static final String AUTH_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/token";
@@ -160,48 +160,49 @@ public class Auth {
 		return caCert;
 	}
 	
-	public static WebClient getAuthorizedClient(String svcAddr, String at, String ca, TaskListener listener, boolean verbose) {
-		String authToken = deriveAuth(at, listener, verbose);
-		String caCertData = deriveCA(ca, listener, verbose);
-        List<Object> providers = createProviders();
-        AuthorizationHeaderFilter authorizationHeaderFilter = new AuthorizationHeaderFilter();
-        providers.add(authorizationHeaderFilter);
-		WebClient webClient = WebClient.create(svcAddr, providers);
-		
-		if (authToken != null) {
-			final BearerTokenCredentialImpl credentials = new BearerTokenCredentialImpl(CredentialsScope.USER, null, null, authToken);
-            final HTTPConduit conduit = WebClient.getConfig(webClient).getHttpConduit();
-            conduit.setAuthSupplier(new HttpAuthSupplier() {
-                @Override
-                public boolean requiresRequestCaching() {
-                    return false;
-                }
-
-                @Override
-                public String getAuthorization(AuthorizationPolicy authorizationPolicy, URI uri, Message message, String s) {
-                    return "Bearer " + ((BearerTokenCredential) credentials).getToken();
-                }
-            });
-		}
-		
-//        if (skipTlsVerify) {
-//            WebClients.disableSslChecks(webClient);
+//	public static WebClient getAuthorizedClient(String svcAddr, String at, String ca, TaskListener listener, boolean verbose) {
+//		listener.getLogger().println("GGMGGM use cert " + useCert);
+//		String authToken = deriveAuth(at, listener, verbose);
+//		String caCertData = deriveCA(ca, listener, verbose);
+//        List<Object> providers = createProviders();
+//        AuthorizationHeaderFilter authorizationHeaderFilter = new AuthorizationHeaderFilter();
+//        providers.add(authorizationHeaderFilter);
+//		WebClient webClient = WebClient.create(svcAddr, providers);
+//		
+//		if (authToken != null) {
+//			final BearerTokenCredentialImpl credentials = new BearerTokenCredentialImpl(CredentialsScope.USER, null, null, authToken);
+//            final HTTPConduit conduit = WebClient.getConfig(webClient).getHttpConduit();
+//            conduit.setAuthSupplier(new HttpAuthSupplier() {
+//                @Override
+//                public boolean requiresRequestCaching() {
+//                    return false;
+//                }
+//
+//                @Override
+//                public String getAuthorization(AuthorizationPolicy authorizationPolicy, URI uri, Message message, String s) {
+//                    return "Bearer " + ((BearerTokenCredential) credentials).getToken();
+//                }
+//            });
+//		}
+//		
+////        if (skipTlsVerify) {
+////            WebClients.disableSslChecks(webClient);
+////        }
+//
+//        if (caCertData != null) {
+//            WebClients.configureCaCert(webClient, caCertData, null);
 //        }
-
-        if (caCertData != null) {
-            WebClients.configureCaCert(webClient, caCertData, null);
-        }
-        
-		return webClient;
-	}
-    private static List<Object> createProviders() {
-        List<Object> providers = new ArrayList<Object>();
-        Annotations[] annotationsToUse = JacksonJaxbJsonProvider.DEFAULT_ANNOTATIONS;
-        ObjectMapper objectMapper = KubernetesFactory.createObjectMapper();
-        providers.add(new JacksonJaxbJsonProvider(objectMapper, annotationsToUse));
-        providers.add(new KubernetesFactory.PlainTextJacksonProvider(objectMapper, annotationsToUse));
-        providers.add(new ExceptionResponseMapper());
-        //providers.add(new JacksonIntOrStringConfig(objectMapper));
-        return providers;
-    }
+//        
+//		return webClient;
+//	}
+//    private static List<Object> createProviders() {
+//        List<Object> providers = new ArrayList<Object>();
+//        Annotations[] annotationsToUse = JacksonJaxbJsonProvider.DEFAULT_ANNOTATIONS;
+//        ObjectMapper objectMapper = KubernetesFactory.createObjectMapper();
+//        providers.add(new JacksonJaxbJsonProvider(objectMapper, annotationsToUse));
+//        providers.add(new KubernetesFactory.PlainTextJacksonProvider(objectMapper, annotationsToUse));
+//        providers.add(new ExceptionResponseMapper());
+//        //providers.add(new JacksonIntOrStringConfig(objectMapper));
+//        return providers;
+//    }
 }
