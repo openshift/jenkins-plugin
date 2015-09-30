@@ -148,7 +148,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg);
-    	
+		
     	// obtain auth token from defined spot in OpenShift Jenkins image
     	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	
@@ -194,13 +194,24 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 //    			}, null);
         		        	
     			IBuildRequest request = client.getResourceFactory().stub(ResourceKind.BUILD_REQUEST, bc.getName());
+    			
     			if (commitID != null && commitID.length() > 0) {
         			BuildRequest requestImpl = (BuildRequest)request;
         			ModelNode node = requestImpl.getNode();
         			if (chatty)
         				listener.getLogger().println("\nOpenShiftBuilder json for build request " + node.asString());
-        			String revisionJSONStr="{\"type\": \"Git\",\"git\": {\"commit\": \""+commitID+"\",\"author\":{},\"committer\":{}}}";
-        			ModelNode revision = ModelNode.fromJSONString(revisionJSONStr);
+
+        			ModelNode git = new ModelNode();
+        			ModelNode author = new ModelNode();
+        			ModelNode committer = new ModelNode();
+        			ModelNode commit = new ModelNode(commitID);
+        			git.get("author").set(author);
+        			git.get("comitter").set(committer);
+        			git.get("commit").set(commit);
+        			ModelNode revision = new ModelNode();
+        			revision.get("git").set(git);
+        			revision.get("type").set("Git");
+        			
         			if (chatty)
         				listener.getLogger().println("\nOpenShiftBuilder json for revision " + revision.asString());
         			node.get("revision").set(revision);

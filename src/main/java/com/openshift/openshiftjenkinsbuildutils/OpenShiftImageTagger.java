@@ -127,15 +127,22 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
 			if (st.countTokens() > 1) {
 				imageStreamName = st.nextToken();
 				tagName = st.nextToken();
+				
 				ImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, nameSpace);
 				ModelNode isNode = isImpl.getNode();
 				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isNode " + isNode.asString());
+				
 				ModelNode isSpec = isNode.get("spec");
-				ModelNode isTags = isSpec.get("tags");
-				String tagStr="{\"name\": \""+tagName+"\",\"from\": {\"kind\": \"ImageStreamTag\",\"name\": \""+testTag+"\"}}";
-				ModelNode isTag = ModelNode.fromJSONString(tagStr);
+				ModelNode isTags = isSpec.get("tags");				
+				ModelNode isTag = new ModelNode();
+				isTag.get("name").set(tagName);
+				ModelNode isTagFrom = new ModelNode();
+				isTagFrom.get("kind").set("ImageStreamTag");
+				isTagFrom.get("name").set(testTag);
+				isTag.get("from").set(isTagFrom);
 				isTags.add(isTag);
 				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isTags after " + isTags.asString());
+				
 	        	// do the REST / HTTP PUT call
 	        	URL url = null;
 	        	try {
