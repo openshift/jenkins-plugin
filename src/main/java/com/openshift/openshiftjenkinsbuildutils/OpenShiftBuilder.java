@@ -68,20 +68,22 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     private String nameSpace = "test";
     private String authToken = "";
     private String commitID = "";
-    private String followLog = "false";
     private String verbose = "false";
+    private String buildName = "";
+    private String showBuildLogs = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken, String followLog, String verbose, String commitID) {
+    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs) {
         this.apiURL = apiURL;
         this.bldCfg = bldCfg;
         this.nameSpace = nameSpace;
         this.authToken = authToken;
-        this.followLog = followLog;
         this.verbose = verbose;
         this.commitID = commitID;
+        this.buildName = buildName;
+        this.showBuildLogs = showBuildLogs;
     }
 
     /**
@@ -103,10 +105,6 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 		return authToken;
 	}
 	
-	public String getFollowLog() {
-		return followLog;
-	}
-
     public String getVerbose() {
 		return verbose;
 	}
@@ -139,8 +137,20 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 		this.authToken = authToken;
 	}
 
-	public void setFollowLog(String followLog) {
-		this.followLog = followLog;
+	public String getBuildName() {
+		return buildName;
+	}
+
+	public void setBuildName(String buildName) {
+		this.buildName = buildName;
+	}
+
+	public String getShowBuildLogs() {
+		return showBuildLogs;
+	}
+
+	public void setShowBuildLogs(String showBuildLogs) {
+		this.showBuildLogs = showBuildLogs;
 	}
 
 	@Override
@@ -153,7 +163,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     	authToken = Auth.deriveAuth(authToken, listener, chatty);
     	
     	String bldId = null;
-    	boolean follow = Boolean.parseBoolean(followLog);
+    	boolean follow = Boolean.parseBoolean(showBuildLogs);
     	if (chatty)
     		listener.getLogger().println("\nOpenShiftBuilder logger follow " + follow);
     	
@@ -165,8 +175,9 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
 			long startTime = System.currentTimeMillis();
+			boolean skipBC = buildName != null && buildName.length() > 0;
         	IBuildConfig bc = null;
-        	while (bc == null && startTime > (System.currentTimeMillis() - 60000)) {
+        	while (!skipBC && bc == null && startTime > (System.currentTimeMillis() - 60000)) {
         		try {
                 	// get BuildConfig ref
                 	bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, nameSpace);
@@ -181,9 +192,9 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         	
 
         	if (chatty)
-        		listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc);
+        		listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc + " buildName " + buildName);
         	
-        	if (bc != null) {
+        	if (bc != null || skipBC) {
         		
         		// Trigger / start build
 //    			IBuild bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
@@ -192,8 +203,12 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 //    					return triggerable.trigger();
 //    				}
 //    			}, null);
-        		        	
-    			IBuildRequest request = client.getResourceFactory().stub(ResourceKind.BUILD_REQUEST, bc.getName());
+        		      
+    			IBuildRequest request = null;
+    			if (!skipBC)
+    				request = client.getResourceFactory().stub(ResourceKind.BUILD_REQUEST, bc.getName());
+    			else
+    				request = client.getResourceFactory().stub(ResourceKind.BUILD_REQUEST, buildName);
     			
     			if (commitID != null && commitID.length() > 0) {
         			BuildRequest requestImpl = (BuildRequest)request;
@@ -218,7 +233,13 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         			if (chatty)
         				listener.getLogger().println("\nOpenShiftBuilder json of build request after udpate " + node.asString());
     			}
-    			IBuild bld = client.create(bc.getKind(), bc.getNamespace(), bc.getName(), "instantiate", request);
+    			IBuild bld = null;
+    			if (!skipBC)
+    				bld = client.create(bc.getKind(), bc.getNamespace(), bc.getName(), "instantiate", request);
+    			else {
+    				bld = client.create(ResourceKind.BUILD, nameSpace, buildName, "clone", request);
+    			}
+    			
     			
     			if(bld == null) {
     				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder triggered build is null");

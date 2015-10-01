@@ -28,7 +28,10 @@
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
     <f:textbox default="false" />
   </f:entry>
-  <f:entry title="Dump the build logs from OpenShift to the Jenkins console" field="followLog">
+  <f:entry title="Specify the name of a build which should be re-run" field="buildName">
+    <f:textbox default="" />
+  </f:entry>
+  <f:entry title="Pipe the build logs from OpenShift to the Jenkins console" field="showBuildLogs">
     <f:textbox default="false" />
   </f:entry>
 </j:jelly>
