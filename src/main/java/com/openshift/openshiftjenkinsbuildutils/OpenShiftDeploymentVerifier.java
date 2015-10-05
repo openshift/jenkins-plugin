@@ -75,7 +75,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String depCfg = "frontend";
-    private String nameSpace = "test";
+    private String namespace = "test";
     private String replicaCount = "0";
     private String authToken = "";
     private String verbose = "false";
@@ -83,10 +83,10 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String nameSpace, String replicaCount, String authToken, String verbose) {
+    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.depCfg = depCfg;
-        this.nameSpace = nameSpace;
+        this.namespace = namespace;
         this.replicaCount = replicaCount;
         this.authToken = authToken;
         this.verbose = verbose;
@@ -100,8 +100,8 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
 		this.depCfg = depCfg;
 	}
 
-	public void setNameSpace(String nameSpace) {
-		this.nameSpace = nameSpace;
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
 	}
 
 	public void setReplicaCount(String replicaCount) {
@@ -131,8 +131,8 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
 		return depCfg;
 	}
 
-	public String getNameSpace() {
-		return nameSpace;
+	public String getNamespace() {
+		return namespace;
 	}
 	
 	public String getReplicaCount() {
@@ -168,7 +168,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         	// if the deployment config for this app specifies a desired replica count of 
         	// of greater than zero, let's also confirm the deployment occurs;
         	// first, get the deployment config
-        	Map<String,IDeploymentConfig> dcs = Deployment.getDeploymentConfigs(client, nameSpace, listener);
+        	Map<String,IDeploymentConfig> dcs = Deployment.getDeploymentConfigs(client, namespace, listener);
         	boolean dcWithReplicas = false;
         	boolean haveDep = false;
         	boolean scaledAppropriately = false;
@@ -192,7 +192,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         				long currTime = System.currentTimeMillis();
         				IReplicationController rc = null;
         				while (System.currentTimeMillis() < (currTime + 180000)) {
-        					Map<String, IReplicationController> rcs = Deployment.getDeployments(client, nameSpace, listener);
+        					Map<String, IReplicationController> rcs = Deployment.getDeployments(client, namespace, listener);
         					// could be more than 1 generation of RC for the deployment;  want to get the lastest one
         					List<String> keysThatMatch = new ArrayList<String>();
         					for (String rckey : rcs.keySet()) {
@@ -315,10 +315,10 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckNameSpace(@QueryParameter String value)
+        public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set nameSpace");
+                return FormValidation.error("Please set namespace");
             return FormValidation.ok();
         }
         

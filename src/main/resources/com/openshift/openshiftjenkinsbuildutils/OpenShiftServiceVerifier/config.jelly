@@ -16,7 +16,7 @@
   <f:entry title="The name of the Service to verify" field="svcName">
     <f:textbox default="frontend" />
   </f:entry>
-  <f:entry title="The name of the project the DeploymentConfig is stored in" field="nameSpace">
+  <f:entry title="The name of the project the DeploymentConfig is stored in" field="namespace">
     <f:textbox default="test" />
   </f:entry>
   <f:entry title="The authorization token for interacting with OpenShift" field="authToken">

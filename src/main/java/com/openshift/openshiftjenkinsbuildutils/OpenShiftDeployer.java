@@ -59,17 +59,17 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String depCfg = "frontend";
-    private String nameSpace = "test";
+    private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeployer(String apiURL, String depCfg, String nameSpace, String authToken, String verbose) {
+    public OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.depCfg = depCfg;
-        this.nameSpace = nameSpace;
+        this.namespace = namespace;
         this.authToken = authToken;
         this.verbose = verbose;
     }
@@ -85,8 +85,8 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
 		return depCfg;
 	}
 
-	public String getNameSpace() {
-		return nameSpace;
+	public String getNamespace() {
+		return namespace;
 	}
 	
 	public String getAuthToken() {
@@ -118,7 +118,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         	long currTime = System.currentTimeMillis();
         	boolean deployDone = false;
         	while (System.currentTimeMillis() < (currTime + 60000)) {
-        		DeploymentConfig dcImpl = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, nameSpace);
+        		DeploymentConfig dcImpl = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
 				int latestVersion = -1;
         		if (dcImpl != null) {
         			ModelNode dcNode = dcImpl.getNode();
@@ -141,7 +141,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         			// oc deploy gets the rc after the dc prior to putting the dc;
         			// we'll do the same
         			if (latestVersion != -1) {
-        				IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, nameSpace);
+        				IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
         				
         				// now lets update the latest version of the dc
         				dcLatestVersion.set(latestVersion + 1);
@@ -149,7 +149,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         				// and now lets PUT the updated dc
         				URL url = null;
     					try {
-							url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/deploymentconfigs/" + depCfg);
+							url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/deploymentconfigs/" + depCfg);
 						} catch (MalformedURLException e) {
 							e.printStackTrace(listener.getLogger());
 							return false;
@@ -255,10 +255,10 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckNameSpace(@QueryParameter String value)
+        public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set nameSpace");
+                return FormValidation.error("Please set namespace");
             return FormValidation.ok();
         }
 

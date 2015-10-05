@@ -65,7 +65,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String bldCfg = "frontend";
-    private String nameSpace = "test";
+    private String namespace = "test";
     private String authToken = "";
     private String commitID = "";
     private String verbose = "false";
@@ -75,10 +75,10 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuilder(String apiURL, String bldCfg, String nameSpace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs) {
+    public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs) {
         this.apiURL = apiURL;
         this.bldCfg = bldCfg;
-        this.nameSpace = nameSpace;
+        this.namespace = namespace;
         this.authToken = authToken;
         this.verbose = verbose;
         this.commitID = commitID;
@@ -97,8 +97,8 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 		return bldCfg;
 	}
 
-	public String getNameSpace() {
-		return nameSpace;
+	public String getNamespace() {
+		return namespace;
 	}
 	
 	public String getAuthToken() {
@@ -129,8 +129,8 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 		this.bldCfg = bldCfg;
 	}
 
-	public void setNameSpace(String nameSpace) {
-		this.nameSpace = nameSpace;
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
 	}
 
 	public void setAuthToken(String authToken) {
@@ -180,7 +180,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
         	while (!skipBC && bc == null && startTime > (System.currentTimeMillis() - 60000)) {
         		try {
                 	// get BuildConfig ref
-                	bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, nameSpace);
+                	bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, namespace);
         		} catch (Throwable t) {
         			t.printStackTrace(listener.getLogger());
         			try {
@@ -237,7 +237,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     			if (!skipBC)
     				bld = client.create(bc.getKind(), bc.getNamespace(), bc.getName(), "instantiate", request);
     			else {
-    				bld = client.create(ResourceKind.BUILD, nameSpace, buildName, "clone", request);
+    				bld = client.create(ResourceKind.BUILD, namespace, buildName, "clone", request);
     			}
     			
     			
@@ -259,7 +259,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     					
     					// fetch current list of pods ... this has proven to not be immediate in finding latest
     					// entries when compared with say running oc from the cmd line
-        				List<IPod> pods = client.list(ResourceKind.POD, nameSpace);
+        				List<IPod> pods = client.list(ResourceKind.POD, namespace);
         				for (IPod pod : pods) {
         					if (chatty)
         						listener.getLogger().println("\nOpenShiftBuilder found pod " + pod.getName());
@@ -283,7 +283,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             						// instead of Running, Complete, or Failed
             						long currTime = System.currentTimeMillis();
             						while (System.currentTimeMillis() < (currTime + 60000)) {
-            							bld = client.get(ResourceKind.BUILD, bldId, nameSpace);
+            							bld = client.get(ResourceKind.BUILD, bldId, namespace);
             							bldState = bld.getStatus();
             							if (chatty)
             								listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
@@ -301,7 +301,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             						// create stream and copy bytes
             				    	URL url = null;
             				    	try {
-            							url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/builds/" + bldId + "/log?follow=true");
+            							url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds/" + bldId + "/log?follow=true");
             						} catch (MalformedURLException e1) {
             							e1.printStackTrace(listener.getLogger());
             							return false;
@@ -370,7 +370,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     				
 					long currTime = System.currentTimeMillis();
 					while (System.currentTimeMillis() < (currTime + 60000)) {
-						bld = client.get(ResourceKind.BUILD, bldId, nameSpace);
+						bld = client.get(ResourceKind.BUILD, bldId, namespace);
 						bldState = bld.getStatus();
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftBuilder post bld launch bld state:  " + bldState);
@@ -462,10 +462,10 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckNameSpace(@QueryParameter String value)
+        public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set nameSpace");
+                return FormValidation.error("Please set namespace");
             return FormValidation.ok();
         }
         

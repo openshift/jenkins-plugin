@@ -45,17 +45,17 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 	private String imageStreamName = "nodejs-010-centos7";
 	private String tag = "latest";
     private String apiURL = "https://openshift.default.svc.cluster.local";
-    private String nameSpace = "test";
+    private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-	public OpenShiftImageStreams(String imageStreamName, String tag, String apiURL, String nameSpace, String authToken, String verbose) {
+	public OpenShiftImageStreams(String imageStreamName, String tag, String apiURL, String namespace, String authToken, String verbose) {
     	this.imageStreamName = imageStreamName;
     	this.tag = tag;
     	this.apiURL = apiURL;
-    	this.nameSpace = nameSpace;
+    	this.namespace = namespace;
     	this.authToken = authToken;
     	this.verbose = verbose;
 	}
@@ -68,12 +68,12 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 		this.apiURL = apiURL;
 	}
 
-	public String getNameSpace() {
-		return nameSpace;
+	public String getNamespace() {
+		return namespace;
 	}
 
-	public void setNameSpace(String nameSpace) {
-		this.nameSpace = nameSpace;
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
 	}
 
 	public String getAuthToken() {
@@ -114,7 +114,7 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
     	// get oc client (sometime REST, sometimes Exec of oc command
     	URL url = null;
     	try {
-			url = new URL(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName);
+			url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/imagestreams/" + imageStreamName);
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 			return null;
@@ -136,7 +136,7 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 		}
 		
 		//TODO see io.fabric8.kubernetes.api.KubernetesClient.doTriggerBuild(String, String, String, String) for simple invocation form WebClient
-//		WebClient webClient = Auth.getAuthorizedClient(apiURL + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName, authToken, null, listener, chatty);
+//		WebClient webClient = Auth.getAuthorizedClient(apiURL + "/oapi/v1/namespaces/"+namespace+"/imagestreams/" + imageStreamName, authToken, null, listener, chatty);
 //		Response resp = webClient.get();
 //		listener.getLogger().println("\n\n\n GGMGGMGGM entity from web client resp is " + resp.getEntity() + " \n\n\n\n");
 		
@@ -291,10 +291,10 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckNameSpace(@QueryParameter String value)
+        public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set nameSpace");
+                return FormValidation.error("Please set namespace");
             return FormValidation.ok();
         }
         

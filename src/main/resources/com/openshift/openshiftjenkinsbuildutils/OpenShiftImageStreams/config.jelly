@@ -19,7 +19,7 @@
   <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
     <f:textbox default="https://openshift.default.svc.cluster.local" />
   </f:entry>
-  <f:entry title="The name of the project the ImageStream is stored in" field="nameSpace">
+  <f:entry title="The name of the project the ImageStream is stored in" field="namespace">
     <f:textbox default="test" />
   </f:entry>
   <f:entry title="The authorization token for interacting with OpenShift" field="authToken">

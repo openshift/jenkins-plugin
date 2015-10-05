@@ -60,17 +60,17 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String testTag = "origin-nodejs-sample:latest";
     private String prodTag = "origin-nodejs-sample:prod";
-    private String nameSpace = "test";
+    private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String nameSpace, String authToken, String verbose) {
+    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.testTag = testTag;
-        this.nameSpace = nameSpace;
+        this.namespace = namespace;
         this.prodTag = prodTag;
         this.authToken = authToken;
         this.verbose = verbose;
@@ -87,8 +87,8 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
 		return testTag;
 	}
 
-	public String getNameSpace() {
-		return nameSpace;
+	public String getNamespace() {
+		return namespace;
 	}
 	
 	public String getProdTag() {
@@ -128,7 +128,7 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
 				imageStreamName = st.nextToken();
 				tagName = st.nextToken();
 				
-				ImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, nameSpace);
+				ImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
 				ModelNode isNode = isImpl.getNode();
 				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isNode " + isNode.asString());
 				
@@ -146,8 +146,8 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
 	        	// do the REST / HTTP PUT call
 	        	URL url = null;
 	        	try {
-	        		if (chatty) listener.getLogger().println("\nOpenShiftImageTagger PUT URI " + "/oapi/v1/namespaces/"+nameSpace+"/imagestreams/" + imageStreamName);
-	    			url = new URL(apiURL + "/oapi/v1/namespaces/"+ nameSpace+"/imagestreams/" + imageStreamName);
+	        		if (chatty) listener.getLogger().println("\nOpenShiftImageTagger PUT URI " + "/oapi/v1/namespaces/"+namespace+"/imagestreams/" + imageStreamName);
+	    			url = new URL(apiURL + "/oapi/v1/namespaces/"+ namespace+"/imagestreams/" + imageStreamName);
 	    		} catch (MalformedURLException e1) {
 	    			e1.printStackTrace(listener.getLogger());
 	    			return false;
@@ -249,10 +249,10 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckNameSpace(@QueryParameter String value)
+        public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set nameSpace");
+                return FormValidation.error("Please set namespace");
             return FormValidation.ok();
         }
 

@@ -16,7 +16,7 @@
   <f:entry title="The name of the DeploymentConfig to trigger" field="depCfg">
     <f:textbox default="frontend" />
   </f:entry>
-  <f:entry title="The name of the project the DeploymentConfig is stored in" field="nameSpace">
+  <f:entry title="The name of the project the DeploymentConfig is stored in" field="namespace">
     <f:textbox default="test" />
   </f:entry>
   <f:entry title="The number of replicas the deployment is scaled to" field="replicaCount">

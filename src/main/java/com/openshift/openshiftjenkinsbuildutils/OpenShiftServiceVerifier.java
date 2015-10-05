@@ -76,17 +76,17 @@ public class OpenShiftServiceVerifier extends Builder implements ISSLCertificate
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String svcName = "frontend";
-    private String nameSpace = "test";
+    private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftServiceVerifier(String apiURL, String svcName, String nameSpace, String authToken, String verbose) {
+    public OpenShiftServiceVerifier(String apiURL, String svcName, String namespace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.svcName = svcName;
-        this.nameSpace = nameSpace;
+        this.namespace = namespace;
         this.authToken = authToken;
         this.verbose = verbose;
     }
@@ -102,8 +102,8 @@ public class OpenShiftServiceVerifier extends Builder implements ISSLCertificate
 		return svcName;
 	}
 
-	public String getNameSpace() {
-		return nameSpace;
+	public String getNamespace() {
+		return namespace;
 	}
 	
 	public String getAuthToken() {
@@ -131,7 +131,7 @@ public class OpenShiftServiceVerifier extends Builder implements ISSLCertificate
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
         	// get Service
-        	IService svc = client.get(ResourceKind.SERVICE, svcName, nameSpace);
+        	IService svc = client.get(ResourceKind.SERVICE, svcName, namespace);
         	String ip = svc.getPortalIP();
         	int port = svc.getPort();
         	String spec = "http://" + ip + ":" + port;
@@ -231,10 +231,10 @@ public class OpenShiftServiceVerifier extends Builder implements ISSLCertificate
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckNameSpace(@QueryParameter String value)
+        public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set nameSpace");
+                return FormValidation.error("Please set namespace");
             return FormValidation.ok();
         }
 

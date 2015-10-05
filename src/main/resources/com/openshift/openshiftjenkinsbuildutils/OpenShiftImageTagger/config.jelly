@@ -19,7 +19,7 @@
   <f:entry title="The name of the new image tag" field="prodTag">
     <f:textbox default="origin-nodejs-sample:prod" />
   </f:entry>
-  <f:entry title="The name of the project the image is stored in" field="nameSpace">
+  <f:entry title="The name of the project the image is stored in" field="namespace">
     <f:textbox default="test" />
   </f:entry>
   <f:entry title="The authorization token for interacting with OpenShift" field="authToken">

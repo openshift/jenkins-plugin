@@ -53,17 +53,17 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String bldCfg = "frontend";
-    private String nameSpace = "test";
+    private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String nameSpace, String authToken, String verbose) {
+    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.bldCfg = bldCfg;
-        this.nameSpace = nameSpace;
+        this.namespace = namespace;
         this.authToken = authToken;
         this.verbose = verbose;
     }
@@ -79,8 +79,8 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
 		return bldCfg;
 	}
 
-	public String getNameSpace() {
-		return nameSpace;
+	public String getNamespace() {
+		return namespace;
 	}
 	
 	public String getAuthToken() {
@@ -111,7 +111,7 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
 			String bldState = null;
 			long currTime = System.currentTimeMillis();
 			while (System.currentTimeMillis() < (currTime + 60000)) {
-				List<IBuild> blds = client.list(ResourceKind.BUILD, nameSpace);
+				List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
 				Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
 				List<String> ourKeys = new ArrayList<String>();
 				for (IBuild bld : blds) {
@@ -164,8 +164,8 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
 		this.bldCfg = bldCfg;
 	}
 
-	public void setNameSpace(String nameSpace) {
-		this.nameSpace = nameSpace;
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
 	}
 
 	public void setAuthToken(String authToken) {
@@ -229,10 +229,10 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckNameSpace(@QueryParameter String value)
+        public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set nameSpace");
+                return FormValidation.error("Please set namespace");
             return FormValidation.ok();
         }
         
