@@ -143,13 +143,19 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         				latestVersion = 0;
         			
         			// oc deploy gets the rc after the dc prior to putting the dc;
-        			// we'll do the same, even though we don't need it later on
+        			// we'll do the same ... currently, if a rc exists at the right level,
+        			// the deployment is cancelled by oc; we won't fail the build step, just 
+        			// print the info message; no rc result in exception with openshift-restclient-java api
+        			// but will still check for null in try block in case that changes
     				try {
     					IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
     					if (chatty)
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
+    					if (rc != null) {
+    						listener.getLogger().println("\n\nBUILD STEP EXIT:  " + rc.getName() + " is already in progress.");
+    						return true;
+    					}
     				} catch (Throwable t) {
-    					
     				}
     				
     				// now lets update the latest version of the dc
