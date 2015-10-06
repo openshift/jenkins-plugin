@@ -5,15 +5,20 @@ The set includes these Jenkins "build steps", selectable from the `Add build ste
 
 1) "Perform builds in OpenShift": performs the equivalent of an `oc start-build` command invocation, where the build logs are echoed to the Jenkins plugin in real time; in addition to confirming whether the build succeeded or not, the plugin will look to see if a deployment config specifying a non-zero replica count existed, and if so, confirm whether the deployment occurred
 
-2) "Scale deployments in OpenShift":  performs the equivalent of an `oc scale` command invocation; the number of replicas is specified as a parameter to this build step, and the plugin will confirm whether the desired number of replicas was launched in a timely manner
+2) "Scale deployments in OpenShift":  performs the equivalent of an `oc scale` command invocation; the number of desired replicas is specified as a parameter to this build step, and the plugin will confirm whether the desired number of replicas was launched in a timely manner; if no integer is provided, it will assume 0 replica pods are desired
 
-3) "Start a deployment in OpenShift":  performs the equivalent of an `oc deploy` command invocation; the plugin will confirm whether the desired number of replicas was launched in a timely manner
+3) "Trigger a deployment in OpenShift":  performs the equivalent of an `oc deploy` command invocation; the plugin will confirm whether the desired number of replicas was launched in a timely manner
 
 4) "Verify a service is up in OpenShift": finds the ip and port for the specified OpenShift service, and attempts to make a HTTP connection to that ip/port combination to confirm the service is up
 
 5) "Tag an image in OpenShift": performs the equivalent of an `oc tag` command invocation in order to manipulate tags for images in OpenShift ImageStream's
 
-6) "Verify deployments in OpenShift":  determines whether the expected set of DeploymentConfig's, ReplicationController's, and active replicas are present based on prior use of the scaler (2) and deployer (3) steps
+6) "Verify deployments in OpenShift":  determines whether the expected set of DeploymentConfig's, ReplicationController's, and active replicas are present based on prior use of the scaler (2) and deployer (3) steps; its activities specifically include:
+
+   - it first confirms the specified deployment config exists
+   - it then gets the list of all replication controllers for that DC, and finds the latest incarnation
+   - and then for up to 3 minutes, it sees if the current replica count is at least equal to the desired replica count.
+
 
 7) "Get latest OpenShift build status":  performs the equivalent of an 'oc get builds` command invocation for the provided buildConfig key provided; once the list of builds are obtained, the state of the latest build is inspected for up to a minute to see if it has completed successfully; this build step is intended to allow for monitoring of builds either generated internally or externally from the Jenkins Job configuration housing the build step
 

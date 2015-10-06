@@ -1,5 +1,6 @@
 <div>
-  The value here should be
-  whatever the number of pods you want started for the deployment specified in "depCfg".  It 
-  is the equivalent of the value supplied to `--replicas` with an `oc scale` command invocation.
+  The value here should be the number of started pods desired for the deployment specified. It is the 
+  equivalent of the value supplied to --replicas with an `oc scale` command invocation. This is a required parameter. 
+  If an integer is not specified here, this build step can not be added to the job. 
+  Note: specifying a 0 is allowed, and means you do not want any pods for the specified deployment config running.
 </div>

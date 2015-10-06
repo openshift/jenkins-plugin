@@ -137,49 +137,58 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         					
         				}
         			}
+
+        			// let's mimic what oc deploy --latest does when starting from scratch with no rc's yet
+        			if (latestVersion == -1)
+        				latestVersion = 0;
         			
         			// oc deploy gets the rc after the dc prior to putting the dc;
-        			// we'll do the same
-        			if (latestVersion != -1) {
-        				IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
-        				
-        				// now lets update the latest version of the dc
-        				dcLatestVersion.set(latestVersion + 1);
-        				
-        				// and now lets PUT the updated dc
-        				URL url = null;
-    					try {
-							url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/deploymentconfigs/" + depCfg);
-						} catch (MalformedURLException e) {
-							e.printStackTrace(listener.getLogger());
-							return false;
-						}
-    		    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-    		    				null, "application/json", null, this, null, null);
-    		    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
-    		    		String response = null;
-    		    		try {
-    		    			response = urlClient.put(url, 10 * 1000, dcImpl);
-    		    			listener.getLogger().println("\n\nOpenShiftDeployer REST PUT response " + response);
-    		    			deployDone = true;
-    		    		} catch (SocketTimeoutException e1) {
-    		    			if (chatty) e1.printStackTrace(listener.getLogger());
-    		    		} catch (HttpClientException e1) {
-    		    			if (chatty) e1.printStackTrace(listener.getLogger());
-    		    		}
+        			// we'll do the same, even though we don't need it later on
+    				try {
+    					IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+    					if (chatty)
+    						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
+    				} catch (Throwable t) {
     					
-    					if (deployDone) {
-    						break;
-    					} else {
-    						if (chatty)
-    	        				listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc scale again");
-    						try {
-    							Thread.sleep(10000);
-    						} catch (InterruptedException e) {
-    						}
-    					}
+    				}
+    				
+    				// now lets update the latest version of the dc
+    				dcLatestVersion.set(latestVersion + 1);
+    				
+    				// and now lets PUT the updated dc
+    				URL url = null;
+					try {
+						url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/deploymentconfigs/" + depCfg);
+					} catch (MalformedURLException e) {
+						e.printStackTrace(listener.getLogger());
+						return false;
+					}
+		    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+		    				null, "application/json", null, this, null, null);
+		    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+		    		String response = null;
+		    		try {
+		    			response = urlClient.put(url, 10 * 1000, dcImpl);
+		    			listener.getLogger().println("\n\nOpenShiftDeployer REST PUT response " + response);
+		    			deployDone = true;
+		    		} catch (SocketTimeoutException e1) {
+		    			if (chatty) e1.printStackTrace(listener.getLogger());
+		    		} catch (HttpClientException e1) {
+		    			if (chatty) e1.printStackTrace(listener.getLogger());
+		    		}
+					
+					if (deployDone) {
+						break;
+					} else {
+						if (chatty)
+	        				listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc scale again");
+						try {
+							Thread.sleep(10000);
+						} catch (InterruptedException e) {
+						}
+					}
         				
-        			}
+        			
         		}
         	}
         	
@@ -271,7 +280,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Start a deployment in OpenShift";
+            return "Trigger a deployment in OpenShift";
         }
 
         @Override
