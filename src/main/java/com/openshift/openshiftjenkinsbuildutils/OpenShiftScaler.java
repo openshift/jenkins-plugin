@@ -16,6 +16,7 @@ import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
+import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
@@ -122,31 +123,34 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
         	
         	String depId = null;
-        	IReplicationController rc = null;
+        	ReplicationController rc = null;
+        	int latestVersion = -1;
         	// find corresponding rep ctrl and scale it to the right value
         	long currTime = System.currentTimeMillis();
         	// in testing with the jenkins-ci sample, the initial deploy after
         	// a build is kinda slow ... gotta wait more than one minute
         	while (System.currentTimeMillis() < (currTime + 180000)) {
             	// get ReplicationController ref
-            	Map<String, IReplicationController> rcs = Deployment.getDeployments(client, namespace, listener);
-				// could be more than 1 generation of RC for the deployment;  want to get the lastest one
-				List<String> keysThatMatch = new ArrayList<String>();
-            	
-            	for (String key : rcs.keySet()) {
-            		if (key.startsWith(depCfg)) {
-            			keysThatMatch.add(key);
-            			if (chatty) listener.getLogger().println("\nOpenShiftScaler key into oc scale is " + key);            			
-            		}
-            	}
-            	if (keysThatMatch.size() > 0) {
-                	Collections.sort(keysThatMatch);
-            		depId = keysThatMatch.get(keysThatMatch.size() - 1);
-            	}
-            	
-            	// if they want to scale down to 0 and there is not rc to begin with, just punt / consider a no-op
-            	if (depId != null || replicaCount.equals("0")) {
-            		rc = rcs.get(depId);
+        		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+        		
+        		if (dc == null) {
+        			if (chatty) listener.getLogger().println("\nOpenShiftScaler dc is null");
+        		} else {
+    				try {
+    					latestVersion = Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+    				} catch (Throwable t) {
+    					latestVersion = 0;
+    				}
+    				depId = depCfg + "-" + latestVersion;
+    				try {
+    					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
+    				} catch (Throwable t) {
+    					
+    				}
+        		}
+        		
+            	// if they want to scale down to 0 and there is no rc to begin with, just punt / consider a no-op
+            	if (rc != null || replicaCount.equals("0")) {
             		if (chatty) listener.getLogger().println("\nOpenShiftScaler rc to use " + rc);
             		break;
             	} else {
@@ -158,7 +162,7 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
             	}
         	}
         	
-        	if (depId == null) {
+        	if (rc == null) {
         		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler did not find any replication controllers for " + depCfg);
         		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
         		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.

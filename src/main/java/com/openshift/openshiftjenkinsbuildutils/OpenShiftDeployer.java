@@ -17,6 +17,7 @@ import org.kohsuke.stapler.QueryParameter;
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
 import com.openshift.internal.restclient.model.DeploymentConfig;
+import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
@@ -119,23 +120,13 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
         	boolean deployDone = false;
         	while (System.currentTimeMillis() < (currTime + 60000)) {
         		DeploymentConfig dcImpl = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-				int latestVersion = -1;
+				int latestVersion =  -1;
         		if (dcImpl != null) {
-        			ModelNode dcNode = dcImpl.getNode();
-        			if (chatty)
-        				listener.getLogger().println("\nOpenShiftDeployer dc json " + dcNode.asString());
-        			ModelNode dcStatus = dcNode.get("status");
-        			if (chatty)
-        				listener.getLogger().println("\nOpenShiftDeployer status json " + dcStatus.asString());
-        			ModelNode dcLatestVersion = dcStatus.get("latestVersion");
-        			if (chatty)
-        				listener.getLogger().println("\nOpenShiftDeployer version json " + dcStatus.asString());
-        			if (dcLatestVersion != null) {
-        				try {
-        					latestVersion = dcLatestVersion.asInt();
-        				} catch (Throwable t) {
-        					
-        				}
+        			ModelNode dcLatestVersion = Deployment.getDeploymentConfigLatestVersion(dcImpl, chatty ? listener : null);
+        			try {
+        				latestVersion = dcLatestVersion.asInt();
+        			} catch (Throwable t) {
+        				
         			}
 
         			// let's mimic what oc deploy --latest does when starting from scratch with no rc's yet
@@ -152,8 +143,12 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
     					if (chatty)
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
     					if (rc != null) {
-    						listener.getLogger().println("\n\nBUILD STEP EXIT:  " + rc.getName() + " is already in progress.");
-    						return true;
+    						ReplicationController rcImpl = (ReplicationController)rc;
+    						String state = Deployment.getReplicationControllerState(rcImpl, chatty ? listener : null);
+    						if (!state.equals("Complete") && !state.equals("Failed")) {
+    							listener.getLogger().println("\n\nBUILD STEP EXIT:  " + rc.getName() + " is in progress.");
+    							return true;
+    						}
     					}
     				} catch (Throwable t) {
     				}
@@ -175,7 +170,8 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
 		    		String response = null;
 		    		try {
 		    			response = urlClient.put(url, 10 * 1000, dcImpl);
-		    			listener.getLogger().println("\n\nOpenShiftDeployer REST PUT response " + response);
+		    			if (chatty)
+		    				listener.getLogger().println("\n\nOpenShiftDeployer REST PUT response " + response);
 		    			deployDone = true;
 		    		} catch (SocketTimeoutException e1) {
 		    			if (chatty) e1.printStackTrace(listener.getLogger());

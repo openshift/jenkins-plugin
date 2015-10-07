@@ -16,6 +16,8 @@ import org.kohsuke.stapler.QueryParameter;
 import com.openshift.internal.restclient.OpenShiftAPIVersion;
 import com.openshift.internal.restclient.URLBuilder;
 import com.openshift.internal.restclient.http.HttpClientException;
+import com.openshift.internal.restclient.model.DeploymentConfig;
+import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ISSLCertificateCallback;
@@ -168,73 +170,71 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
         	// if the deployment config for this app specifies a desired replica count of 
         	// of greater than zero, let's also confirm the deployment occurs;
         	// first, get the deployment config
-        	Map<String,IDeploymentConfig> dcs = Deployment.getDeploymentConfigs(client, namespace, listener);
+    		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+    		
+    		if (dc == null) {
+    			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerification no valid deployment config found for " + depCfg);
+    			return false;
+    		}
+    		
         	boolean dcWithReplicas = false;
-        	boolean haveDep = false;
         	boolean scaledAppropriately = false;
-        	for (String key : dcs.keySet()) {
-        		if (key.equals(depCfg)) {
-					haveDep = true;
-        			IDeploymentConfig dc = dcs.get(key);
         			
-        			// if replicaCount not set, get it from config
-        			if (count == -1)
-        				count = dc.getReplicas();
-        			
-        			if (count > 0) {
-        				dcWithReplicas = true;
-        				
-        				if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
-        				
-        				// confirm the deployment has kicked in from completed build;
-        	        	// in testing with the jenkins-ci sample, the initial deploy after
-        	        	// a build is kinda slow ... gotta wait more than one minute
-        				long currTime = System.currentTimeMillis();
-        				IReplicationController rc = null;
-        				while (System.currentTimeMillis() < (currTime + 180000)) {
-        					Map<String, IReplicationController> rcs = Deployment.getDeployments(client, namespace, listener);
-        					// could be more than 1 generation of RC for the deployment;  want to get the lastest one
-        					List<String> keysThatMatch = new ArrayList<String>();
-        					for (String rckey : rcs.keySet()) {
-        						if (rckey.startsWith(depCfg)) {
-        							keysThatMatch.add(rckey);
-        							if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier found rc " + rckey + ":  " + rcs.get(rckey));        							
-        						}
-        					}
-        					
-        					if (keysThatMatch.size() > 0) {
-            					Collections.sort(keysThatMatch);
-            					rc = rcs.get(keysThatMatch.get(keysThatMatch.size() - 1));
-            					
-            					if (rc != null) {
-            						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount());
-        			        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount()) {
-        			        			scaledAppropriately = true;
-        			        			break;
-        			        		}
-        							
-            					}
-        					}
-        					        					
-        					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier don't have rc at right replica count, wait a second, check again, keys = " + keysThatMatch + " rc = " + rc);
-        					
-			        		try {
-								Thread.sleep(1000);
-							} catch (InterruptedException e) {
-							}
+			// if replicaCount not set, get it from config
+			if (count == -1)
+				count = dc.getReplicas();
+			
+			if (count > 0) {
+				dcWithReplicas = true;
+				
+				if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
+				
+				// confirm the deployment has kicked in from completed build;
+	        	// in testing with the jenkins-ci sample, the initial deploy after
+	        	// a build is kinda slow ... gotta wait more than one minute
+				long currTime = System.currentTimeMillis();
+				while (System.currentTimeMillis() < (currTime + 180000)) {
+					int latestVersion = -1;
+					try {
+						latestVersion = Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+					} catch (Throwable t) {
+						latestVersion = 0;
+					}
+					ReplicationController rc = null;
+					try {
+						rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+					} catch (Throwable t) {
+						
+					}
+    					
+					if (rc != null) {
+						String state = Deployment.getReplicationControllerState(rc, chatty ? listener : null);
+						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount() + " current state " + state);
+		        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount() && state.equalsIgnoreCase("Complete")) {
+		        			scaledAppropriately = true;
+		        			break;
+		        		}
+		        		if (state.equalsIgnoreCase("Failed")) {
+		        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
+		        			return false;
+		        		}
+						
+					}
+										        										
+	        		try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+					}
 
-        				}
-        			} else {
-            			//TODO we could check if 0 cfg reps are in fact 0, but I believe
-            			// there is currently not a given that we'll scale down quickly
-    					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier dc has zero replicas, moving on");
-        			}
+				}
+			} else {
+    			//TODO we could check if 0 cfg reps are in fact 0, but I believe
+    			// there is currently not a given that we'll scale down quickly
+				if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier dc has zero replicas, moving on");
+			}
         			
-        		}
         		
-        		if (haveDep)
-        			break;
-        	}
+        		
         	
         	
         	if (dcWithReplicas && scaledAppropriately ) {
@@ -344,7 +344,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Verify deployments in OpenShift";
+            return "Check Deployment Success in OpenShift";
         }
 
         @Override
