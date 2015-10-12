@@ -105,14 +105,14 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeployer in perform for " + depCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener, chatty);
+    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
     	    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
+        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
         	
         	
         	// do the oc deploy ... may need to retry
@@ -166,7 +166,7 @@ public class OpenShiftDeployer extends Builder implements ISSLCertificateCallbac
 					}
 		    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
 		    				null, "application/json", null, this, null, null);
-		    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+		    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
 		    		String response = null;
 		    		try {
 		    			response = urlClient.put(url, 10 * 1000, dcImpl);

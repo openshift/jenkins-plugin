@@ -110,14 +110,14 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform");
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener, chatty);
+    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
     	    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
+        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
         	
         	//tag image
 			boolean tagDone = false;
@@ -154,7 +154,7 @@ public class OpenShiftImageTagger extends Builder implements ISSLCertificateCall
 	    		}
 	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
 	    				null, "application/json", null, this, null, null);
-	    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+	    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
 	    		String response = null;
 	    		try {
 	    			response = urlClient.put(url, 10 * 1000, isImpl);

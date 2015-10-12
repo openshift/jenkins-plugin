@@ -152,14 +152,14 @@ public class OpenShiftDeploymentVerifier extends Builder implements ISSLCertific
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener, chatty);
+    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
+        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
         	
         	// explicitly set replica count, save that
         	int count = -1;

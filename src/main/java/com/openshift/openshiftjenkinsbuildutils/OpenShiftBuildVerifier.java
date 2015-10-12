@@ -98,7 +98,7 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg);
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener, chatty);
+    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
     	
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
@@ -106,7 +106,7 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
+        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
         	
 			String bldState = null;
 			long currTime = System.currentTimeMillis();

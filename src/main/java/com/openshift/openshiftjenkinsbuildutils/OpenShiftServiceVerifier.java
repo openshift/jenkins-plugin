@@ -121,14 +121,14 @@ public class OpenShiftServiceVerifier extends Builder implements ISSLCertificate
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftServiceVerifier in perform");
     	
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener, chatty);
+    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
     	    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, this);
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
+        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
         	
         	// get Service
         	IService svc = client.get(ResourceKind.SERVICE, svcName, namespace);

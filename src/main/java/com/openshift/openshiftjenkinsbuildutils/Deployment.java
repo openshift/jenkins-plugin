@@ -37,6 +37,7 @@ public class Deployment {
 	}
 	
 	public static String getReplicationControllerState(ReplicationController rcImpl, BuildListener listener) {
+		// see github.com/openshift/origin/pkg/deploy/api/types.go, values are New, Pending, Running, Complete, or Failed
 		String state = "";
 		if (rcImpl != null) {
 			ModelNode node = rcImpl.getNode();
@@ -51,4 +52,17 @@ public class Deployment {
 		}
 		return state;
 	}
+	
+	public static void updateReplicationControllerAnnotiation(ReplicationController rcImpl, BuildListener listener, String annotation, String value) {
+		if (rcImpl != null) {
+			ModelNode node = rcImpl.getNode();
+			if (listener != null) listener.getLogger().println("\n rc json " + node.asString());
+			ModelNode metadata = node.get("metadata");
+			if (listener != null) listener.getLogger().println("\n meta json " + metadata.asString());
+			ModelNode annotations = metadata.get("annotations");
+			if (listener != null) listener.getLogger().println("\n annotations json " + annotations.asString());
+			annotations.get(annotation).set(value);
+		}
+	}
+	
 }

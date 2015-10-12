@@ -14,6 +14,13 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 //import java.util.List;
 
+
+
+
+import java.util.Map;
+
+import hudson.EnvVars;
+import hudson.model.AbstractBuild;
 import hudson.model.TaskListener;
 
 //import org.apache.cxf.configuration.security.AuthorizationPolicy;
@@ -46,8 +53,10 @@ public class Auth {
 		return useCert;
 	}
 
-	public static String deriveAuth(String at, TaskListener listener, boolean verbose) {
+	public static String deriveAuth(AbstractBuild<?, ?> build, String at, TaskListener listener, boolean verbose) {
 		String authToken = at;
+		// order of precedence is auth token set at the build step, then when set as a parameter to the build;
+		// then as a global setting
 		
 		if (verbose)
 			listener.getLogger().println("\n\n");
@@ -60,6 +69,36 @@ public class Auth {
     			listener.getLogger().println("Auth authToken len " + authToken.length());
     	}
     	if (authToken == null || authToken.length() == 0) {
+    		if (build != null) {
+    			// params from within the job definition, lowest level 
+    			Map<String,String> vars = build.getBuildVariables();
+    			authToken = vars.get("AUTH_TOKEN");
+    			if (authToken != null && authToken.length() > 0) {
+    				if (verbose) 
+    					listener.getLogger().println("Auth token from build vars " + authToken);
+    				return authToken;
+    			}
+    			
+    			// global properties under manage jenkins
+        		EnvVars env = null;
+        		try {
+    				env = build.getEnvironment(listener);
+    				authToken = env.get("AUTH_TOKEN");
+    				if (authToken != null && authToken.length() > 0) {
+    					if (verbose) 
+    						listener.getLogger().println("Auth token from global env vars " + authToken);
+    					return authToken;
+    				}
+    			} catch (IOException e1) {
+    				if (verbose)
+    					e1.printStackTrace(listener.getLogger());
+    			} catch (InterruptedException e1) {
+    				if (verbose)
+    					e1.printStackTrace(listener.getLogger());
+    			}
+    		}
+    		
+    		
     		File f = new File(AUTH_FILE);
     		if (verbose)
     			listener.getLogger().println("Auth opened file object " + f);

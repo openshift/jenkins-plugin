@@ -160,7 +160,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg);
 		
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener, chatty);
+    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
     	
     	String bldId = null;
     	boolean follow = Boolean.parseBoolean(showBuildLogs);
@@ -172,7 +172,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(this.authToken));
+        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
         	
 			long startTime = System.currentTimeMillis();
 			boolean skipBC = buildName != null && buildName.length() > 0;
@@ -308,7 +308,7 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             						}
             						UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
             								null, "application/json", null, this, null, null);
-            						urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+            						urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
             						String response = null;
             						try {
             							response = urlClient.get(url, 2 * 60 * 1000);

@@ -122,8 +122,8 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
 				null, "application/json", null, this, null, null);
     	// obtain auth token from defined spot in OpenShift Jenkins image
-    	authToken = Auth.deriveAuth(authToken, listener, Boolean.parseBoolean(verbose));
-		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(authToken));
+    	String at = Auth.deriveAuth(null, authToken, listener, Boolean.parseBoolean(verbose));
+		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
 		String response = null;
 		try {
 			response = urlClient.get(url, 2 * 60 * 1000);

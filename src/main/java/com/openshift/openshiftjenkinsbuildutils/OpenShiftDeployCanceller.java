@@ -23,6 +23,8 @@ import org.kohsuke.stapler.QueryParameter;
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
 import com.openshift.internal.restclient.model.Build;
+import com.openshift.internal.restclient.model.DeploymentConfig;
+import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.internal.restclient.model.build.BuildRequest;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
@@ -60,7 +62,7 @@ import java.util.logging.Logger;
  * <p>
  * When the user configures the project and enables this builder,
  * {@link DescriptorImpl#newInstance(StaplerRequest)} is invoked
- * and a new {@link OpenShiftBuildCanceller} is created. The created
+ * and a new {@link OpenShiftDeployCanceller} is created. The created
  * instance is persisted to the project configuration XML by using
  * XStream, so this allows you to use instance fields (like {@link #name})
  * to remember the configuration.
@@ -71,23 +73,23 @@ import java.util.logging.Logger;
  *
  * @author Gabe Montero
  */
-public class OpenShiftBuildCanceller extends Recorder implements ISSLCertificateCallback {
+public class OpenShiftDeployCanceller extends Recorder implements ISSLCertificateCallback {
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
-    private String bldCfg ="frontend";
+    private String depCfg ="frontend";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuildCanceller(String apiURL, String namespace, String authToken, String verbose, String buildConfig) {
+    public OpenShiftDeployCanceller(String apiURL, String namespace, String authToken, String verbose, String deployConfig) {
         this.apiURL = apiURL;
         this.namespace = namespace;
         this.authToken = authToken;
         this.verbose = verbose;
-        this.bldCfg = buildConfig;
+        this.depCfg = deployConfig;
     }
 
     /**
@@ -126,12 +128,12 @@ public class OpenShiftBuildCanceller extends Recorder implements ISSLCertificate
 	}
 
 
-	public String getBldCfg() {
-		return bldCfg;
+	public String getDepCfg() {
+		return depCfg;
 	}
 
-	public void setBldCfg(String buildConfig) {
-		this.bldCfg = buildConfig;
+	public void setDepCfg(String deployConfig) {
+		this.depCfg = deployConfig;
 	}
 
 	// Overridden for better type safety.
@@ -164,10 +166,10 @@ public class OpenShiftBuildCanceller extends Recorder implements ISSLCertificate
 		// at this time, we'll scan the builds either way to clean up rogue builds
 		if (result.isWorseThan(Result.SUCCESS)) {
 			if (chatty)
-				listener.getLogger().println("\nOpenShiftBuildCanceller build did not succeed");
+				listener.getLogger().println("\nOpenShiftDeployCanceller build did not succeed");
 		} else {
 			if (chatty)
-				listener.getLogger().println("\nOpenShiftBuildCanceller build succeeded");			
+				listener.getLogger().println("\nOpenShiftDeployCanceller build succeeded");			
 		}
 
 		String at = Auth.deriveAuth(build, authToken, listener, chatty);
@@ -179,90 +181,87 @@ public class OpenShiftBuildCanceller extends Recorder implements ISSLCertificate
     		// seed the auth
         	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
 			
-			// create stream and copy bytes
-	    	URL url = null;
-	    	try {
-				url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds");
-			} catch (MalformedURLException e1) {
-				e1.printStackTrace(listener.getLogger());
-				return false;
-			}
-			UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-					null, "application/json", null, this, null, null);
-			urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
-			String response = null;
-			try {
-				response = urlClient.get(url, 2 * 60 * 1000);
-				ModelNode responseJson = ModelNode.fromJSONString(response);
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftBuildCanceller response " + responseJson.asString());
-				ModelNode list = responseJson.get("items");
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftBuildCanceller list " + list.asString());
-				int i=0;
-				while (list.has(i)) {
-					ModelNode buildNode = list.get(i);
-					if (chatty) 
-						listener.getLogger().println("\nOpenShiftBuildCanceller build node " + buildNode.asString());
-					ModelNode statusNode = buildNode.get("status");
-					ModelNode phase = statusNode.get("phase");
-					String phaseStr = phase.asString();
-					
-					// if build active, let's cancel it
-					if (!phaseStr.equalsIgnoreCase("Complete") && !phaseStr.equalsIgnoreCase("Failed") && !phaseStr.equalsIgnoreCase("Cancelled")) {
-						ModelNode metadata = buildNode.get("metadata");
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuildCanceller metadata " + metadata.asString());
-						ModelNode name = metadata.get("name");
-						String buildName = name.asString();
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuildCanceller name " + buildName);
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuildCanceller found active build " + buildName);
-						
-						// reget - optimistic update, need IResource
-						Build bld = client.get(ResourceKind.BUILD, buildName, namespace);
-						ModelNode bldJson = bld.getNode();
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuildCanceller bld state:  " + bldJson.asString());
-						ModelNode status = bldJson.get("status");
-						if (chatty) 
-							listener.getLogger().println("\nOpenShiftBuildCanceller status pre " + status.asString());
-						status.get("cancelled").set(true);
-						if (chatty) 
-							listener.getLogger().println("\nOpenShiftBuildCanceller status post " + status.asString());
-				    	
-				    	try {
-							url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds/" + buildName);
-						} catch (MalformedURLException e1) {
-							e1.printStackTrace(listener.getLogger());
-							return false;
-						}
-						urlClient = new UrlConnectionHttpClient(
-								null, "application/json", null, this, null, null);
-						urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
-						try {
-							response = urlClient.put(url, 2 * 60 * 1000, bld);
-							if (chatty)
-								listener.getLogger().println("\nOpenShiftBuildCanceller response " + response);
-						} catch (SocketTimeoutException e1) {
-							e1.printStackTrace(listener.getLogger());
-							return false;
-						} catch (HttpClientException e1) {
-							e1.printStackTrace(listener.getLogger());
-							return false;
-						}
-						
-					}
-					i++;
+    		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+    		
+    		if (dc == null) {
+    			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentCanceller no valid deployment config found for " + depCfg);
+    			return false;
+    		}
+
+			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentCanceller checking if deployment out there for " + depCfg);
+			
+			// confirm the deployment has kicked in from completed build;
+        	// in testing with the jenkins-ci sample, the initial deploy after
+        	// a build is kinda slow ... gotta wait more than one minute
+			long currTime = System.currentTimeMillis();
+			while (System.currentTimeMillis() < (currTime + 180000)) {
+				int latestVersion = -1;
+				try {
+					latestVersion = Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+				} catch (Throwable t) {
+					latestVersion = 0;
 				}
-			} catch (SocketTimeoutException e1) {
-				e1.printStackTrace(listener.getLogger());
-				return false;
-			} catch (HttpClientException e1) {
-				e1.printStackTrace(listener.getLogger());
-				return false;
+				ReplicationController rc = null;
+				try {
+					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+				} catch (Throwable t) {
+					
+				}
+					
+				if (rc != null) {
+					String state = Deployment.getReplicationControllerState(rc, chatty ? listener : null);
+	        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete")) {
+	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment " + rc.getName() + " done");
+	        			return false;
+	        		}
+	        		
+	        		Deployment.updateReplicationControllerAnnotiation(rc, listener, "openshift.io/deployment.cancelled", "true");
+	        		Deployment.updateReplicationControllerAnnotiation(rc, listener, "openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
+					
+	        		
+	        		// create stream and do put
+	    	    	URL url = null;
+	    	    	try {
+	    				url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/replicationcontrollers/" + depCfg + "-" + latestVersion);
+	    			} catch (MalformedURLException e1) {
+	    				if (chatty) e1.printStackTrace(listener.getLogger());
+	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller error constructing URL");
+	    				return false;
+	    			}
+	    			UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+	    					null, "application/json", null, this, null, null);
+	    			urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+	    			String response = null;
+	    			try {
+	    				response = urlClient.put(url, 2 * 60 * 1000, rc);
+	    				if (chatty)
+	    					listener.getLogger().println("\nOpenShiftDeployCanceller response " + response);
+	    			} catch (SocketTimeoutException e1) {
+	    				if (chatty) e1.printStackTrace(listener.getLogger());
+	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment error connecting to HTTP resource");
+	    				return false;
+	    			} catch (HttpClientException e1) {
+	    				if (chatty) e1.printStackTrace(listener.getLogger());
+	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment error from HTTP request");
+	    				return false;
+	    			}
+	    			// if optimistic update conflict, retry
+					if (response != null && response.contains("Conflict")) {
+		        		try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+						}
+					} else {
+	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment unexpected result from replication controller update:  " + response);
+						return false;
+					}
+				} else {
+        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller could not get resource controller with key:  " + depCfg + "-" + latestVersion);
+					return false;
+				}					
+
 			}
+    		
     	}			
 		return true;
 	}
@@ -270,7 +269,7 @@ public class OpenShiftBuildCanceller extends Recorder implements ISSLCertificate
 
 
 	/**
-     * Descriptor for {@link OpenShiftBuildCanceller}. Used as a singleton.
+     * Descriptor for {@link OpenShiftDeployCanceller}. Used as a singleton.
      * The class is marked as public so that it can be accessed from views.
      *
      */
@@ -311,10 +310,10 @@ public class OpenShiftBuildCanceller extends Recorder implements ISSLCertificate
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckBldCfg(@QueryParameter String value)
+        public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set bldCfg");
+                return FormValidation.error("Please set depCfg");
             return FormValidation.ok();
         }
 
@@ -334,7 +333,7 @@ public class OpenShiftBuildCanceller extends Recorder implements ISSLCertificate
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Cancel builds in OpenShift";
+            return "Cancel deployments in OpenShift";
         }
 
         @Override
