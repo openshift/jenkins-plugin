@@ -26,6 +26,8 @@ The set includes these Jenkins "build steps", selectable from the `Add build ste
 
 9) "Check Deployment Success":  a verification step geared specifically to the "Trigger a deployment in OpenShift" (3) step; it differs from the more generic "Verify deployments in OpenShift" (6) in that it confirms that the latest associated image is running before claiming success
 
+10) "Create resource(s) in OpenShift":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are defined
+
 For each required parameter, a default value is provided.  Optional parameters can be left blank.  And each parameter field has help text available via clicking the help icon located just right of the parameter input field.
 
 For each of the build step or post build step plugins, the bearer authentication token can be provided by the user via the following:
@@ -34,5 +36,7 @@ For each of the build step or post build step plugins, the bearer authentication
 	- if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
 
 Otherwise, the plugin will assume you are running off of the OpenShift Jenkins Docker image (http://github.com/openshift/jenkins), and will read in the token from a well known location in the image that allows authorized access to the OpenShift master associated with the running OpenShift Jenkins image.
+
+The CA cert is currently pulled from a well known location in the OpenShift Jenkins Docker image.
 
 For "Monitor OpenShift ImageStreams", only specifying the token in the plugin configuration or leveraging the token embedded in the OpenShift Jenkins image is supported.
