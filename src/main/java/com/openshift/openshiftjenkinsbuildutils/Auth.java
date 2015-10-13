@@ -1,59 +1,100 @@
 package com.openshift.openshiftjenkinsbuildutils;
 
-//import io.fabric8.kubernetes.api.ExceptionResponseMapper;
-//import io.fabric8.kubernetes.api.KubernetesFactory;
-//import io.fabric8.utils.cxf.AuthorizationHeaderFilter;
-//import io.fabric8.utils.cxf.WebClients;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
-//import java.net.URI;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-//import java.util.List;
 
 
 
 
 import java.util.Map;
 
+import javax.net.ssl.SSLSession;
+
+import org.apache.commons.codec.binary.Base64InputStream;
+
+import com.openshift.restclient.ISSLCertificateCallback;
+
 import hudson.EnvVars;
 import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
 import hudson.model.TaskListener;
 
-//import org.apache.cxf.configuration.security.AuthorizationPolicy;
-//import org.apache.cxf.jaxrs.client.WebClient;
-//import org.apache.cxf.message.Message;
-//import org.apache.cxf.transport.http.HTTPConduit;
-//import org.apache.cxf.transport.http.auth.HttpAuthSupplier;
-//import org.csanchez.jenkins.plugins.kubernetes.BearerTokenCredential;
-//import org.csanchez.jenkins.plugins.kubernetes.BearerTokenCredentialImpl;
-//
-//import com.cloudbees.plugins.credentials.CredentialsScope;
-//import com.fasterxml.jackson.databind.ObjectMapper;
-//import com.fasterxml.jackson.jaxrs.cfg.Annotations;
-//import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
-public class Auth {
+public class Auth implements ISSLCertificateCallback {
 	private static final String AUTH_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 	private static final String CERT_FILE = "/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 	public static final String CERT_ARG = " --certificate-authority=/run/secrets/kubernetes.io/serviceaccount/ca.crt ";
 	private static boolean useCert = false;
 	
-	static {
-		File f = new File(CERT_FILE);
-		if (f.exists()) {
-			useCert = true;
-		}
+	private X509Certificate cert = null;
+	private BuildListener listener = null;
+	private Auth(X509Certificate cert, BuildListener listener) {
+		this.cert = cert;
+		this.listener = listener;
 	}
 	
+	public static Auth createInstance(BuildListener listener) {
+		Auth auth = null;
+		File f = new File(CERT_FILE);
+		if (f.exists()) {
+			if (listener != null)
+				listener.getLogger().println("Auth - cert file exists");
+			useCert = true;
+			try {
+				auth = new Auth(createCert(f), listener);
+			} catch (Exception e) {
+				if (listener != null)
+					e.printStackTrace(listener.getLogger());
+			}
+		} else {
+			auth = new Auth(null, null);
+		}
+		return auth;
+	}
+	
+	@Override
+	public boolean allowCertificate(final X509Certificate[] certificateChain) {
+		if (this.listener != null) {
+			listener.getLogger().println("Auth - allowCertificate with incoming chain of len  " + certificateChain.length);
+		}
+		// means we are a skip tls equivalent run
+		if (this.cert == null)
+			return true;
+
+		//mimic SSLCertificateCallback implementation from jbosstools-openshift repo
+		for (X509Certificate c : certificateChain) {
+			if (this.cert.equals(c)) {
+				if (this.listener != null)
+					this.listener.getLogger().println("Auth - allowCertificate returning true");
+				return true;
+			}
+		}
+		if (this.listener.getLogger() != null)
+			this.listener.getLogger().println("Auth - allowCertificate returning false");
+		return false;
+	}
+	
+
+	@Override
+	public boolean allowHostname(String hostname, SSLSession sslSession) {
+		//mimic SSLCertificateCallback implementation from jbosstools-openshift repo - we can noop
+		//also lines up with what was observed in k8s jennkins plugin
+		return true;
+	}
 	public static boolean useCert() {
 		return useCert;
 	}
 
-	public static String deriveAuth(AbstractBuild<?, ?> build, String at, TaskListener listener, boolean verbose) {
+	public static String deriveBearerToken(AbstractBuild<?, ?> build, String at, TaskListener listener, boolean verbose) {
 		String authToken = at;
 		// order of precedence is auth token set at the build step, then when set as a parameter to the build;
 		// then as a global setting
@@ -199,49 +240,21 @@ public class Auth {
 		return caCert;
 	}
 	
-//	public static WebClient getAuthorizedClient(String svcAddr, String at, String ca, TaskListener listener, boolean verbose) {
-//		listener.getLogger().println("GGMGGM use cert " + useCert);
-//		String authToken = deriveAuth(at, listener, verbose);
-//		String caCertData = deriveCA(ca, listener, verbose);
-//        List<Object> providers = createProviders();
-//        AuthorizationHeaderFilter authorizationHeaderFilter = new AuthorizationHeaderFilter();
-//        providers.add(authorizationHeaderFilter);
-//		WebClient webClient = WebClient.create(svcAddr, providers);
-//		
-//		if (authToken != null) {
-//			final BearerTokenCredentialImpl credentials = new BearerTokenCredentialImpl(CredentialsScope.USER, null, null, authToken);
-//            final HTTPConduit conduit = WebClient.getConfig(webClient).getHttpConduit();
-//            conduit.setAuthSupplier(new HttpAuthSupplier() {
-//                @Override
-//                public boolean requiresRequestCaching() {
-//                    return false;
-//                }
-//
-//                @Override
-//                public String getAuthorization(AuthorizationPolicy authorizationPolicy, URI uri, Message message, String s) {
-//                    return "Bearer " + ((BearerTokenCredential) credentials).getToken();
-//                }
-//            });
-//		}
-//		
-////        if (skipTlsVerify) {
-////            WebClients.disableSslChecks(webClient);
-////        }
-//
-//        if (caCertData != null) {
-//            WebClients.configureCaCert(webClient, caCertData, null);
-//        }
-//        
-//		return webClient;
-//	}
-//    private static List<Object> createProviders() {
-//        List<Object> providers = new ArrayList<Object>();
-//        Annotations[] annotationsToUse = JacksonJaxbJsonProvider.DEFAULT_ANNOTATIONS;
-//        ObjectMapper objectMapper = KubernetesFactory.createObjectMapper();
-//        providers.add(new JacksonJaxbJsonProvider(objectMapper, annotationsToUse));
-//        providers.add(new KubernetesFactory.PlainTextJacksonProvider(objectMapper, annotationsToUse));
-//        providers.add(new ExceptionResponseMapper());
-//        //providers.add(new JacksonIntOrStringConfig(objectMapper));
-//        return providers;
-//    }
+    private static InputStream getInputStreamFromDataOrFile(String data, File file) throws FileNotFoundException {
+        if (data != null) {
+            return new Base64InputStream(new ByteArrayInputStream(data.getBytes()));
+        }
+        if (file != null) {
+            return new FileInputStream(file);
+        }
+        return null;
+    }
+
+    private static X509Certificate createCert(File caCertFile) throws Exception {
+    	InputStream pemInputStream = getInputStreamFromDataOrFile(null, caCertFile);
+		CertificateFactory certFactory = CertificateFactory.getInstance("X509");
+		X509Certificate cert = (X509Certificate) certFactory.generateCertificate(pemInputStream);
+		return cert;        
+    }
+	
 }

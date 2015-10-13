@@ -1,10 +1,8 @@
 package com.openshift.openshiftjenkinsbuildutils;
-import hudson.EnvVars;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
 import hudson.model.AbstractBuild;
-import hudson.model.Action;
 import hudson.model.BuildListener;
 import hudson.model.Result;
 import hudson.model.AbstractProject;
@@ -15,46 +13,25 @@ import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
 import net.sf.json.JSONObject;
 
-import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.model.Build;
 import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.model.ReplicationController;
-import com.openshift.internal.restclient.model.build.BuildRequest;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
-import com.openshift.restclient.ISSLCertificateCallback;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-import com.openshift.restclient.capability.CapabilityVisitor;
-import com.openshift.restclient.capability.ICapability;
-import com.openshift.restclient.capability.resources.IBuildTriggerable;
-import com.openshift.restclient.capability.resources.IPodLogRetrieval;
-import com.openshift.restclient.model.IBuild;
-import com.openshift.restclient.model.IBuildConfig;
-import com.openshift.restclient.model.IPod;
-import com.openshift.restclient.model.build.IBuildRequest;
 
-import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.security.cert.X509Certificate;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
 
 /**
  * OpenShift {@link Builder}.
@@ -73,7 +50,7 @@ import java.util.logging.Logger;
  *
  * @author Gabe Montero
  */
-public class OpenShiftDeployCanceller extends Recorder implements ISSLCertificateCallback {
+public class OpenShiftDeployCanceller extends Recorder {
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String namespace = "test";
@@ -172,14 +149,15 @@ public class OpenShiftDeployCanceller extends Recorder implements ISSLCertificat
 				listener.getLogger().println("\nOpenShiftDeployCanceller build succeeded");			
 		}
 
-		String at = Auth.deriveAuth(build, authToken, listener, chatty);
+    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+    	Auth auth = Auth.createInstance(chatty ? listener : null);
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, this);
+    	IClient client = new ClientFactory().create(apiURL, auth);
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+        	client.setAuthorizationStrategy(bearerToken);
 			
     		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
     		
@@ -229,8 +207,8 @@ public class OpenShiftDeployCanceller extends Recorder implements ISSLCertificat
 	    				return false;
 	    			}
 	    			UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-	    					null, "application/json", null, this, null, null);
-	    			urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+	    					null, "application/json", null, auth, null, null);
+	    			urlClient.setAuthorizationStrategy(bearerToken);
 	    			String response = null;
 	    			try {
 	    				response = urlClient.put(url, 2 * 60 * 1000, rc);
@@ -346,15 +324,6 @@ public class OpenShiftDeployCanceller extends Recorder implements ISSLCertificat
 
     }
 
-	@Override
-	public boolean allowCertificate(X509Certificate[] chain) {
-		return true;
-	}
-
-	@Override
-	public boolean allowHostname(String hostname, SSLSession session) {
-		return true;
-	}
 
 }
 

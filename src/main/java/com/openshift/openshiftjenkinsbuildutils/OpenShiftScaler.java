@@ -20,26 +20,16 @@ import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
-import com.openshift.restclient.ISSLCertificateCallback;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.ICapability;
-import com.openshift.restclient.model.IReplicationController;
 
-import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 /**
  * OpenShift {@link Builder}.
@@ -58,7 +48,7 @@ import java.util.Map;
  *
  * @author Gabe Montero
  */
-public class OpenShiftScaler extends Builder implements ISSLCertificateCallback {
+public class OpenShiftScaler extends Builder {
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String depCfg = "frontend";
@@ -112,15 +102,15 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftScaler in perform for " + depCfg + " wanting to get to replica count " + replicaCount);
     	
-    	// obtain auth token from defined spot in OpenShift Jenkins image
-    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
+    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+    	Auth auth = Auth.createInstance(chatty ? listener : null);
     	    	
     	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, this);
+    	IClient client = new ClientFactory().create(apiURL, auth);
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+        	client.setAuthorizationStrategy(bearerToken);
         	
         	String depId = null;
         	ReplicationController rc = null;
@@ -198,8 +188,8 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
 	    			return false;
 	    		}
 	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-	    				null, "application/json", null, this, null, null);
-	    		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+	    				null, "application/json", null, auth, null, null);
+	    		urlClient.setAuthorizationStrategy(bearerToken);
 	    		String response = null;
 	    		try {
 	    			response = urlClient.put(url, 10 * 1000, rcImpl);
@@ -335,14 +325,5 @@ public class OpenShiftScaler extends Builder implements ISSLCertificateCallback 
 
     }
 
-	@Override
-	public boolean allowCertificate(X509Certificate[] chain) {
-		return true;
-	}
-
-	@Override
-	public boolean allowHostname(String hostname, SSLSession session) {
-		return true;
-	}
 }
 

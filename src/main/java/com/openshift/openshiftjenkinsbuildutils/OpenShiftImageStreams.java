@@ -5,15 +5,15 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.security.cert.X509Certificate;
 import java.util.List;
 
-import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 //import javax.ws.rs.core.Response;
 
+
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
+
 
 //import org.apache.cxf.jaxrs.client.WebClient;
 import org.jboss.dmr.ModelNode;
@@ -23,7 +23,6 @@ import org.kohsuke.stapler.StaplerRequest;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.restclient.ISSLCertificateCallback;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import hudson.Extension;
@@ -40,7 +39,7 @@ import hudson.scm.SCMRevisionState;
 import hudson.scm.SCM;
 import hudson.util.FormValidation;
 
-public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallback {
+public class OpenShiftImageStreams extends SCM {
 
 	private String imageStreamName = "nodejs-010-centos7";
 	private String tag = "latest";
@@ -119,11 +118,11 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
 			e1.printStackTrace(listener.getLogger());
 			return null;
 		}
+    	Auth auth = Auth.createInstance(null);
+    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty));
 		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-				null, "application/json", null, this, null, null);
-    	// obtain auth token from defined spot in OpenShift Jenkins image
-    	String at = Auth.deriveAuth(null, authToken, listener, Boolean.parseBoolean(verbose));
-		urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+				null, "application/json", null, auth, null, null);
+		urlClient.setAuthorizationStrategy(bearerToken);
 		String response = null;
 		try {
 			response = urlClient.get(url, 2 * 60 * 1000);
@@ -326,14 +325,5 @@ public class OpenShiftImageStreams extends SCM implements ISSLCertificateCallbac
     }
 
 
-	@Override
-	public boolean allowCertificate(X509Certificate[] chain) {
-		return true;
-	}
-
-	@Override
-	public boolean allowHostname(String hostname, SSLSession session) {
-		return true;
-	}
 
 }

@@ -15,17 +15,14 @@ import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
-import com.openshift.restclient.ISSLCertificateCallback;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.ICapability;
 import com.openshift.restclient.model.IBuild;
 
-import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,7 +46,7 @@ import java.util.Map;
  *
  * @author Gabe Montero
  */
-public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCallback {
+public class OpenShiftBuildVerifier extends Builder {
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String bldCfg = "frontend";
@@ -97,16 +94,16 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg);
     	
-    	// obtain auth token from defined spot in OpenShift Jenkins image
-    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
+    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+    	Auth auth = Auth.createInstance(chatty ? listener : null);
     	
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, this);
+    	IClient client = new ClientFactory().create(apiURL, auth);
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+        	client.setAuthorizationStrategy(bearerToken);
         	
 			String bldState = null;
 			long currTime = System.currentTimeMillis();
@@ -258,14 +255,5 @@ public class OpenShiftBuildVerifier extends Builder implements ISSLCertificateCa
 
     }
 
-	@Override
-	public boolean allowCertificate(X509Certificate[] chain) {
-		return true;
-	}
-
-	@Override
-	public boolean allowHostname(String hostname, SSLSession session) {
-		return true;
-	}
 }
 

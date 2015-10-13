@@ -19,30 +19,21 @@ import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
 import com.openshift.internal.restclient.model.build.BuildRequest;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
-import com.openshift.restclient.ISSLCertificateCallback;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-import com.openshift.restclient.capability.CapabilityVisitor;
 import com.openshift.restclient.capability.ICapability;
-import com.openshift.restclient.capability.resources.IBuildTriggerable;
-import com.openshift.restclient.capability.resources.IPodLogRetrieval;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IPod;
 import com.openshift.restclient.model.build.IBuildRequest;
 
-import javax.net.ssl.SSLSession;
 import javax.servlet.ServletException;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.security.cert.X509Certificate;
 import java.util.List;
-import java.util.logging.Logger;
 
 /**
  * OpenShift {@link Builder}.
@@ -61,7 +52,7 @@ import java.util.logging.Logger;
  *
  * @author Gabe Montero
  */
-public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback {
+public class OpenShiftBuilder extends Builder {
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String bldCfg = "frontend";
@@ -159,8 +150,8 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg);
 		
-    	// obtain auth token from defined spot in OpenShift Jenkins image
-    	String at = Auth.deriveAuth(build, authToken, listener, chatty);
+    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+    	Auth auth = Auth.createInstance(chatty ? listener : null);
     	
     	String bldId = null;
     	boolean follow = Boolean.parseBoolean(showBuildLogs);
@@ -168,11 +159,11 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
     		listener.getLogger().println("\nOpenShiftBuilder logger follow " + follow);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, this);
+    	IClient client = new ClientFactory().create(apiURL, auth);
     	
     	if (client != null) {
     		// seed the auth
-        	client.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+        	client.setAuthorizationStrategy(bearerToken);
         	
 			long startTime = System.currentTimeMillis();
 			boolean skipBC = buildName != null && buildName.length() > 0;
@@ -307,8 +298,8 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
             							return false;
             						}
             						UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-            								null, "application/json", null, this, null, null);
-            						urlClient.setAuthorizationStrategy(new TokenAuthorizationStrategy(at));
+            								null, "application/json", null, auth, null, null);
+            						urlClient.setAuthorizationStrategy(bearerToken);
             						String response = null;
             						try {
             							response = urlClient.get(url, 2 * 60 * 1000);
@@ -491,14 +482,5 @@ public class OpenShiftBuilder extends Builder implements ISSLCertificateCallback
 
     }
 
-	@Override
-	public boolean allowCertificate(X509Certificate[] chain) {
-		return true;
-	}
-
-	@Override
-	public boolean allowHostname(String hostname, SSLSession session) {
-		return true;
-	}
 }
 
