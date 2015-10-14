@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
@@ -91,23 +92,13 @@ public class OpenShiftCreator extends Builder {
     public String getJsonyaml() {
     	return jsonyaml;
     }
-
-	@Override
-    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
-		boolean chatty = Boolean.parseBoolean(verbose);
-    	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform");
-    	
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
-    	    	
-    	// do the REST / HTTP PUT call
-		boolean done = false;
-    	URL url = null;
-    	ModelNode resources = ModelNode.fromJSONString(jsonyaml);
+    
+    private boolean makeRESTCall(boolean chatty, BuildListener listener, String path, Auth auth, UrlConnectionHttpClient urlClient, ModelNode resource) {
+		String response = null;
+		URL url = null;
     	try {
-    		if (chatty) listener.getLogger().println("\nOpenShiftCreator PUT URI " + "/oapi/v1/namespaces/"+namespace+"/templates");
-			url = new URL(apiURL + "/oapi/v1/namespaces/"+ namespace+"/templates");
+    		if (chatty) listener.getLogger().println("\nOpenShiftCreator PUT URI " + "/oapi/v1/namespaces/"+namespace+"/"+path+"s");
+			url = new URL(apiURL + "/oapi/v1/namespaces/" + namespace + "/" + path + "s");
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 			return false;
@@ -118,18 +109,10 @@ public class OpenShiftCreator extends Builder {
     		listener.getLogger().println("\n\n OpenShiftCreator BUILD STEP EXIT:  could not create client");
     		return false;
     	}
-    	KubernetesResource kr = new KubernetesResource(resources, client, null);
-    	
-    	listener.getLogger().println("\n\n GGM kube resource before put " + kr.toString());
-    	
-		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-				null, "application/json", null, auth, null, null);
-		urlClient.setAuthorizationStrategy(bearerToken);
-		String response = null;
 		try {
+	    	KubernetesResource kr = new KubernetesResource(resource, client, null);
 			response = urlClient.post(url, 10 * 1000, kr);
 			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST PUT response " + response);
-			done = true;
 		} catch (SocketTimeoutException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
     		listener.getLogger().println("\n\n OpenShiftCreator BUILD STEP EXIT:  socket timeout");
@@ -139,9 +122,44 @@ public class OpenShiftCreator extends Builder {
     		listener.getLogger().println("\n\n OpenShiftCreator BUILD STEP EXIT:  HTTP client exception");
 			return false;
 		}
-
-		listener.getLogger().println("\n\n OpenShiftCreator BUILD STEP EXIT:  resource(s) created");
+		
 		return true;
+    }
+
+	@Override
+    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
+    	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform");
+    	
+    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+    	Auth auth = Auth.createInstance(chatty ? listener : null);
+    	    	
+    	ModelNode resources = ModelNode.fromJSONString(jsonyaml);
+    	    	
+    	//cycle through json and POST to appropriate resource
+    	String kind = resources.get("kind").asString();
+		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+				null, "application/json", null, auth, null, null);
+		urlClient.setAuthorizationStrategy(bearerToken);
+		
+    	boolean success = false;
+    	if (kind.equalsIgnoreCase("List")) {
+    		List<ModelNode> list = resources.get("items").asList();
+    		for (ModelNode node : list) {
+    			String path = node.get("kind").asString().toLowerCase();
+    			success = this.makeRESTCall(chatty, listener, path, auth, urlClient, node);
+    			if (!success)
+    				break;
+    		}
+    	} else {
+    		String path = kind.toLowerCase();
+    		success = this.makeRESTCall(chatty, listener, path, auth, urlClient, resources);
+    	}
+
+    	if (success)
+    		listener.getLogger().println("\n\n OpenShiftCreator BUILD STEP EXIT:  resources(s) created");
+		return success;
 	}
 
     // Overridden for better type safety.
