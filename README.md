@@ -1,7 +1,7 @@
 # openshift-jenkins-buildutils
 As set of Jenkins plugins that operate on OpenShift.
 
-The set includes these Jenkins "build steps", selectable from the `Add build step` pull down available on any project's configure page:
+Included are Jenkins "build steps", which you can select from the `Add build step` pull down available on any project's configure page:
 
 1) "Perform builds in OpenShift": performs the equivalent of an `oc start-build` command invocation, where the build logs are echoed to the Jenkins plugin in real time; in addition to confirming whether the build succeeded or not, the plugin will look to see if a deployment config specifying a non-zero replica count existed, and if so, confirm whether the deployment occurred
 
@@ -22,13 +22,21 @@ The set includes these Jenkins "build steps", selectable from the `Add build ste
 
 7) "Get latest OpenShift build status":  performs the equivalent of an 'oc get builds` command invocation for the provided buildConfig key provided; once the list of builds are obtained, the state of the latest build is inspected for up to a minute to see if it has completed successfully; this build step is intended to allow for monitoring of builds either generated internally or externally from the Jenkins Job configuration housing the build step
 
-8) "Monitor OpenShift ImageStreams": rather than a Build step extension plugin, this is an extension of the Jenkis SCM plugin, where this baked-in polling mechanism provided by Jenkins is leveraged by exposing some of the common semantics between OpenShift ImageStreams (which are abstractions of Docker repositories) and SCMs - versions / commit IDs of related artifacts (images vs. programmatics files); when the specific tags configured changes (as reflected by updated commit IDs) are reported to Jenkins through the SCM plugin contract, Jenkins will initiate a build for the Job configuration in question. Note, there are no extractions of source code to workspaces provided by Jenkins to the SCMs.  It is expected that the build steps in the associated job configuration will initiate any OpenShift related activities that were dependent on the ImageStream resource being monitored.
-
 9) "Check Deployment Success":  a verification step geared specifically to the "Trigger a deployment in OpenShift" (3) step; it differs from the more generic "Verify deployments in OpenShift" (6) in that it confirms that the latest associated image is running before claiming success
 
-10) "Create resource(s) in OpenShift":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are defined
+10) "Create resource(s) in OpenShift":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are specified
 
-For each required parameter, a default value is provided.  Optional parameters can be left blank.  And each parameter field has help text available via clicking the help icon located just right of the parameter input field.
+We also provide a new SCM type to take advantage of Jenkins' built in background polling and version management capabilities (another example of broadening the scope of what is considered "source"):
+
+1) "Monitor OpenShift ImageStreams": the aforementioned baked-in polling mechanism provided by Jenkins is leveraged, exposing the common semantics between OpenShift ImageStreams (which are abstractions of Docker repositories) and SCMs; image IDs are maintained and treated like commit IDs for the requisite artifacts (images under the ImageStream instead of programmatic source files); when the image IDs for specific tags provided change (as reflected by updated "commit IDs" reported to Jenkins through the SCM plugin contract), Jenkins will initiate a build for the Job configuration in question; note, there are no "extractions" of any sort which leverage the workspaces provided by Jenkins to the SCMs.  It is expected that the build steps in the associated job configuration will initiate any OpenShift related activities that were dependent on the ImageStream resource being monitored.
+
+And then we provide a few "post-build actions", which you can select from the `Add post-build action` pull down available on any project's configure page:
+
+1) "Cancel builds in OpenShift":  this action is intended to provide cleanup for a Jenkins job which failed because a build is hung (instead of terminating with a failure code); this step will allow you to perform the equivalent of a `oc cancel-build` for the provided BuildConfig; any builds under that BuildConfig which are not previously terminated (either successfully or unsuccessfully) or cancelled will be cancelled 
+
+2) "Cancel deployments in OpenShift": this action is intended to provide cleanup for any OpenShift deployments left running when the Job completes;  this step will allow you to perform the equivalent of a `oc deploy --cancel` for the provided DeploymentConfig
+
+For all of these, with each required parameter, a default value is provided where it makes sense.  Optional parameters can be left blank.  And each parameter field has help text available via clicking the help icon located just right of the parameter input field.
 
 For each of the build step or post build step plugins, the bearer authentication token can be provided by the user via the following:
 	- the field for the token in the specific build step
