@@ -9,6 +9,7 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
+import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
@@ -24,6 +25,8 @@ import com.openshift.restclient.capability.ICapability;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.StringTokenizer;
 
 /**
  * OpenShift {@link Builder}.
@@ -113,7 +116,7 @@ public class OpenShiftDeploymentVerifier extends Builder {
 	public String getAuthToken() {
 		return authToken;
 	}
-
+	
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
     	boolean chatty = Boolean.parseBoolean(verbose);
@@ -173,21 +176,25 @@ public class OpenShiftDeploymentVerifier extends Builder {
 					try {
 						rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
 					} catch (Throwable t) {
-						
+						if (chatty)
+							t.printStackTrace(listener.getLogger());
 					}
     					
 					if (rc != null) {
 						String state = Deployment.getReplicationControllerState(rc, chatty ? listener : null);
-						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount() + " current state " + state);
-		        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount() && state.equalsIgnoreCase("Complete")) {
-		        			scaledAppropriately = true;
-		        			break;
-		        		}
+						// first check state
 		        		if (state.equalsIgnoreCase("Failed")) {
 		        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
 		        			return false;
 		        		}
+						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount() + " current state " + state);
 						
+						// then check replica count
+		        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount() && state.equalsIgnoreCase("Complete")) {
+		        			scaledAppropriately = true;
+		        			break;
+		        		}
+		        		
 					}
 										        										
 	        		try {
@@ -197,17 +204,13 @@ public class OpenShiftDeploymentVerifier extends Builder {
 
 				}
 			} else {
-    			//TODO we could check if 0 cfg reps are in fact 0, but I believe
-    			// there is currently not a given that we'll scale down quickly
+    			//TODO should we check if 0 cfg reps are in fact 0, 
 				if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier dc has zero replicas, moving on");
 			}
         			
         		
-        		
-        	
-        	
         	if (dcWithReplicas && scaledAppropriately ) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled with appropriate number of replicas");
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled with appropriate number of replicas and any necessary image changes");
         		return true;
         	}
         	
@@ -223,7 +226,7 @@ public class OpenShiftDeploymentVerifier extends Builder {
     		return false;
     	}
 
-    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier exit unsuccessfully, appropriate number of replicas not reached");
+    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier exit unsuccessfully, unexpected conditions occurred");
     	return false;
     }
 

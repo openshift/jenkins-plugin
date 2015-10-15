@@ -378,8 +378,13 @@ public class OpenShiftBuilder extends Builder {
     					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
     					return false;
     				} else {
-    					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully");
-    					return true;
+    					if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace)) {
+    						listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully");
+    						return true;
+    					} else {
+    						listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuildVerifier not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
+    						return false;
+    					}
     				}
     				
     			}
