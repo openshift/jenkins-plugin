@@ -13,7 +13,7 @@ Included are Jenkins "build steps", which you can select from the `Add build ste
 
 5) "Tag an image in OpenShift": performs the equivalent of an `oc tag` command invocation in order to manipulate tags for images in OpenShift ImageStream's
 
-6) "Verify deployments in OpenShift":  determines whether the expected set of DeploymentConfig's, ReplicationController's, and active replicas are present based on prior use of either the "Scale deployments in OpenShift" (2) or "Trigger a deployment in OpenShift" (3) steps; its activities specifically include:
+6) "Check deployment success in OpenShift":  determines whether the expected set of DeploymentConfig's, ReplicationController's, and active replicas are present based on prior use of either the "Scale deployments in OpenShift" (2) or "Trigger a deployment in OpenShift" (3) steps; its activities specifically include:
 
    - it first confirms the specified deployment config exists
    - it then gets the list of all replication controllers for that DC, and finds the latest incarnation
@@ -22,9 +22,7 @@ Included are Jenkins "build steps", which you can select from the `Add build ste
 
 7) "Get latest OpenShift build status":  performs the equivalent of an 'oc get builds` command invocation for the provided buildConfig key provided; once the list of builds are obtained, the state of the latest build is inspected for up to a minute to see if it has completed successfully; this build step is intended to allow for monitoring of builds either generated internally or externally from the Jenkins Job configuration housing the build step
 
-9) "Check Deployment Success":  a verification step geared specifically to the "Trigger a deployment in OpenShift" (3) step; it differs from the more generic "Verify deployments in OpenShift" (6) in that it confirms that the latest associated image is running before claiming success
-
-10) "Create resource(s) in OpenShift":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are specified
+8) "Create resource(s) in OpenShift":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are specified
 
 We also provide a new SCM type to take advantage of Jenkins' built in background polling and version management capabilities (another example of broadening the scope of what is considered "source"):
 
