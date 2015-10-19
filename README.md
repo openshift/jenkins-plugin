@@ -35,7 +35,7 @@ An implementation of Jenkins SCM extension point is also provided that takes adv
 
 1. "Monitor OpenShift ImageStreams": the aforementioned baked-in polling mechanism provided by Jenkins is leveraged, exposing the common semantics between OpenShift ImageStreams (which are abstractions of Docker repositories) and SCMs; image IDs are maintained and treated like commit IDs for the requisite artifacts (images under the ImageStream instead of programmatic source files); when the image IDs for specific tags provided change (as reflected by updated "commit IDs" reported to Jenkins through the SCM plugin contract), Jenkins will initiate a build for the Job configuration in question; note, there are no "extractions" of any sort which leverage the workspaces provided by Jenkins to the SCMs.  It is expected that the build steps in the associated job configuration will initiate any OpenShift related activities that were dependent on the ImageStream resource being monitored.
 
-## Jenkins "post-build actions" for OpenShift
+## Jenkins "post-build actions"
 
 A few Jenkins "post-build action" implementations are also provided, which you can select from the `Add post-build action` pull down available on any project's configure page:
 
@@ -49,12 +49,19 @@ Each of the Jenkins "build steps" can also be used as steps in a Jenkins Workflo
 
 As a point of reference, here are the Java classes for each of the Jenkins "build steps":
 1.  "Perform builds in OpenShift":  com.openshift.openshiftjenkinsbuildutils.OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs)
+
 2.  "Scale deployments in OpenShift":  com.openshift.openshiftjenkinsbuildutils.OpenShiftScaler(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose)
+
 3.  "Trigger a deployment in OpenShift":  com.openshift.openshiftjenkinsbuildutils.OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose)
+
 4.  "Verify a service is up in OpenShift":  com.openshift.openshiftjenkinsbuildutils.OpenShiftServiceVerifier(String apiURL, String svcName, String namespace, String authToken, String verbose)
+
 5.  "Tag an image in OpenShift":  com.openshift.openshiftjenkinsbuildutils.OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose)
+
 6.  "Check deployment success in OpenShift":  com.openshift.openshiftjenkinsbuildutils.OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose)
+
 7.  "Get latest OpenShift build status":  com.openshift.openshiftjenkinsbuildutils.OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose)
+
 8.  "Create resource(s) in OpenShift":  com.openshift.openshiftjenkinsbuildutils.OpenShiftCreator(String apiURL, String namespace, String authToken, String verbose, String jsonyaml)
 
 ## Common aspects across the REST based functions
