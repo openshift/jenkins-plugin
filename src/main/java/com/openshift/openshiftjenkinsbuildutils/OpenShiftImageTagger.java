@@ -1,10 +1,13 @@
 package com.openshift.openshiftjenkinsbuildutils;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
+import hudson.model.Run;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
@@ -26,10 +29,13 @@ import com.openshift.restclient.capability.ICapability;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.StringTokenizer;
+
+import jenkins.tasks.SimpleBuildStep;
 
 /**
  * OpenShift {@link Builder}.
@@ -48,7 +54,7 @@ import java.util.StringTokenizer;
  *
  * @author Gabe Montero
  */
-public class OpenShiftImageTagger extends Builder {
+public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Serializable {
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String testTag = "origin-nodejs-sample:latest";
@@ -95,9 +101,8 @@ public class OpenShiftImageTagger extends Builder {
     public String getVerbose() {
 		return verbose;
 	}
-
-	@Override
-    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+    
+    protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform");
@@ -176,6 +181,17 @@ public class OpenShiftImageTagger extends Builder {
     	else 
 			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not apply tags, review logging above to help determine the problem");
     	return false;
+    }
+
+	@Override
+	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
+			TaskListener listener) throws InterruptedException, IOException {
+		coreLogic(null, launcher, listener);
+	}
+
+	@Override
+    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		return coreLogic(build, launcher, listener);
     }
 
     // Overridden for better type safety.

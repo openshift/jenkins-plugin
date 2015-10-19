@@ -1,11 +1,14 @@
 package com.openshift.openshiftjenkinsbuildutils;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Result;
+import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
+import hudson.model.Run;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
@@ -29,9 +32,12 @@ import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+
+import jenkins.tasks.SimpleBuildStep;
 
 /**
  * OpenShift {@link Builder}.
@@ -50,9 +56,9 @@ import java.net.URL;
  *
  * @author Gabe Montero
  */
-public class OpenShiftBuildCanceller extends Recorder {
+public class OpenShiftBuildCanceller extends Recorder implements SimpleBuildStep, Serializable {
 	
-    private String apiURL = "https://openshift.default.svc.cluster.local";
+	private String apiURL = "https://openshift.default.svc.cluster.local";
     private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
@@ -133,9 +139,7 @@ public class OpenShiftBuildCanceller extends Recorder {
 		return true;
 	}
 
-	@Override
-	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher,
-			BuildListener listener) throws InterruptedException, IOException {
+	protected boolean coreLogic(AbstractBuild<?, ?> build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		Result result = build.getResult();
 		
@@ -245,6 +249,18 @@ public class OpenShiftBuildCanceller extends Recorder {
 			}
     	}			
 		return true;
+	}
+	
+	@Override
+	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
+			TaskListener listener) throws InterruptedException, IOException {
+		coreLogic(null, launcher, listener);
+	}
+
+	@Override
+	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher,
+			BuildListener listener) throws InterruptedException, IOException {
+		return coreLogic(build, launcher, listener);
 	}
 
 

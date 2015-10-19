@@ -36,13 +36,13 @@ public class Auth implements ISSLCertificateCallback {
 	private static boolean useCert = false;
 	
 	private X509Certificate cert = null;
-	private BuildListener listener = null;
-	private Auth(X509Certificate cert, BuildListener listener) {
+	private TaskListener listener = null;
+	private Auth(X509Certificate cert, TaskListener listener) {
 		this.cert = cert;
 		this.listener = listener;
 	}
 	
-	public static Auth createInstance(BuildListener listener) {
+	public static Auth createInstance(TaskListener listener) {
 		Auth auth = null;
 		File f = new File(CERT_FILE);
 		if (f.exists()) {

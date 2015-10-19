@@ -3,5 +3,5 @@
   This view is used to render the installed plugins page.
 -->
 <div>
-  This plugin enables Jenkins to interface with OpenShift.
+  This plugin enables Jenkins to interface with OpenShift V3.
 </div>

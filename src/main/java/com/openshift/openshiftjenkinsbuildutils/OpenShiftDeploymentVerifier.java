@@ -1,10 +1,13 @@
 package com.openshift.openshiftjenkinsbuildutils;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
+import hudson.model.Run;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
@@ -25,8 +28,11 @@ import com.openshift.restclient.capability.ICapability;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 import java.util.StringTokenizer;
+
+import jenkins.tasks.SimpleBuildStep;
 
 /**
  * OpenShift {@link Builder}.
@@ -45,7 +51,7 @@ import java.util.StringTokenizer;
  *
  * @author Gabe Montero
  */
-public class OpenShiftDeploymentVerifier extends Builder {
+public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildStep, Serializable {
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String depCfg = "frontend";
@@ -117,8 +123,7 @@ public class OpenShiftDeploymentVerifier extends Builder {
 		return authToken;
 	}
 	
-    @Override
-    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+	protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
     	boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount);
@@ -228,6 +233,17 @@ public class OpenShiftDeploymentVerifier extends Builder {
 
     	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier exit unsuccessfully, unexpected conditions occurred");
     	return false;
+	}
+	
+    @Override
+	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
+			TaskListener listener) throws InterruptedException, IOException {
+    	coreLogic(null, launcher, listener);
+	}
+
+	@Override
+    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		return coreLogic(build, launcher, listener);
     }
 
     // Overridden for better type safety.

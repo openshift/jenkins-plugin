@@ -1,10 +1,13 @@
 package com.openshift.openshiftjenkinsbuildutils;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
+import hudson.model.Run;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
@@ -30,10 +33,13 @@ import com.openshift.restclient.model.build.IBuildRequest;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.List;
+
+import jenkins.tasks.SimpleBuildStep;
 
 /**
  * OpenShift {@link Builder}.
@@ -52,7 +58,7 @@ import java.util.List;
  *
  * @author Gabe Montero
  */
-public class OpenShiftBuilder extends Builder {
+public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serializable {
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String bldCfg = "frontend";
@@ -143,9 +149,8 @@ public class OpenShiftBuilder extends Builder {
 	public void setShowBuildLogs(String showBuildLogs) {
 		this.showBuildLogs = showBuildLogs;
 	}
-
-	@Override
-    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+	
+	protected boolean coreBuildLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg);
@@ -399,6 +404,17 @@ public class OpenShiftBuilder extends Builder {
     		return false;
     	}
 
+	}
+
+	@Override
+	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
+			TaskListener listener) throws InterruptedException, IOException {
+		coreBuildLogic(null, launcher, listener);
+	}
+
+	@Override
+    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		return coreBuildLogic(build, launcher, listener);
     }
 
 	// Overridden for better type safety.

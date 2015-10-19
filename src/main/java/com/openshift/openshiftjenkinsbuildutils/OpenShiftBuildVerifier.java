@@ -1,10 +1,13 @@
 package com.openshift.openshiftjenkinsbuildutils;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
+import hudson.model.Run;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
@@ -23,11 +26,14 @@ import com.openshift.restclient.model.IBuild;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import jenkins.tasks.SimpleBuildStep;
 
 /**
  * OpenShift {@link Builder}.
@@ -46,7 +52,7 @@ import java.util.Map;
  *
  * @author Gabe Montero
  */
-public class OpenShiftBuildVerifier extends Builder {
+public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, Serializable {
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String bldCfg = "frontend";
@@ -87,9 +93,8 @@ public class OpenShiftBuildVerifier extends Builder {
     public String getVerbose() {
 		return verbose;
 	}
-
-	@Override
-    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+    
+    protected boolean coreLogic(AbstractBuild build, Launcher launcer, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg);
@@ -155,7 +160,18 @@ public class OpenShiftBuildVerifier extends Builder {
     		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier could not get oc client");
     		return false;
     	}
+    	
+    }
+    
+	@Override
+	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
+			TaskListener listener) throws InterruptedException, IOException {
+		coreLogic(null, launcher, listener);
+	}
 
+	@Override
+    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+		return coreLogic(build, launcher, listener);
     }
 
     public void setApiURL(String apiURL) {

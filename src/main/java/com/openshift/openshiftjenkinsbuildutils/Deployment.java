@@ -1,6 +1,6 @@
 package com.openshift.openshiftjenkinsbuildutils;
 
-import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +19,7 @@ import com.openshift.restclient.model.IReplicationController;
 public class Deployment {
 
 	
-	public static ModelNode getDeploymentConfigLatestVersion(DeploymentConfig dcImpl, BuildListener listener) {
+	public static ModelNode getDeploymentConfigLatestVersion(DeploymentConfig dcImpl, TaskListener listener) {
 		if (dcImpl != null) {
 			ModelNode dcNode = dcImpl.getNode();
 			if (listener != null) 
@@ -33,7 +33,7 @@ public class Deployment {
 		return null;
 	}
 	
-	public static String getReplicationControllerState(IReplicationController rc, BuildListener listener) {
+	public static String getReplicationControllerState(IReplicationController rc, TaskListener listener) {
 		// see github.com/openshift/origin/pkg/deploy/api/types.go, values are New, Pending, Running, Complete, or Failed
 		String state = "";
 		if (rc != null) {
@@ -43,13 +43,13 @@ public class Deployment {
 		return state;
 	}
 	
-	public static void updateReplicationControllerAnnotiation(IReplicationController rc, BuildListener listener, String annotation, String value) {
+	public static void updateReplicationControllerAnnotiation(IReplicationController rc, TaskListener listener, String annotation, String value) {
 		if (rc != null) {
 			rc.setAnnotation(annotation, value);
 		}
 	}
 	
-	public static String pullImageHexID(ModelNode dcNode, String imageTag, BuildListener listener, boolean chatty) {
+	public static String pullImageHexID(ModelNode dcNode, String imageTag, TaskListener listener, boolean chatty) {
 		if (chatty) listener.getLogger().println("\n  triggers " + dcNode.get("spec").get("triggers"));
 		List<ModelNode> triggers = dcNode.get("spec").get("triggers").asList();
 		if (triggers == null || triggers.size() == 0) {
@@ -76,7 +76,7 @@ public class Deployment {
 		return null;
 	}
 	
-	public static boolean doesDCTriggerOnImageTag(ModelNode dcNode, String imageTag, boolean chatty, BuildListener listener) {
+	public static boolean doesDCTriggerOnImageTag(ModelNode dcNode, String imageTag, boolean chatty, TaskListener listener) {
 		if (dcNode == null || imageTag == null)
 			throw new RuntimeException("needed param null for doesDCTriggerOnImageTag");
 		if (listener == null)
@@ -138,7 +138,7 @@ public class Deployment {
 		return false;
 	}
 	
-	public static boolean didImageChangeFromPreviousVersion(IClient client, int latestVersion, boolean chatty, BuildListener listener, 
+	public static boolean didImageChangeFromPreviousVersion(IClient client, int latestVersion, boolean chatty, TaskListener listener, 
 			String depCfg, String namespace, String latestImageHexID, String imageTag) {
 		// now get previous RC, fetch image Hex ID, and compare
 		int previousVersion = latestVersion -1;
@@ -183,7 +183,7 @@ public class Deployment {
 		}
 	}
 	
-	public static boolean didAllImagesChangeIfNeeded(String buildConfig, BuildListener listener, boolean chatty, IClient client, String namespace) {
+	public static boolean didAllImagesChangeIfNeeded(String buildConfig, TaskListener listener, boolean chatty, IClient client, String namespace) {
 		BuildConfig bc = client.get(ResourceKind.BUILD_CONFIG, buildConfig, namespace);
 		if (bc == null) {
 			if (chatty)
@@ -245,7 +245,7 @@ public class Deployment {
 		return true;
 	}
 
-	public static boolean didImageChangeIfNeeded(IReplicationController rc, BuildListener listener, boolean chatty, int latestVersion,
+	public static boolean didImageChangeIfNeeded(IReplicationController rc, TaskListener listener, boolean chatty, int latestVersion,
 			String depCfg, IClient client, String namespace) {
 		String latestImageHexID = null;
 		
