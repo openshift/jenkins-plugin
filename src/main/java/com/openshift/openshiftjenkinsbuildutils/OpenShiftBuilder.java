@@ -208,26 +208,27 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
     			
     			if (commitID != null && commitID.length() > 0) {
         			BuildRequest requestImpl = (BuildRequest)request;
-        			ModelNode node = requestImpl.getNode();
-        			if (chatty)
-        				listener.getLogger().println("\nOpenShiftBuilder json for build request " + node.asString());
-
-        			ModelNode git = new ModelNode();
-        			ModelNode author = new ModelNode();
-        			ModelNode committer = new ModelNode();
-        			ModelNode commit = new ModelNode(commitID);
-        			git.get("author").set(author);
-        			git.get("comitter").set(committer);
-        			git.get("commit").set(commit);
-        			ModelNode revision = new ModelNode();
-        			revision.get("git").set(git);
-        			revision.get("type").set("Git");
-        			
-        			if (chatty)
-        				listener.getLogger().println("\nOpenShiftBuilder json for revision " + revision.asString());
-        			node.get("revision").set(revision);
-        			if (chatty)
-        				listener.getLogger().println("\nOpenShiftBuilder json of build request after udpate " + node.asString());
+        			requestImpl.setCommitId(commitID);
+//        			ModelNode node = requestImpl.getNode();
+//        			if (chatty)
+//        				listener.getLogger().println("\nOpenShiftBuilder json for build request " + node.asString());
+//
+//        			ModelNode git = new ModelNode();
+//        			ModelNode author = new ModelNode();
+//        			ModelNode committer = new ModelNode();
+//        			ModelNode commit = new ModelNode(commitID);
+//        			git.get("author").set(author);
+//        			git.get("comitter").set(committer);
+//        			git.get("commit").set(commit);
+//        			ModelNode revision = new ModelNode();
+//        			revision.get("git").set(git);
+//        			revision.get("type").set("Git");
+//        			
+//        			if (chatty)
+//        				listener.getLogger().println("\nOpenShiftBuilder json for revision " + revision.asString());
+//        			node.get("revision").set(revision);
+//        			if (chatty)
+//        				listener.getLogger().println("\nOpenShiftBuilder json of build request after udpate " + node.asString());
     			}
     			IBuild bld = null;
     			if (!skipBC)
@@ -387,7 +388,7 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
     						listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully");
     						return true;
     					} else {
-    						listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuildVerifier not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
+    						listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuild not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
     						return false;
     					}
     				}

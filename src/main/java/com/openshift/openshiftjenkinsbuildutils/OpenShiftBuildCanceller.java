@@ -188,53 +188,59 @@ public class OpenShiftBuildCanceller extends Recorder implements SimpleBuildStep
 					ModelNode buildNode = list.get(i);
 					if (chatty) 
 						listener.getLogger().println("\nOpenShiftBuildCanceller build node " + buildNode.asString());
-					ModelNode statusNode = buildNode.get("status");
-					ModelNode phase = statusNode.get("phase");
-					String phaseStr = phase.asString();
+					Build bld = new Build(buildNode, client, null);
+//					ModelNode statusNode = buildNode.get("status");
+//					ModelNode phase = statusNode.get("phase");
+					String phaseStr = bld.getStatus();//phase.asString();
 					
 					// if build active, let's cancel it
 					if (!phaseStr.equalsIgnoreCase("Complete") && !phaseStr.equalsIgnoreCase("Failed") && !phaseStr.equalsIgnoreCase("Cancelled")) {
-						ModelNode metadata = buildNode.get("metadata");
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuildCanceller metadata " + metadata.asString());
-						ModelNode name = metadata.get("name");
-						String buildName = name.asString();
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuildCanceller name " + buildName);
+//						ModelNode metadata = buildNode.get("metadata");
+//						if (chatty)
+//							listener.getLogger().println("\nOpenShiftBuildCanceller metadata " + metadata.asString());
+//						ModelNode name = metadata.get("name");
+						String buildName = bld.getName();//name.asString();
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftBuildCanceller found active build " + buildName);
 						
 						// reget - optimistic update, need IResource
-						Build bld = client.get(ResourceKind.BUILD, buildName, namespace);
-						ModelNode bldJson = bld.getNode();
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuildCanceller bld state:  " + bldJson.asString());
-						ModelNode status = bldJson.get("status");
-						if (chatty) 
-							listener.getLogger().println("\nOpenShiftBuildCanceller status pre " + status.asString());
-						status.get("cancelled").set(true);
-						if (chatty) 
-							listener.getLogger().println("\nOpenShiftBuildCanceller status post " + status.asString());
-				    	
-				    	try {
-							url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds/" + buildName);
-						} catch (MalformedURLException e1) {
-							e1.printStackTrace(listener.getLogger());
-							return false;
-						}
-						urlClient = new UrlConnectionHttpClient(
-								null, "application/json", null, Auth.createInstance(chatty ? listener : null), null, null);
-						urlClient.setAuthorizationStrategy(bearerToken);
-						try {
-							response = urlClient.put(url, 2 * 60 * 1000, bld);
+						bld = client.get(ResourceKind.BUILD, buildName, namespace);
+						boolean stillRunning = bld.cancel();
+//						ModelNode bldJson = bld.getNode();
+//						if (chatty)
+//							listener.getLogger().println("\nOpenShiftBuildCanceller bld state:  " + bldJson.asString());
+//						ModelNode status = bldJson.get("status");
+//						if (chatty) 
+//							listener.getLogger().println("\nOpenShiftBuildCanceller status pre " + status.asString());
+//						status.get("cancelled").set(true);
+//						if (chatty) 
+//							listener.getLogger().println("\nOpenShiftBuildCanceller status post " + status.asString());
+//				    	
+//				    	try {
+//							url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds/" + buildName);
+//						} catch (MalformedURLException e1) {
+//							e1.printStackTrace(listener.getLogger());
+//							return false;
+//						}
+//						urlClient = new UrlConnectionHttpClient(
+//								null, "application/json", null, Auth.createInstance(chatty ? listener : null), null, null);
+//						urlClient.setAuthorizationStrategy(bearerToken);
+//						try {
+//							response = urlClient.put(url, 2 * 60 * 1000, bld);
+//							if (chatty)
+//								listener.getLogger().println("\nOpenShiftBuildCanceller response " + response);
+//						} catch (SocketTimeoutException e1) {
+//							e1.printStackTrace(listener.getLogger());
+//							return false;
+//						} catch (HttpClientException e1) {
+//							e1.printStackTrace(listener.getLogger());
+//							return false;
+//						}
+						if (stillRunning) {
+							client.update(bld);
+						} else {
 							if (chatty)
-								listener.getLogger().println("\nOpenShiftBuildCanceller response " + response);
-						} catch (SocketTimeoutException e1) {
-							e1.printStackTrace(listener.getLogger());
-							return false;
-						} catch (HttpClientException e1) {
-							e1.printStackTrace(listener.getLogger());
-							return false;
+								listener.getLogger().println("\nOpenShiftBuildCanceller active build " + buildName + " has since terminated");
 						}
 						
 					}

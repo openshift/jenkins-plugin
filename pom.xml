@@ -57,6 +57,10 @@
       <id>repository.jboss.org</id>
       <url>https://repository.jboss.org/nexus/content/repositories/releases</url>
     </repository>
+    <repository>
+      <id>my-local-repo</id>
+      <url>file://${basedir}/my-local-repo</url>
+    </repository>
     
   </repositories>
   

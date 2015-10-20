@@ -179,7 +179,7 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 			while (System.currentTimeMillis() < (currTime + 180000)) {
 				int latestVersion = -1;
 				try {
-					latestVersion = Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+					latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
 				} catch (Throwable t) {
 					latestVersion = 0;
 				}
@@ -197,46 +197,49 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 	        			return false;
 	        		}
 	        		
-	        		Deployment.updateReplicationControllerAnnotiation(rc, listener, "openshift.io/deployment.cancelled", "true");
-	        		Deployment.updateReplicationControllerAnnotiation(rc, listener, "openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
+//	        		Deployment.updateReplicationControllerAnnotiation(rc, listener, "openshift.io/deployment.cancelled", "true");
+	        		rc.setAnnotation("openshift.io/deployment.cancelled", "true");
+//	        		Deployment.updateReplicationControllerAnnotiation(rc, listener, "openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
+	        		rc.setAnnotation("openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
 					
+	        		rc = client.update(rc);
 	        		
 	        		// create stream and do put
-	    	    	URL url = null;
-	    	    	try {
-	    				url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/replicationcontrollers/" + depCfg + "-" + latestVersion);
-	    			} catch (MalformedURLException e1) {
-	    				if (chatty) e1.printStackTrace(listener.getLogger());
-	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller error constructing URL");
-	    				return false;
-	    			}
-	    			UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-	    					null, "application/json", null, auth, null, null);
-	    			urlClient.setAuthorizationStrategy(bearerToken);
-	    			String response = null;
-	    			try {
-	    				response = urlClient.put(url, 2 * 60 * 1000, rc);
-	    				if (chatty)
-	    					listener.getLogger().println("\nOpenShiftDeployCanceller response " + response);
-	    			} catch (SocketTimeoutException e1) {
-	    				if (chatty) e1.printStackTrace(listener.getLogger());
-	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment error connecting to HTTP resource");
-	    				return false;
-	    			} catch (HttpClientException e1) {
-	    				if (chatty) e1.printStackTrace(listener.getLogger());
-	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment error from HTTP request");
-	    				return false;
-	    			}
+//	    	    	URL url = null;
+//	    	    	try {
+//	    				url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/replicationcontrollers/" + depCfg + "-" + latestVersion);
+//	    			} catch (MalformedURLException e1) {
+//	    				if (chatty) e1.printStackTrace(listener.getLogger());
+//	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller error constructing URL");
+//	    				return false;
+//	    			}
+//	    			UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+//	    					null, "application/json", null, auth, null, null);
+//	    			urlClient.setAuthorizationStrategy(bearerToken);
+//	    			String response = null;
+//	    			try {
+//	    				response = urlClient.put(url, 2 * 60 * 1000, rc);
+//	    				if (chatty)
+//	    					listener.getLogger().println("\nOpenShiftDeployCanceller response " + response);
+//	    			} catch (SocketTimeoutException e1) {
+//	    				if (chatty) e1.printStackTrace(listener.getLogger());
+//	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment error connecting to HTTP resource");
+//	    				return false;
+//	    			} catch (HttpClientException e1) {
+//	    				if (chatty) e1.printStackTrace(listener.getLogger());
+//	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment error from HTTP request");
+//	    				return false;
+//	    			}
 	    			// if optimistic update conflict, retry
-					if (response != null && response.contains("Conflict")) {
+					if (!rc.getAnnotation("openshift.io/deployment.cancelled").equals("true")) {//(response != null && response.contains("Conflict")) {
 		        		try {
 							Thread.sleep(1000);
 						} catch (InterruptedException e) {
 						}
-					} else {
-	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment unexpected result from replication controller update:  " + response);
-						return false;
-					}
+					} //else {
+//	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment unexpected result from replication controller update:  " + response);
+//						return false;
+//					}
 				} else {
         			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller could not get resource controller with key:  " + depCfg + "-" + latestVersion);
 					return false;
@@ -245,6 +248,7 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 			}
     		
     	}			
+		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller completed");
 		return true;
 		
 	}

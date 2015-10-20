@@ -132,7 +132,7 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
         			if (chatty) listener.getLogger().println("\nOpenShiftScaler dc is null");
         		} else {
     				try {
-    					latestVersion = Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+    					latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
     				} catch (Throwable t) {
     					latestVersion = 0;
     				}
@@ -175,36 +175,44 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
         		// Find the right node in the json and update it
         		// refetch to avoid optimistic update collision on k8s side
 	        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
-	        	ModelNode rcNode = rcImpl.getNode();
-	        	ModelNode rcSpec = rcNode.get("spec");
-	        	ModelNode rcReplicas = rcSpec.get("replicas");
-	        	if (chatty) listener.getLogger().println("\nOpenShiftScaler desired replica count from JSON " + rcReplicas.asString());
-	        	rcReplicas.set(Integer.decode(replicaCount));
-	        	String rcJSON = rcImpl.getNode().toJSONString(true);
-	        	if (chatty) listener.getLogger().println("\nOpenShiftScaler rc JSON after replica update " + rcJSON);
-	        	
-	        	// do the REST / HTTP PUT call
-	        	URL url = null;
+	        	rcImpl.setDesiredReplicaCount(Integer.decode(replicaCount));
 	        	try {
-	        		if (chatty) listener.getLogger().println("\nOpenShift PUT URI " + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
-	    			url = new URL(apiURL + "/api/v1/namespaces/"+namespace+"/replicationcontrollers/" + depId);
-	    		} catch (MalformedURLException e1) {
-	    			e1.printStackTrace(listener.getLogger());
-	    			return false;
-	    		}
-	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-	    				null, "application/json", null, auth, null, null);
-	    		urlClient.setAuthorizationStrategy(bearerToken);
-	    		String response = null;
-	    		try {
-	    			response = urlClient.put(url, 10 * 1000, rcImpl);
-	    			if (chatty) listener.getLogger().println("\nOpenShiftScaler REST PUT response " + response);
-	    			scaleDone = true;
-	    		} catch (SocketTimeoutException e1) {
-	    			if (chatty) e1.printStackTrace(listener.getLogger());
-	    		} catch (HttpClientException e1) {
-	    			if (chatty) e1.printStackTrace(listener.getLogger());
-	    		}
+	        		rcImpl = client.update(rcImpl);
+		        	scaleDone = true;
+	        	} catch (Throwable t) {
+	        		if (chatty)
+	        			t.printStackTrace(listener.getLogger());
+	        	}
+//	        	ModelNode rcNode = rcImpl.getNode();
+//	        	ModelNode rcSpec = rcNode.get("spec");
+//	        	ModelNode rcReplicas = rcSpec.get("replicas");
+//	        	if (chatty) listener.getLogger().println("\nOpenShiftScaler desired replica count from JSON " + rcReplicas.asString());
+//	        	rcReplicas.set(Integer.decode(replicaCount));
+//	        	String rcJSON = rcImpl.getNode().toJSONString(true);
+//	        	if (chatty) listener.getLogger().println("\nOpenShiftScaler rc JSON after replica update " + rcJSON);
+//	        	
+//	        	// do the REST / HTTP PUT call
+//	        	URL url = null;
+//	        	try {
+//	        		if (chatty) listener.getLogger().println("\nOpenShift PUT URI " + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
+//	    			url = new URL(apiURL + "/api/v1/namespaces/"+namespace+"/replicationcontrollers/" + depId);
+//	    		} catch (MalformedURLException e1) {
+//	    			e1.printStackTrace(listener.getLogger());
+//	    			return false;
+//	    		}
+//	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+//	    				null, "application/json", null, auth, null, null);
+//	    		urlClient.setAuthorizationStrategy(bearerToken);
+//	    		String response = null;
+//	    		try {
+//	    			response = urlClient.put(url, 10 * 1000, rcImpl);
+//	    			if (chatty) listener.getLogger().println("\nOpenShiftScaler REST PUT response " + response);
+//	    			scaleDone = true;
+//	    		} catch (SocketTimeoutException e1) {
+//	    			if (chatty) e1.printStackTrace(listener.getLogger());
+//	    		} catch (HttpClientException e1) {
+//	    			if (chatty) e1.printStackTrace(listener.getLogger());
+//	    		}
 				
 				if (scaleDone) {
 					break;

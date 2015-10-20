@@ -120,9 +120,9 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
         		DeploymentConfig dcImpl = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
 				int latestVersion =  -1;
         		if (dcImpl != null) {
-        			ModelNode dcLatestVersion = Deployment.getDeploymentConfigLatestVersion(dcImpl, chatty ? listener : null);
+//        			ModelNode dcLatestVersion = Deployment.getDeploymentConfigLatestVersion(dcImpl, chatty ? listener : null);
         			try {
-        				latestVersion = dcLatestVersion.asInt();
+        				latestVersion = dcImpl.getLatestVersionNumber();//dcLatestVersion.asInt();
         			} catch (Throwable t) {
         				
         			}
@@ -142,7 +142,7 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
     					if (rc != null) {
     						ReplicationController rcImpl = (ReplicationController)rc;
-    						String state = Deployment.getReplicationControllerState(rcImpl, chatty ? listener : null);
+    						String state = rc.getAnnotation("openshift.io/deployment.phase");//Deployment.getReplicationControllerState(rcImpl, chatty ? listener : null);
     						if (!state.equals("Complete") && !state.equals("Failed")) {
     							listener.getLogger().println("\n\nBUILD STEP EXIT:  " + rc.getName() + " is in progress.");
     							return true;
@@ -152,30 +152,37 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
     				}
     				
     				// now lets update the latest version of the dc
-    				dcLatestVersion.set(latestVersion + 1);
-    				
+//    				dcLatestVersion.set(latestVersion + 1);
+    				try {
+    					dcImpl.setLatestVersionNumber(latestVersion + 1);
+    					client.update(dcImpl);
+    					deployDone = true;
+    				} catch (Throwable t) {
+    					if (chatty)
+    						t.printStackTrace(listener.getLogger());
+    				}
     				// and now lets PUT the updated dc
-    				URL url = null;
-					try {
-						url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/deploymentconfigs/" + depCfg);
-					} catch (MalformedURLException e) {
-						e.printStackTrace(listener.getLogger());
-						return false;
-					}
-		    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-		    				null, "application/json", null, auth, null, null);
-		    		urlClient.setAuthorizationStrategy(bearerToken);
-		    		String response = null;
-		    		try {
-		    			response = urlClient.put(url, 10 * 1000, dcImpl);
-		    			if (chatty)
-		    				listener.getLogger().println("\n\nOpenShiftDeployer REST PUT response " + response);
-		    			deployDone = true;
-		    		} catch (SocketTimeoutException e1) {
-		    			if (chatty) e1.printStackTrace(listener.getLogger());
-		    		} catch (HttpClientException e1) {
-		    			if (chatty) e1.printStackTrace(listener.getLogger());
-		    		}
+//    				URL url = null;
+//					try {
+//						url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/deploymentconfigs/" + depCfg);
+//					} catch (MalformedURLException e) {
+//						e.printStackTrace(listener.getLogger());
+//						return false;
+//					}
+//		    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+//		    				null, "application/json", null, auth, null, null);
+//		    		urlClient.setAuthorizationStrategy(bearerToken);
+//		    		String response = null;
+//		    		try {
+//		    			response = urlClient.put(url, 10 * 1000, dcImpl);
+//		    			if (chatty)
+//		    				listener.getLogger().println("\n\nOpenShiftDeployer REST PUT response " + response);
+//		    			deployDone = true;
+//		    		} catch (SocketTimeoutException e1) {
+//		    			if (chatty) e1.printStackTrace(listener.getLogger());
+//		    		} catch (HttpClientException e1) {
+//		    			if (chatty) e1.printStackTrace(listener.getLogger());
+//		    		}
 					
 					if (deployDone) {
 						break;

@@ -127,42 +127,49 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
 				tagName = st.nextToken();
 				
 				ImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
-				ModelNode isNode = isImpl.getNode();
-				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isNode " + isNode.asString());
-				
-				ModelNode isSpec = isNode.get("spec");
-				ModelNode isTags = isSpec.get("tags");				
-				ModelNode isTag = new ModelNode();
-				isTag.get("name").set(tagName);
-				ModelNode isTagFrom = new ModelNode();
-				isTagFrom.get("kind").set("ImageStreamTag");
-				isTagFrom.get("name").set(testTag);
-				isTag.get("from").set(isTagFrom);
-				isTags.add(isTag);
-				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isTags after " + isTags.asString());
-				
-	        	// do the REST / HTTP PUT call
-	        	URL url = null;
-	        	try {
-	        		if (chatty) listener.getLogger().println("\nOpenShiftImageTagger PUT URI " + "/oapi/v1/namespaces/"+namespace+"/imagestreams/" + imageStreamName);
-	    			url = new URL(apiURL + "/oapi/v1/namespaces/"+ namespace+"/imagestreams/" + imageStreamName);
-	    		} catch (MalformedURLException e1) {
-	    			e1.printStackTrace(listener.getLogger());
-	    			return false;
-	    		}
-	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-	    				null, "application/json", null, auth, null, null);
-	    		urlClient.setAuthorizationStrategy(bearerToken);
-	    		String response = null;
-	    		try {
-	    			response = urlClient.put(url, 10 * 1000, isImpl);
-	    			if (chatty) listener.getLogger().println("\nOpenShiftImageTagger REST PUT response " + response);
-	    			tagDone = true;
-	    		} catch (SocketTimeoutException e1) {
-	    			if (chatty) e1.printStackTrace(listener.getLogger());
-	    		} catch (HttpClientException e1) {
-	    			if (chatty) e1.printStackTrace(listener.getLogger());
-	    		}
+				try {
+					isImpl.setTag(tagName, testTag);
+					client.update(isImpl);
+					tagDone = true;
+				} catch (Throwable t) {
+					t.printStackTrace(listener.getLogger());
+				}
+//				ModelNode isNode = isImpl.getNode();
+//				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isNode " + isNode.asString());
+//				
+//				ModelNode isSpec = isNode.get("spec");
+//				ModelNode isTags = isSpec.get("tags");				
+//				ModelNode isTag = new ModelNode();
+//				isTag.get("name").set(tagName);
+//				ModelNode isTagFrom = new ModelNode();
+//				isTagFrom.get("kind").set("ImageStreamTag");
+//				isTagFrom.get("name").set(testTag);
+//				isTag.get("from").set(isTagFrom);
+//				isTags.add(isTag);
+//				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isTags after " + isTags.asString());
+//				
+//	        	// do the REST / HTTP PUT call
+//	        	URL url = null;
+//	        	try {
+//	        		if (chatty) listener.getLogger().println("\nOpenShiftImageTagger PUT URI " + "/oapi/v1/namespaces/"+namespace+"/imagestreams/" + imageStreamName);
+//	    			url = new URL(apiURL + "/oapi/v1/namespaces/"+ namespace+"/imagestreams/" + imageStreamName);
+//	    		} catch (MalformedURLException e1) {
+//	    			e1.printStackTrace(listener.getLogger());
+//	    			return false;
+//	    		}
+//	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+//	    				null, "application/json", null, auth, null, null);
+//	    		urlClient.setAuthorizationStrategy(bearerToken);
+//	    		String response = null;
+//	    		try {
+//	    			response = urlClient.put(url, 10 * 1000, isImpl);
+//	    			if (chatty) listener.getLogger().println("\nOpenShiftImageTagger REST PUT response " + response);
+//	    			tagDone = true;
+//	    		} catch (SocketTimeoutException e1) {
+//	    			if (chatty) e1.printStackTrace(listener.getLogger());
+//	    		} catch (HttpClientException e1) {
+//	    			if (chatty) e1.printStackTrace(listener.getLogger());
+//	    		}
 			}
 			
 			

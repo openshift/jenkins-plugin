@@ -173,10 +173,14 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 				while (System.currentTimeMillis() < (currTime + 180000)) {
 					int latestVersion = -1;
 					try {
-						latestVersion = Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+						latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
 					} catch (Throwable t) {
 						latestVersion = 0;
 					}
+					
+					if (chatty)
+						listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + latestVersion);
+					
 					ReplicationController rc = null;
 					try {
 						rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
@@ -186,7 +190,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 					}
     					
 					if (rc != null) {
-						String state = Deployment.getReplicationControllerState(rc, chatty ? listener : null);
+						String state = rc.getAnnotation("openshift.io/deployment.phase");//Deployment.getReplicationControllerState(rc, chatty ? listener : null);
 						// first check state
 		        		if (state.equalsIgnoreCase("Failed")) {
 		        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
