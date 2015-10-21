@@ -13,6 +13,7 @@ import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
+import com.openshift.restclient.images.DockerImageURI;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
 
@@ -50,7 +51,7 @@ public class Deployment {
 //	}
 	
 	public static String pullImageHexID(IDeploymentConfig dc, String imageTag, TaskListener listener, boolean chatty) {
-		return dc.getImageHexIDForImageTag(imageTag);
+		return dc.getImageHexIDForImageNameAndTag(imageTag);
 //		ModelNode dcNode = ((DeploymentConfig)dc).getNode();
 //		if (chatty) listener.getLogger().println("\n  triggers " + dcNode.get("spec").get("triggers"));
 //		List<ModelNode> triggers = dcNode.get("spec").get("triggers").asList();
@@ -101,7 +102,7 @@ public class Deployment {
 			if (!dc.haveTriggersFired()) {
 			
 				if (chatty)
-					listener.getLogger().println("\n\n could not find a cause for the deployment");
+					listener.getLogger().println("\n could not find a cause for the deployment");
 				try {
 					Thread.sleep(10000);
 				} catch (InterruptedException e) {
@@ -116,6 +117,10 @@ public class Deployment {
 //				listener.getLogger().println("\n no trigger causes detected ");
 //			return false;
 //		}
+		
+		if (chatty) {
+			listener.getLogger().println("\n seeing if dc " + dc.getName() );
+		}
 		
 		return dc.didImageTrigger(imageTag);
 		
@@ -293,7 +298,7 @@ public class Deployment {
 			return false;
 		}
 		
-		String imageTag = dc.getImageTagForTriggeredDeployment();//null;
+		String imageTag = dc.getImageNameAndTagForTriggeredDeployment();//null;
 //		for (ModelNode cause : causes) {
 //			String type = cause.get("type").asString();
 //			if (type.equalsIgnoreCase("ImageChange")) {
