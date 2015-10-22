@@ -2,36 +2,21 @@ package com.openshift.openshiftjenkinsbuildutils;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
-import java.util.List;
 
 import javax.servlet.ServletException;
-//import javax.ws.rs.core.Response;
-
-
-
 
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
-
-
-
-//import org.apache.cxf.jaxrs.client.WebClient;
-import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.openshift.internal.restclient.http.HttpClientException;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.model.ImageStream;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+import com.openshift.restclient.model.IImageStream;
 
 import hudson.Extension;
 import hudson.FilePath;
@@ -120,93 +105,15 @@ public class OpenShiftImageStreams extends SCM {
 		
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
-//    	URL url = null;
-//    	try {
-//			url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/imagestreams/" + imageStreamName);
-//		} catch (MalformedURLException e1) {
-//			e1.printStackTrace(listener.getLogger());
-//			return null;
-//		}
     	Auth auth = Auth.createInstance(null);
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty));
-//		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-//				null, "application/json", null, auth, null, null);
-//		urlClient.setAuthorizationStrategy(bearerToken);
-//		String response = null;
-//		try {
-//			response = urlClient.get(url, 2 * 60 * 1000);
-//		} catch (SocketTimeoutException e1) {
-//			e1.printStackTrace(listener.getLogger());
-//			return null;
-//		} catch (HttpClientException e1) {
-//			e1.printStackTrace(listener.getLogger());
-//			return null;
-//		}
-//		
-//		
-//		//TODO see io.fabric8.kubernetes.api.KubernetesClient.doTriggerBuild(String, String, String, String) for simple invocation form WebClient
-////		WebClient webClient = Auth.getAuthorizedClient(apiURL + "/oapi/v1/namespaces/"+namespace+"/imagestreams/" + imageStreamName, authToken, null, listener, chatty);
-////		Response resp = webClient.get();
-////		listener.getLogger().println("\n\n\n GGMGGMGGM entity from web client resp is " + resp.getEntity() + " \n\n\n\n");
-//		
-//		if (chatty)
-//			listener.getLogger().println("\n\nOpenShiftImageStreams response from rest call " + response);
-//		// we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
-		String commitId = null;
-//		if (response != null) {
-//			ModelNode node = ModelNode.fromJSONString(response);
-//			if (chatty)
-//				listener.getLogger().println("\n\nOpenShiftImageStreams after json processing " + node);
-//			if (node != null) {
-//				ModelNode status = node.get("status");
-//				if (chatty)
-//					listener.getLogger().println("\n\nOpenShiftImageStreams status element " + status);
-//			
-//				if (status != null) {
-//					ModelNode tags = status.get("tags");
-//					if (chatty)
-//						listener.getLogger().println("\n\nOpenShiftImageStreams tags element " + tags);
-//					if (tags != null) {
-//						List<ModelNode> tagWrappers = tags.asList();
-//						if (chatty)
-//							listener.getLogger().println("\n\nOpenShiftImageStreams tag wrappers " + tagWrappers);
-//						if (tagWrappers != null) {
-//							for (ModelNode tagWrapper : tagWrappers) {
-//								if (chatty)
-//									listener.getLogger().println("\n\nOpenShiftImageStreams tag wrapper " + tagWrapper);
-//								ModelNode tag = tagWrapper.get("tag");
-//								ModelNode items = tagWrapper.get("items");
-//								if (chatty)
-//									listener.getLogger().println("\n\nOpenShiftImageStreams tag  " + tag.asString() + ", comparing to " + this.tag + ",  items " + items);
-//								if (tag != null && tag.asString().equals(this.tag) && items != null) {
-//									List<ModelNode> itemWrappers = items.asList();
-//									for (ModelNode itemWrapper : itemWrappers) {
-//										ModelNode created = itemWrapper.get("created");
-//										ModelNode dockerImageReference = itemWrapper.get("dockerImageReference");
-//										ModelNode image = itemWrapper.get("image");
-//										if (chatty)
-//											listener.getLogger().println("\n\nOpenShiftImageStreams created " + created + " dockerImg " + dockerImageReference +
-//												" image " + image);
-//										if (image != null) {
-//											commitId = image.asString();
-//											break;
-//										}
-//									}
-//								}
-//								if (commitId != null)
-//									break;
-//							}
-//						}
-//					}
-//				}
-//			}
-//			
-//		}
-		
+    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty));		
     	IClient client = new ClientFactory().create(apiURL, auth);
     	client.setAuthorizationStrategy(bearerToken);
-		ImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
-		commitId = isImpl.getImageId(tag);
+    	
+    	
+		IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
+		// we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
+		String commitId = isImpl.getImageId(tag);
 
 
 		// always print this

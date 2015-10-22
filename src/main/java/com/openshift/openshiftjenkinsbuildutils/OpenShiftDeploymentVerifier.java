@@ -12,7 +12,6 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
-import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
@@ -29,8 +28,6 @@ import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
-import java.util.StringTokenizer;
 
 import jenkins.tasks.SimpleBuildStep;
 

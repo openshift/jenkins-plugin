@@ -19,11 +19,9 @@ import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.model.ImageStream;
 import com.openshift.internal.restclient.model.KubernetesResource;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
-import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.ICapability;
 
@@ -35,8 +33,6 @@ import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
 
 import jenkins.tasks.SimpleBuildStep;
 

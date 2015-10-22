@@ -12,29 +12,23 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
-import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.http.HttpClientException;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.ICapability;
+import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -117,20 +111,11 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
         	long currTime = System.currentTimeMillis();
         	boolean deployDone = false;
         	while (System.currentTimeMillis() < (currTime + 60000)) {
-        		DeploymentConfig dcImpl = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+        		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
 				int latestVersion =  -1;
-        		if (dcImpl != null) {
-//        			ModelNode dcLatestVersion = Deployment.getDeploymentConfigLatestVersion(dcImpl, chatty ? listener : null);
-        			try {
-        				latestVersion = dcImpl.getLatestVersionNumber();//dcLatestVersion.asInt();
-        			} catch (Throwable t) {
-        				
-        			}
+        		if (dc != null) {
+        			latestVersion = dc.getLatestVersionNumber();
 
-        			// let's mimic what oc deploy --latest does when starting from scratch with no rc's yet
-        			if (latestVersion == -1)
-        				latestVersion = 0;
-        			
         			// oc deploy gets the rc after the dc prior to putting the dc;
         			// we'll do the same ... currently, if a rc exists at the right level,
         			// the deployment is cancelled by oc; we won't fail the build step, just 
@@ -152,37 +137,14 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
     				}
     				
     				// now lets update the latest version of the dc
-//    				dcLatestVersion.set(latestVersion + 1);
     				try {
-    					dcImpl.setLatestVersionNumber(latestVersion + 1);
-    					client.update(dcImpl);
+    					dc.setLatestVersionNumber(latestVersion + 1);
+    					client.update(dc);
     					deployDone = true;
     				} catch (Throwable t) {
     					if (chatty)
     						t.printStackTrace(listener.getLogger());
     				}
-    				// and now lets PUT the updated dc
-//    				URL url = null;
-//					try {
-//						url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/deploymentconfigs/" + depCfg);
-//					} catch (MalformedURLException e) {
-//						e.printStackTrace(listener.getLogger());
-//						return false;
-//					}
-//		    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-//		    				null, "application/json", null, auth, null, null);
-//		    		urlClient.setAuthorizationStrategy(bearerToken);
-//		    		String response = null;
-//		    		try {
-//		    			response = urlClient.put(url, 10 * 1000, dcImpl);
-//		    			if (chatty)
-//		    				listener.getLogger().println("\n\nOpenShiftDeployer REST PUT response " + response);
-//		    			deployDone = true;
-//		    		} catch (SocketTimeoutException e1) {
-//		    			if (chatty) e1.printStackTrace(listener.getLogger());
-//		    		} catch (HttpClientException e1) {
-//		    			if (chatty) e1.printStackTrace(listener.getLogger());
-//		    		}
 					
 					if (deployDone) {
 						break;

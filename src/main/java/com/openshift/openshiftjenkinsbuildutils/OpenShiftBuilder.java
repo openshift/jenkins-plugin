@@ -12,23 +12,22 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
-import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.model.build.BuildRequest;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+import com.openshift.restclient.capability.CapabilityVisitor;
 import com.openshift.restclient.capability.ICapability;
+import com.openshift.restclient.capability.resources.IBuildTriggerable;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IPod;
-import com.openshift.restclient.model.build.IBuildRequest;
 
 import javax.servlet.ServletException;
 
@@ -173,68 +172,42 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
 			long startTime = System.currentTimeMillis();
 			boolean skipBC = buildName != null && buildName.length() > 0;
         	IBuildConfig bc = null;
-        	while (!skipBC && bc == null && startTime > (System.currentTimeMillis() - 60000)) {
-        		try {
-                	// get BuildConfig ref
-                	bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, namespace);
-        		} catch (Throwable t) {
-        			t.printStackTrace(listener.getLogger());
-        			try {
-						Thread.currentThread().sleep(1000);
-					} catch (InterruptedException e) {
-					}
-        		}
+        	IBuild prevBld = null;
+        	if (!skipBC) {
+        		bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, namespace);
+        	} else {
+        		prevBld = client.get(ResourceKind.BUILD, buildName, namespace);
         	}
         	
 
         	if (chatty)
         		listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc + " buildName " + buildName);
         	
-        	if (bc != null || skipBC) {
-        		
-        		// Trigger / start build
-//    			IBuild bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-//
-//    				public IBuild visit(IBuildTriggerable triggerable) {
-//    					return triggerable.trigger();
-//    				}
-//    			}, null);
-        		      
-    			IBuildRequest request = null;
-    			if (!skipBC)
-    				request = client.getResourceFactory().stub(ResourceKind.BUILD_REQUEST, bc.getName());
-    			else
-    				request = client.getResourceFactory().stub(ResourceKind.BUILD_REQUEST, buildName);
+        	if (bc != null || prevBld != null) {
     			
-    			if (commitID != null && commitID.length() > 0) {
-        			BuildRequest requestImpl = (BuildRequest)request;
-        			requestImpl.setCommitId(commitID);
-//        			ModelNode node = requestImpl.getNode();
-//        			if (chatty)
-//        				listener.getLogger().println("\nOpenShiftBuilder json for build request " + node.asString());
-//
-//        			ModelNode git = new ModelNode();
-//        			ModelNode author = new ModelNode();
-//        			ModelNode committer = new ModelNode();
-//        			ModelNode commit = new ModelNode(commitID);
-//        			git.get("author").set(author);
-//        			git.get("comitter").set(committer);
-//        			git.get("commit").set(commit);
-//        			ModelNode revision = new ModelNode();
-//        			revision.get("git").set(git);
-//        			revision.get("type").set("Git");
-//        			
-//        			if (chatty)
-//        				listener.getLogger().println("\nOpenShiftBuilder json for revision " + revision.asString());
-//        			node.get("revision").set(revision);
-//        			if (chatty)
-//        				listener.getLogger().println("\nOpenShiftBuilder json of build request after udpate " + node.asString());
-    			}
+        		// Trigger / start build
     			IBuild bld = null;
-    			if (!skipBC)
-    				bld = client.create(bc.getKind(), bc.getNamespace(), bc.getName(), "instantiate", request);
-    			else {
-    				bld = client.create(ResourceKind.BUILD, namespace, buildName, "clone", request);
+    			if (bc != null) {
+    				if (commitID != null && commitID.length() > 0) {
+    					final String cid = commitID;
+            			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+        				    public IBuild visit(IBuildTriggerable triggerable) {
+        				 		return triggerable.trigger(cid);
+        				 	}
+        				 }, null);
+    				} else {
+            			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+        				    public IBuild visit(IBuildTriggerable triggerable) {
+        				 		return triggerable.trigger();
+        				 	}
+        				 }, null);
+    				}
+    			} else if (prevBld != null) {
+    				bld = prevBld.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+	    				public IBuild visit(IBuildTriggerable triggerable) {
+	    					return triggerable.trigger();
+	    				}
+	    			}, null);
     			}
     			
     			

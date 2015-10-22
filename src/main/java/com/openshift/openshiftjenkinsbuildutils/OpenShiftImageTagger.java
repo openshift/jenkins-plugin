@@ -12,27 +12,21 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
-import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.http.HttpClientException;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.model.ImageStream;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.ICapability;
+import com.openshift.restclient.model.IImageStream;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
 import java.util.StringTokenizer;
 
 import jenkins.tasks.SimpleBuildStep;
@@ -118,7 +112,6 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
         	client.setAuthorizationStrategy(bearerToken);
         	
         	//tag image
-			boolean tagDone = false;
 			StringTokenizer st = new StringTokenizer(prodTag, ":");
 			String imageStreamName = null;
 			String tagName = null;
@@ -126,68 +119,19 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
 				imageStreamName = st.nextToken();
 				tagName = st.nextToken();
 				
-				ImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
-				try {
-					isImpl.setTag(tagName, testTag);
-					client.update(isImpl);
-					tagDone = true;
-				} catch (Throwable t) {
-					t.printStackTrace(listener.getLogger());
-				}
-//				ModelNode isNode = isImpl.getNode();
-//				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isNode " + isNode.asString());
-//				
-//				ModelNode isSpec = isNode.get("spec");
-//				ModelNode isTags = isSpec.get("tags");				
-//				ModelNode isTag = new ModelNode();
-//				isTag.get("name").set(tagName);
-//				ModelNode isTagFrom = new ModelNode();
-//				isTagFrom.get("kind").set("ImageStreamTag");
-//				isTagFrom.get("name").set(testTag);
-//				isTag.get("from").set(isTagFrom);
-//				isTags.add(isTag);
-//				if (chatty) listener.getLogger().println("\nOpenShiftImageTagger isTags after " + isTags.asString());
-//				
-//	        	// do the REST / HTTP PUT call
-//	        	URL url = null;
-//	        	try {
-//	        		if (chatty) listener.getLogger().println("\nOpenShiftImageTagger PUT URI " + "/oapi/v1/namespaces/"+namespace+"/imagestreams/" + imageStreamName);
-//	    			url = new URL(apiURL + "/oapi/v1/namespaces/"+ namespace+"/imagestreams/" + imageStreamName);
-//	    		} catch (MalformedURLException e1) {
-//	    			e1.printStackTrace(listener.getLogger());
-//	    			return false;
-//	    		}
-//	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-//	    				null, "application/json", null, auth, null, null);
-//	    		urlClient.setAuthorizationStrategy(bearerToken);
-//	    		String response = null;
-//	    		try {
-//	    			response = urlClient.put(url, 10 * 1000, isImpl);
-//	    			if (chatty) listener.getLogger().println("\nOpenShiftImageTagger REST PUT response " + response);
-//	    			tagDone = true;
-//	    		} catch (SocketTimeoutException e1) {
-//	    			if (chatty) e1.printStackTrace(listener.getLogger());
-//	    		} catch (HttpClientException e1) {
-//	    			if (chatty) e1.printStackTrace(listener.getLogger());
-//	    		}
+				IImageStream is = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
+				is.setTag(tagName, testTag);
+				client.update(is);
 			}
 			
-			
-			if (tagDone) {
-				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger image stream now has tags: " + testTag + ", " + prodTag);
-				return true;
-			}
 			
     	} else {
     		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not get oc client");
     		return false;
     	}
 
-    	if (!chatty)
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not apply tags, re-run with verbose on to get diagnostics");
-    	else 
-			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not apply tags, review logging above to help determine the problem");
-    	return false;
+		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger image stream now has tags: " + testTag + ", " + prodTag);
+		return true;
     }
 
 	@Override

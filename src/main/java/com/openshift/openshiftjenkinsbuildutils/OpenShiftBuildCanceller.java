@@ -16,26 +16,24 @@ import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
 import net.sf.json.JSONObject;
 
-import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.internal.restclient.http.HttpClientException;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.model.Build;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+import com.openshift.restclient.capability.CapabilityVisitor;
+import com.openshift.restclient.capability.resources.IBuildCancelable;
+import com.openshift.restclient.model.IBuild;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
+import java.util.List;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -144,7 +142,7 @@ public class OpenShiftBuildCanceller extends Recorder implements SimpleBuildStep
 		Result result = build.getResult();
 		
 		// in theory, success should mean that the builds completed successfully,
-		// at this time, we'll scan the builds either way to clean up rogue builds
+		// but for unanticipated scenarios, at this time, we'll scan the builds either way to clean up rogue builds
 		if (result.isWorseThan(Result.SUCCESS)) {
 			if (chatty)
 				listener.getLogger().println("\nOpenShiftBuildCanceller build did not succeed");
@@ -154,7 +152,6 @@ public class OpenShiftBuildCanceller extends Recorder implements SimpleBuildStep
 		}
 
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, Auth.createInstance(chatty ? listener : null));
@@ -163,92 +160,38 @@ public class OpenShiftBuildCanceller extends Recorder implements SimpleBuildStep
     		// seed the auth
         	client.setAuthorizationStrategy(bearerToken);
 			
-			// create stream and copy bytes
-	    	URL url = null;
-	    	try {
-				url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds");
-			} catch (MalformedURLException e1) {
-				e1.printStackTrace(listener.getLogger());
-				return false;
-			}
-			UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-					null, "application/json", null, auth, null, null);
-			urlClient.setAuthorizationStrategy(bearerToken);
-			String response = null;
 			try {
-				response = urlClient.get(url, 2 * 60 * 1000);
-				ModelNode responseJson = ModelNode.fromJSONString(response);
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftBuildCanceller response " + responseJson.asString());
-				ModelNode list = responseJson.get("items");
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftBuildCanceller list " + list.asString());
-				int i=0;
-				while (list.has(i)) {
-					ModelNode buildNode = list.get(i);
-					if (chatty) 
-						listener.getLogger().println("\nOpenShiftBuildCanceller build node " + buildNode.asString());
-					Build bld = new Build(buildNode, client, null);
-//					ModelNode statusNode = buildNode.get("status");
-//					ModelNode phase = statusNode.get("phase");
-					String phaseStr = bld.getStatus();//phase.asString();
+				//TODO do we want to scope builds to a specific build config vs. all builds within a project?
+				List<IBuild> list = client.list(ResourceKind.BUILD, namespace);
+				for (IBuild bld : list) {
+					String phaseStr = bld.getStatus();
 					
 					// if build active, let's cancel it
 					if (!phaseStr.equalsIgnoreCase("Complete") && !phaseStr.equalsIgnoreCase("Failed") && !phaseStr.equalsIgnoreCase("Cancelled")) {
-//						ModelNode metadata = buildNode.get("metadata");
-//						if (chatty)
-//							listener.getLogger().println("\nOpenShiftBuildCanceller metadata " + metadata.asString());
-//						ModelNode name = metadata.get("name");
-						String buildName = bld.getName();//name.asString();
+						String buildName = bld.getName();
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftBuildCanceller found active build " + buildName);
 						
-						// reget - optimistic update, need IResource
+						// re-get bld (etc employs optimistic update)
 						bld = client.get(ResourceKind.BUILD, buildName, namespace);
-						boolean stillRunning = bld.cancel();
-//						ModelNode bldJson = bld.getNode();
-//						if (chatty)
-//							listener.getLogger().println("\nOpenShiftBuildCanceller bld state:  " + bldJson.asString());
-//						ModelNode status = bldJson.get("status");
-//						if (chatty) 
-//							listener.getLogger().println("\nOpenShiftBuildCanceller status pre " + status.asString());
-//						status.get("cancelled").set(true);
-//						if (chatty) 
-//							listener.getLogger().println("\nOpenShiftBuildCanceller status post " + status.asString());
-//				    	
-//				    	try {
-//							url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds/" + buildName);
-//						} catch (MalformedURLException e1) {
-//							e1.printStackTrace(listener.getLogger());
-//							return false;
-//						}
-//						urlClient = new UrlConnectionHttpClient(
-//								null, "application/json", null, Auth.createInstance(chatty ? listener : null), null, null);
-//						urlClient.setAuthorizationStrategy(bearerToken);
-//						try {
-//							response = urlClient.put(url, 2 * 60 * 1000, bld);
-//							if (chatty)
-//								listener.getLogger().println("\nOpenShiftBuildCanceller response " + response);
-//						} catch (SocketTimeoutException e1) {
-//							e1.printStackTrace(listener.getLogger());
-//							return false;
-//						} catch (HttpClientException e1) {
-//							e1.printStackTrace(listener.getLogger());
-//							return false;
-//						}
-						if (stillRunning) {
-							client.update(bld);
-						} else {
-							if (chatty)
-								listener.getLogger().println("\nOpenShiftBuildCanceller active build " + buildName + " has since terminated");
+						
+	    				bld = bld.accept(new CapabilityVisitor<IBuildCancelable, IBuild>() {
+		    				public IBuild visit(IBuildCancelable cancelable) {
+		    					return cancelable.cancel();
+		    				}
+		    			}, null);
+	    				
+						if (chatty)
+							listener.getLogger().println("\nOpenShiftBuildCanceller cancel build called for " + buildName);
+						
+						long currentTime = System.currentTimeMillis();
+						while (System.currentTimeMillis() - 60000 < currentTime) {
+							listener.getLogger().println("\n\n GGM build status after cancel is " + bld.getStatus());
 						}
+	    					
 						
 					}
-					i++;
 				}
-			} catch (SocketTimeoutException e1) {
-				e1.printStackTrace(listener.getLogger());
-				return false;
 			} catch (HttpClientException e1) {
 				e1.printStackTrace(listener.getLogger());
 				return false;

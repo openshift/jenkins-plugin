@@ -4,35 +4,18 @@ import hudson.model.TaskListener;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.StringTokenizer;
 
 import org.jboss.dmr.ModelNode;
 
-import com.openshift.internal.restclient.model.BuildConfig;
 import com.openshift.internal.restclient.model.DeploymentConfig;
-import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.images.DockerImageURI;
+import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
 
 public class Deployment {
 
-	
-//	public static ModelNode getDeploymentConfigLatestVersion(DeploymentConfig dcImpl, TaskListener listener) {
-//		if (dcImpl != null) {
-//			ModelNode dcNode = dcImpl.getNode();
-//			if (listener != null) 
-//				listener.getLogger().println("\n dc json " + dcNode.asString());
-//			ModelNode dcStatus = dcNode.get("status");
-//			ModelNode dcLatestVersion = dcStatus.get("latestVersion");
-//			if (dcLatestVersion != null) {
-//				return dcLatestVersion;
-//			}
-//		}
-//		return null;
-//	}
 	
 	public static String getReplicationControllerState(IReplicationController rc, TaskListener listener) {
 		// see github.com/openshift/origin/pkg/deploy/api/types.go, values are New, Pending, Running, Complete, or Failed
@@ -44,61 +27,14 @@ public class Deployment {
 		return state;
 	}
 	
-//	public static void updateReplicationControllerAnnotiation(IReplicationController rc, TaskListener listener, String annotation, String value) {
-//		if (rc != null) {
-//			rc.setAnnotation(annotation, value);
-//		}
-//	}
-	
-	public static String pullImageHexID(IDeploymentConfig dc, String imageTag, TaskListener listener, boolean chatty) {
-		return dc.getImageHexIDForImageNameAndTag(imageTag);
-//		ModelNode dcNode = ((DeploymentConfig)dc).getNode();
-//		if (chatty) listener.getLogger().println("\n  triggers " + dcNode.get("spec").get("triggers"));
-//		List<ModelNode> triggers = dcNode.get("spec").get("triggers").asList();
-//		if (triggers == null || triggers.size() == 0) {
-//			listener.getLogger().println("\n\n no triggers in the DC");
-//			return null;
-//		}
-//		for (ModelNode trigger : triggers) {
-//			if (trigger.get("type").asString().equalsIgnoreCase("ImageChange")) {
-//				String tag = null;
-//				try {
-//					tag = trigger.get("imageChangeParams").get("from").get("name").asString();
-//					if (chatty) listener.getLogger().println("\n tag " + tag);
-//				} catch (Throwable t) {
-//					if (chatty)
-//						t.printStackTrace(listener.getLogger());
-//				}
-//				if (chatty) listener.getLogger().println("\n comparing image tag " + imageTag + " with tag " + tag);
-//				if (imageTag.equals(tag)) {
-//					if (chatty) listener.getLogger().println("\n tags match returning hex id " + trigger.get("imageChangeParams").get("lastTriggeredImage").asString());
-//					return trigger.get("imageChangeParams").get("lastTriggeredImage").asString();
-//				}
-//			}
-//		}
-//		return null;
-	}
-	
 	public static boolean doesDCTriggerOnImageTag(IDeploymentConfig dc, String imageTag, boolean chatty, TaskListener listener) {
 		if (dc == null || imageTag == null)
 			throw new RuntimeException("needed param null for doesDCTriggerOnImageTag");
-//		ModelNode dcNode = ((DeploymentConfig)dc).getNode();
 		if (listener == null)
 			chatty = false;
 		
 		long currTime = System.currentTimeMillis();
-//		List<ModelNode> causes = null;
 		while (System.currentTimeMillis() - 30000 <= currTime) {
-//			try {
-//				causes = dcNode.get("status").get("details").get("causes").asList();
-//				if (causes != null && causes.size() > 0) {
-//					break;
-//				}
-//			} catch (Throwable t) {
-//				if (chatty)
-//					t.printStackTrace(listener.getLogger());
-//			}
-//			if (causes == null || causes.size() == 0) {
 			if (!dc.haveTriggersFired()) {
 			
 				if (chatty)
@@ -112,44 +48,12 @@ public class Deployment {
 			}
 		}
 		
-//		if (causes == null || causes.size() == 0) {
-//			if (chatty)
-//				listener.getLogger().println("\n no trigger causes detected ");
-//			return false;
-//		}
-		
 		if (chatty) {
 			listener.getLogger().println("\n seeing if dc " + dc.getName() );
 		}
 		
 		return dc.didImageTrigger(imageTag);
 		
-//		for (ModelNode cause : causes) {
-//			String type = cause.get("type").asString();
-//			if (chatty) listener.getLogger().println("\n checking cause type " + type);
-//			if (type.equalsIgnoreCase("ImageChange")) {
-//				try {
-//					String triggerName = cause.get("imageTrigger").get("from").get("name").asString();
-//					if (chatty) listener.getLogger().println("\n cause image tag " + triggerName);
-//					if (triggerName.contains("/")) {
-//						StringTokenizer st = new StringTokenizer(imageTag, "/");
-//						String tmp = null;
-//						while (st.hasMoreTokens()) {
-//							tmp = st.nextToken();
-//						}
-//						if (chatty) listener.getLogger().println("\n comparing " + imageTag + " with " + tmp);
-//						if (imageTag.equals(tmp)) {
-//							if (chatty) listener.getLogger().println("\n found match for imageTag " + imageTag);
-//							return true;
-//						}
-//					}
-//				} catch (Throwable t) {
-//					if (chatty)
-//						t.printStackTrace(listener.getLogger());
-//				}
-//			}
-//		}
-//		return false;
 	}
 	
 	public static boolean didImageChangeFromPreviousVersion(IClient client, int latestVersion, boolean chatty, TaskListener listener, 
@@ -160,7 +64,7 @@ public class Deployment {
 			if (chatty) listener.getLogger().println("\n first version skip image compare");
 			return true;
 		}
-		ReplicationController prevRC = null;
+		IReplicationController prevRC = null;
 		try {
 			prevRC = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + previousVersion, namespace);
 		} catch (Throwable t) {
@@ -180,8 +84,8 @@ public class Deployment {
 			return false;
 		}
 		ModelNode dcNode = ModelNode.fromJSONString(dcJson);
-		DeploymentConfig dc = new DeploymentConfig(dcNode, client, null);
-		String previousImageHexID = pullImageHexID(dc, imageTag, listener, chatty);
+		IDeploymentConfig dc = new DeploymentConfig(dcNode, client, null);
+		String previousImageHexID = dc.getImageHexIDForImageNameAndTag(imageTag);
 		
 		if (previousImageHexID == null || previousImageHexID.length() == 0) {
 			// don't count ill obtained prev image id as successful image id change
@@ -201,12 +105,12 @@ public class Deployment {
 	public static boolean didAllImagesChangeIfNeeded(String buildConfig, TaskListener listener, boolean chatty, IClient client, String namespace) {
 		if (chatty)
 			listener.getLogger().println("\n checking if the build config " + buildConfig + " got the image changes it needed");
-		BuildConfig bc = client.get(ResourceKind.BUILD_CONFIG, buildConfig, namespace);
+		IBuildConfig bc = client.get(ResourceKind.BUILD_CONFIG, buildConfig, namespace);
 		if (bc == null) {
 			if (chatty)
 				listener.getLogger().println("\n bc null for " +buildConfig);
 		}
-		ModelNode bcJson = bc.getNode();
+
 		String imageTag = null;
 		try {
 			imageTag = bc.getOutputRepositoryName();//bcJson.get("spec").get("output").get("to").get("name").asString();
@@ -242,7 +146,7 @@ public class Deployment {
 				ModelNode dcNode = ((DeploymentConfig)dc).getNode();
 				listener.getLogger().println("\n looking at image ids for " + dc.getName() + " with json " + dcNode.toJSONString(false));
 			}
-			String latestImageHexID = pullImageHexID(dc, imageTag, listener, chatty);
+			String latestImageHexID = dc.getImageHexIDForImageNameAndTag(imageTag);
 			
 			if (latestImageHexID == null) {
 				if (chatty)
@@ -269,6 +173,8 @@ public class Deployment {
 		String latestImageHexID = null;
 		
 		// 1) pull the dc from the rc annotation
+		// we are explicitly constructing the DC from the RC JSON as a form of cross verification
+		// (vs. doing another IClient lookup)
 		String dcJson = rc.getAnnotation("openshift.io/encoded-deployment-config");
 		if (dcJson == null || dcJson.length() == 0) {
 			listener.getLogger().println("\n\n assoicated DeploymentConfig for ReplicationController missing");
@@ -281,45 +187,12 @@ public class Deployment {
 			listener.getLogger().println("\n  dep cfg from rep ctrl json " + dcNode.toJSONString(true));
 		
 		// 2) See if the deployment resulted from an image change 
-//		List<ModelNode> causes = null;
-//		try {
-//			causes = dcNode.get("status").get("details").get("causes").asList();
-//		} catch (Throwable t) {
-//			if (chatty)
-//				t.printStackTrace(listener.getLogger());
-//		}
-//		if (causes == null || causes.size() == 0) {
-//			listener.getLogger().println("\n\n could not find a cause for the deployment");
-//			return false;
-//		}
-		
 		if (!dc.haveTriggersFired()) {
 			listener.getLogger().println("\n\n could not find a cause for the deployment");
 			return false;
 		}
 		
 		String imageTag = dc.getImageNameAndTagForTriggeredDeployment();//null;
-//		for (ModelNode cause : causes) {
-//			String type = cause.get("type").asString();
-//			if (type.equalsIgnoreCase("ImageChange")) {
-//				try {
-//					imageTag = cause.get("imageTrigger").get("from").get("name").asString();
-//					if (imageTag.contains("/")) {
-//						StringTokenizer st = new StringTokenizer(imageTag, "/");
-//						String tmp = null;
-//						while (st.hasMoreTokens()) {
-//							tmp = st.nextToken();
-//						}
-//						imageTag = tmp;
-//						if (chatty) listener.getLogger().println("\n image tag from trigger " + imageTag);
-//						break;
-//					}
-//				} catch (Throwable t) {
-//					if (chatty)
-//						t.printStackTrace(listener.getLogger());
-//				}
-//			}
-//		}
 		
 		if (imageTag == null) {
 			if (chatty)
