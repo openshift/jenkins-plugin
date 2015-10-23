@@ -175,7 +175,7 @@ public class OpenShiftBuildCanceller extends Recorder implements SimpleBuildStep
 						// re-get bld (etc employs optimistic update)
 						bld = client.get(ResourceKind.BUILD, buildName, namespace);
 						
-	    				bld = bld.accept(new CapabilityVisitor<IBuildCancelable, IBuild>() {
+	    				bld.accept(new CapabilityVisitor<IBuildCancelable, IBuild>() {
 		    				public IBuild visit(IBuildCancelable cancelable) {
 		    					return cancelable.cancel();
 		    				}
@@ -184,12 +184,7 @@ public class OpenShiftBuildCanceller extends Recorder implements SimpleBuildStep
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftBuildCanceller cancel build called for " + buildName);
 						
-						long currentTime = System.currentTimeMillis();
-						while (System.currentTimeMillis() - 60000 < currentTime) {
-							listener.getLogger().println("\n\n GGM build status after cancel is " + bld.getStatus());
-						}
-	    					
-						
+					
 					}
 				}
 			} catch (HttpClientException e1) {

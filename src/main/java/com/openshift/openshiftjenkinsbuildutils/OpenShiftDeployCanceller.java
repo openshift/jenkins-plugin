@@ -167,49 +167,25 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 
 			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentCanceller checking if deployment out there for " + depCfg);
 			
-			// confirm the deployment has kicked in from completed build;
-        	// in testing with the jenkins-ci sample, the initial deploy after
-        	// a build is kinda slow ... gotta wait more than one minute
-			long currTime = System.currentTimeMillis();
-			while (System.currentTimeMillis() < (currTime + 180000)) {
-				int latestVersion = -1;
-				try {
-					latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
-				} catch (Throwable t) {
-					latestVersion = 0;
-				}
-				IReplicationController rc = null;
-				try {
-					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
-				} catch (Throwable t) {
-					
-				}
-					
-				if (rc != null) {
-					String state = Deployment.getReplicationControllerState(rc, chatty ? listener : null);
-	        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete")) {
-	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment " + rc.getName() + " done");
-	        			return false;
-	        		}
-	        		
-	        		rc.setAnnotation("openshift.io/deployment.cancelled", "true");
-	        		rc.setAnnotation("openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
-					
-	        		rc = client.update(rc);
-	        		
-	    			// if optimistic update conflict, retry
-					if (!rc.getAnnotation("openshift.io/deployment.cancelled").equals("true")) {//(response != null && response.contains("Conflict")) {
-		        		try {
-							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-						}
-					}
-				} else {
-        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller could not get resource controller with key:  " + depCfg + "-" + latestVersion);
-					return false;
-				}					
-
-			}
+			int latestVersion = dc.getLatestVersionNumber();
+			IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+				
+			if (rc != null) {
+				String state = rc.getAnnotation("openshift.io/deployment.phase");
+        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete")) {
+        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment " + rc.getName() + " done");
+        			return false;
+        		}
+        		
+        		rc.setAnnotation("openshift.io/deployment.cancelled", "true");
+        		rc.setAnnotation("openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
+				
+        		client.update(rc);
+        		
+			} else {
+    			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller could not get resource controller with key:  " + depCfg + "-" + latestVersion);
+				return false;
+			}					
     		
     	}			
 		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller completed");

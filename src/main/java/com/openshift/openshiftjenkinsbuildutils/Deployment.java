@@ -17,24 +17,14 @@ import com.openshift.restclient.model.IReplicationController;
 public class Deployment {
 
 	
-	public static String getReplicationControllerState(IReplicationController rc, TaskListener listener) {
-		// see github.com/openshift/origin/pkg/deploy/api/types.go, values are New, Pending, Running, Complete, or Failed
-		String state = "";
-		if (rc != null) {
-			state = rc.getAnnotation("openshift.io/deployment.phase");
-			if (listener != null) listener.getLogger().println("\n phase json " + state);	
-		}
-		return state;
-	}
-	
-	public static boolean doesDCTriggerOnImageTag(IDeploymentConfig dc, String imageTag, boolean chatty, TaskListener listener) {
+	public static boolean doesDCTriggerOnImageTag(IDeploymentConfig dc, String imageTag, boolean chatty, TaskListener listener, long wait) {
 		if (dc == null || imageTag == null)
 			throw new RuntimeException("needed param null for doesDCTriggerOnImageTag");
 		if (listener == null)
 			chatty = false;
 		
 		long currTime = System.currentTimeMillis();
-		while (System.currentTimeMillis() - 30000 <= currTime) {
+		while (System.currentTimeMillis() - (wait / 3) <= currTime) {
 			if (!dc.haveTriggersFired()) {
 			
 				if (chatty)
@@ -102,7 +92,7 @@ public class Deployment {
 		}
 	}
 	
-	public static boolean didAllImagesChangeIfNeeded(String buildConfig, TaskListener listener, boolean chatty, IClient client, String namespace) {
+	public static boolean didAllImagesChangeIfNeeded(String buildConfig, TaskListener listener, boolean chatty, IClient client, String namespace, long wait) {
 		if (chatty)
 			listener.getLogger().println("\n checking if the build config " + buildConfig + " got the image changes it needed");
 		IBuildConfig bc = client.get(ResourceKind.BUILD_CONFIG, buildConfig, namespace);
@@ -134,7 +124,7 @@ public class Deployment {
 		List<IDeploymentConfig> dcsToCheck = new ArrayList<IDeploymentConfig>();
 		for (IDeploymentConfig dc : allDC) {
 			if (chatty) listener.getLogger().println("\n checking triggers on dc " + dc.getName());
-			if (doesDCTriggerOnImageTag(dc, imageTag, chatty, listener)) {
+			if (doesDCTriggerOnImageTag(dc, imageTag, chatty, listener, wait)) {
 				if (chatty) listener.getLogger().println("\n adding dc to check " + dc.getName());
 				dcsToCheck.add(dc);
 			}

@@ -110,7 +110,9 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
         	// do the oc deploy ... may need to retry
         	long currTime = System.currentTimeMillis();
         	boolean deployDone = false;
-        	while (System.currentTimeMillis() < (currTime + 60000)) {
+        	if (chatty)
+        		listener.getLogger().println("\nOpenShiftDeployer wait " + getDescriptor().getWait());
+        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
         		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
 				int latestVersion =  -1;
         		if (dc != null) {
@@ -203,6 +205,7 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    	private long wait = 60000;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -263,11 +266,16 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
         public String getDisplayName() {
             return "Trigger a deployment in OpenShift";
         }
+        
+        public long getWait() {
+        	return wait;
+        }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+        	wait = formData.getLong("wait");
             save();
             return super.configure(req,formData);
         }

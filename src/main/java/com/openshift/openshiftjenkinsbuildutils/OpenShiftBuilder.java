@@ -223,9 +223,11 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
     				boolean foundPod = false;
     				String bldState = null;
     				startTime = System.currentTimeMillis();
+					if (chatty)
+						listener.getLogger().println("\nnOpenShiftBuilder  wait time " + getDescriptor().getWait());
     				
     				// Now find build Pod, attempt to dump the logs to the Jenkins console
-    				while (!foundPod && startTime > (System.currentTimeMillis() - 60000)) {
+    				while (!foundPod && startTime > (System.currentTimeMillis() - getDescriptor().getWait())) {
     					
     					// fetch current list of pods ... this has proven to not be immediate in finding latest
     					// entries when compared with say running oc from the cmd line
@@ -251,8 +253,7 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
             						
             						// get internal OS Java REST Client error if access pod logs while bld is in Pending state
             						// instead of Running, Complete, or Failed
-            						long currTime = System.currentTimeMillis();
-            						while (System.currentTimeMillis() < (currTime + 60000)) {
+            						while (System.currentTimeMillis() < (startTime + getDescriptor().getWait())) {
             							bld = client.get(ResourceKind.BUILD, bldId, namespace);
             							bldState = bld.getStatus();
             							if (chatty)
@@ -281,7 +282,7 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
             						urlClient.setAuthorizationStrategy(bearerToken);
             						String response = null;
             						try {
-            							response = urlClient.get(url, 2 * 60 * 1000);
+            							response = urlClient.get(url, (int) getDescriptor().getWait());
             						} catch (SocketTimeoutException e1) {
             							e1.printStackTrace(listener.getLogger());
             							return false;
@@ -338,8 +339,7 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
     					return false;
     				}
     				
-					long currTime = System.currentTimeMillis();
-					while (System.currentTimeMillis() < (currTime + 60000)) {
+					while (System.currentTimeMillis() < (startTime + getDescriptor().getWait())) {
 						bld = client.get(ResourceKind.BUILD, bldId, namespace);
 						bldState = bld.getStatus();
 						if (chatty)
@@ -357,7 +357,7 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
     					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
     					return false;
     				} else {
-    					if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace)) {
+    					if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
     						listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully");
     						return true;
     					} else {
@@ -406,6 +406,8 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    	private long wait = 120000;
+    	
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -466,11 +468,16 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
         public String getDisplayName() {
             return "Perform builds in OpenShift";
         }
+        
+        public long getWait() {
+        	return wait;
+        }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+        	wait = formData.getLong("wait");
             save();
             return super.configure(req,formData);
         }

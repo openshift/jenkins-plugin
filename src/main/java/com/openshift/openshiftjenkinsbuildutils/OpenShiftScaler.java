@@ -124,7 +124,9 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
         	long currTime = System.currentTimeMillis();
         	// in testing with the jenkins-ci sample, the initial deploy after
         	// a build is kinda slow ... gotta wait more than one minute
-        	while (System.currentTimeMillis() < (currTime + 180000)) {
+        	if (chatty)
+        		listener.getLogger().println("\nOpenShiftScaler wait " + getDescriptor().getWait());
+        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
             	// get ReplicationController ref
         		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
         		
@@ -170,8 +172,7 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
         	
         	// do the oc scale ... may need to retry        	
         	boolean scaleDone = false;
-        	currTime = System.currentTimeMillis();
-        	while (System.currentTimeMillis() < (currTime + 60000)) {
+        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
         		// Find the right node in the json and update it
         		// refetch to avoid optimistic update collision on k8s side
 	        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
@@ -183,36 +184,6 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
 	        		if (chatty)
 	        			t.printStackTrace(listener.getLogger());
 	        	}
-//	        	ModelNode rcNode = rcImpl.getNode();
-//	        	ModelNode rcSpec = rcNode.get("spec");
-//	        	ModelNode rcReplicas = rcSpec.get("replicas");
-//	        	if (chatty) listener.getLogger().println("\nOpenShiftScaler desired replica count from JSON " + rcReplicas.asString());
-//	        	rcReplicas.set(Integer.decode(replicaCount));
-//	        	String rcJSON = rcImpl.getNode().toJSONString(true);
-//	        	if (chatty) listener.getLogger().println("\nOpenShiftScaler rc JSON after replica update " + rcJSON);
-//	        	
-//	        	// do the REST / HTTP PUT call
-//	        	URL url = null;
-//	        	try {
-//	        		if (chatty) listener.getLogger().println("\nOpenShift PUT URI " + "/api/v1/namespaces/test/replicationcontrollers/" + depId);
-//	    			url = new URL(apiURL + "/api/v1/namespaces/"+namespace+"/replicationcontrollers/" + depId);
-//	    		} catch (MalformedURLException e1) {
-//	    			e1.printStackTrace(listener.getLogger());
-//	    			return false;
-//	    		}
-//	    		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-//	    				null, "application/json", null, auth, null, null);
-//	    		urlClient.setAuthorizationStrategy(bearerToken);
-//	    		String response = null;
-//	    		try {
-//	    			response = urlClient.put(url, 10 * 1000, rcImpl);
-//	    			if (chatty) listener.getLogger().println("\nOpenShiftScaler REST PUT response " + response);
-//	    			scaleDone = true;
-//	    		} catch (SocketTimeoutException e1) {
-//	    			if (chatty) e1.printStackTrace(listener.getLogger());
-//	    		} catch (HttpClientException e1) {
-//	    			if (chatty) e1.printStackTrace(listener.getLogger());
-//	    		}
 				
 				if (scaleDone) {
 					break;
@@ -268,6 +239,7 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    	private long wait = 180000;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -340,11 +312,16 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
         public String getDisplayName() {
             return "Scale deployments in OpenShift";
         }
+        
+        public long getWait() {
+        	return wait;
+        }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+        	wait = formData.getLong("wait");
             save();
             return super.configure(req,formData);
         }

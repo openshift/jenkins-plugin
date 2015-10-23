@@ -112,7 +112,9 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
         	
 			String bldState = null;
 			long currTime = System.currentTimeMillis();
-			while (System.currentTimeMillis() < (currTime + 60000)) {
+			if (chatty)
+				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
+			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
 				List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
 				Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
 				List<String> ourKeys = new ArrayList<String>();
@@ -147,7 +149,7 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
 				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
 				return false;
 			} else {
-				if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace)) {
+				if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
 					listener.getLogger().println("\nBUILD STEP EXIT: OpenShiftBuildVerifier exit successfully");
 					return true;
 				} else {
@@ -205,6 +207,7 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    	private long wait = 60000;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -265,11 +268,16 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
         public String getDisplayName() {
             return "Get latest OpenShift build status";
         }
+        
+        public long getWait() {
+        	return wait;
+        }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+        	wait = formData.getLong("wait");
             save();
             return super.configure(req,formData);
         }

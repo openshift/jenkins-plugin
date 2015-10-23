@@ -13,11 +13,11 @@
     so it should be straightforward to find them.
   -->
   <f:section title="OpenShift Service Verification">
-  <!--
-    <f:entry title="French" field="useFrench"
-      description="Check if we should say hello in French">
-      <f:checkbox />
+  
+    <f:entry title="Retry count" field="retry"
+      description="The maximum number of times an attempt will be made to connect to the service.">
+      <f:textbox  />
     </f:entry>
-  -->
+  
   </f:section>
 </j:jelly>

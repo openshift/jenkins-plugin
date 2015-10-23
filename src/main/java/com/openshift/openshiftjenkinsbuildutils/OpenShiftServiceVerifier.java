@@ -120,8 +120,10 @@ public class OpenShiftServiceVerifier extends Builder implements SimpleBuildStep
 				return false;
 			}
         	int tryCount = 0;
+        	if (chatty)
+        		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
     		URLConnection conn = null;
-        	while (tryCount < 100) {
+        	while (tryCount < getDescriptor().getRetry()) {
         		tryCount++;
         		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
         		try {
@@ -177,6 +179,7 @@ public class OpenShiftServiceVerifier extends Builder implements SimpleBuildStep
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    	private int retry = 100;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -237,11 +240,16 @@ public class OpenShiftServiceVerifier extends Builder implements SimpleBuildStep
         public String getDisplayName() {
             return "Verify a service is up in OpenShift";
         }
+        
+        public int getRetry() {
+        	return retry;
+        }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+        	retry = formData.getInt("retry");
             save();
             return super.configure(req,formData);
         }

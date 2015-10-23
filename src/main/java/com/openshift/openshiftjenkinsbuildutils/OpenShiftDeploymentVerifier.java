@@ -167,7 +167,9 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 	        	// in testing with the jenkins-ci sample, the initial deploy after
 	        	// a build is kinda slow ... gotta wait more than one minute
 				long currTime = System.currentTimeMillis();
-				while (System.currentTimeMillis() < (currTime + 180000)) {
+				if (chatty)
+					listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getDescriptor().getWait());
+				while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
 					int latestVersion = -1;
 					try {
 						latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
@@ -262,6 +264,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    	private long wait = 180000;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -335,11 +338,16 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
         public String getDisplayName() {
             return "Check Deployment Success in OpenShift";
         }
+        
+        public long getWait() {
+        	return wait;
+        }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+        	wait = formData.getLong("wait");
             save();
             return super.configure(req,formData);
         }
