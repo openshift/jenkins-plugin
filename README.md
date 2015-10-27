@@ -1,4 +1,4 @@
-# openshift-jenkins-buildutils
+# OpenShift V3 Plug-in for Jenkins
 This project provides a series Jenkins plug-in implementations that operate on [V3 of OpenShift](https://docs.openshift.org/latest/welcome/index.html).  In summary
 they are a series of REST clients that interface with the OpenShift server via the [exposed API](https://docs.openshift.org/latest/rest_api/overview.html).
 They minimally mimic the REST flows of common uses of the `oc` [CLI command](https://docs.openshift.org/latest/cli_reference/basic_cli_operations.html), but in several
