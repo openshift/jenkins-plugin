@@ -53,6 +53,10 @@ public class Auth implements ISSLCertificateCallback {
 			} catch (Exception e) {
 				if (listener != null)
 					e.printStackTrace(listener.getLogger());
+				if (listener != null)
+					listener.getLogger().println("Auth defaulting to non-TLS / Cert form");
+				auth = new Auth(null, null);
+				useCert = false;
 			}
 		} else {
 			auth = new Auth(null, null);
