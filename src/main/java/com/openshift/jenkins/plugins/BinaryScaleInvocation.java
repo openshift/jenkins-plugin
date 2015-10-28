@@ -1,4 +1,4 @@
-package com.openshift.openshiftjenkinsbuildutils;
+package com.openshift.jenkins.plugins;
 
 import java.io.InputStream;
 import java.io.SequenceInputStream;

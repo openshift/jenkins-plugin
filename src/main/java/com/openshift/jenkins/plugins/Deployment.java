@@ -1,4 +1,4 @@
-package com.openshift.openshiftjenkinsbuildutils;
+package com.openshift.jenkins.plugins;
 
 import hudson.model.TaskListener;
 

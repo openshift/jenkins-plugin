@@ -1,4 +1,4 @@
-package com.openshift.openshiftjenkinsbuildutils;
+package com.openshift.jenkins.plugins;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
@@ -12,22 +12,28 @@ import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
+import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.internal.restclient.http.HttpClientException;
+import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
+import com.openshift.internal.restclient.model.DeploymentConfig;
+import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.ICapability;
-import com.openshift.restclient.model.IImageStream;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.StringTokenizer;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -37,7 +43,7 @@ import jenkins.tasks.SimpleBuildStep;
  * <p>
  * When the user configures the project and enables this builder,
  * {@link DescriptorImpl#newInstance(StaplerRequest)} is invoked
- * and a new {@link OpenShiftImageTagger} is created. The created
+ * and a new {@link OpenShiftScaler} is created. The created
  * instance is persisted to the project configuration XML by using
  * XStream, so this allows you to use instance fields (like {@link #name})
  * to remember the configuration.
@@ -48,23 +54,23 @@ import jenkins.tasks.SimpleBuildStep;
  *
  * @author Gabe Montero
  */
-public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Serializable {
+public class OpenShiftScaler extends Builder implements SimpleBuildStep, Serializable {
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
-    private String testTag = "origin-nodejs-sample:latest";
-    private String prodTag = "origin-nodejs-sample:prod";
+    private String depCfg = "frontend";
     private String namespace = "test";
+    private String replicaCount = "0";
     private String authToken = "";
     private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose) {
+    public OpenShiftScaler(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose) {
         this.apiURL = apiURL;
-        this.testTag = testTag;
+        this.depCfg = depCfg;
         this.namespace = namespace;
-        this.prodTag = prodTag;
+        this.replicaCount = replicaCount;
         this.authToken = authToken;
         this.verbose = verbose;
     }
@@ -76,16 +82,16 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
 		return apiURL;
 	}
 
-	public String getTestTag() {
-		return testTag;
+	public String getDepCfg() {
+		return depCfg;
 	}
 
 	public String getNamespace() {
 		return namespace;
 	}
 	
-	public String getProdTag() {
-		return prodTag;
+	public String getReplicaCount() {
+		return replicaCount;
 	}
 	
 	public String getAuthToken() {
@@ -99,7 +105,7 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
     protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform");
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftScaler in perform for " + depCfg + " wanting to get to replica count " + replicaCount);
     	
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
     	Auth auth = Auth.createInstance(chatty ? listener : null);
@@ -111,29 +117,102 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
     		// seed the auth
         	client.setAuthorizationStrategy(bearerToken);
         	
-        	//tag image
-			StringTokenizer st = new StringTokenizer(prodTag, ":");
-			String imageStreamName = null;
-			String tagName = null;
-			if (st.countTokens() > 1) {
-				imageStreamName = st.nextToken();
-				tagName = st.nextToken();
+        	String depId = null;
+        	ReplicationController rc = null;
+        	int latestVersion = -1;
+        	// find corresponding rep ctrl and scale it to the right value
+        	long currTime = System.currentTimeMillis();
+        	// in testing with the jenkins-ci sample, the initial deploy after
+        	// a build is kinda slow ... gotta wait more than one minute
+        	if (chatty)
+        		listener.getLogger().println("\nOpenShiftScaler wait " + getDescriptor().getWait());
+        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+            	// get ReplicationController ref
+        		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+        		
+        		if (dc == null) {
+        			if (chatty) listener.getLogger().println("\nOpenShiftScaler dc is null");
+        		} else {
+    				try {
+    					latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+    				} catch (Throwable t) {
+    					latestVersion = 0;
+    				}
+    				depId = depCfg + "-" + latestVersion;
+    				try {
+    					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
+    				} catch (Throwable t) {
+    					
+    				}
+        		}
+        		
+            	// if they want to scale down to 0 and there is no rc to begin with, just punt / consider a no-op
+            	if (rc != null || replicaCount.equals("0")) {
+            		if (chatty) listener.getLogger().println("\nOpenShiftScaler rc to use " + rc);
+            		break;
+            	} else {
+					if (chatty) listener.getLogger().println("\nOpenShiftScaler wait 10 seconds, then look for rep ctrl again");
+					try {
+						Thread.sleep(10000);
+					} catch (InterruptedException e) {
+					}
+            	}
+        	}
+        	
+        	if (rc == null) {
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler did not find any replication controllers for " + depCfg);
+        		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
+        		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
+        		// we refrain from adding yet 1 more config option
+        		if (replicaCount.equals("0"))
+        			return true;
+        		else
+        			return false;
+        	}
+        	
+        	// do the oc scale ... may need to retry        	
+        	boolean scaleDone = false;
+        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+        		// Find the right node in the json and update it
+        		// refetch to avoid optimistic update collision on k8s side
+	        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
+	        	rcImpl.setDesiredReplicaCount(Integer.decode(replicaCount));
+	        	try {
+	        		rcImpl = client.update(rcImpl);
+		        	scaleDone = true;
+	        	} catch (Throwable t) {
+	        		if (chatty)
+	        			t.printStackTrace(listener.getLogger());
+	        	}
 				
-				IImageStream is = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
-				is.setTag(tagName, testTag);
-				client.update(is);
-			}
-			
-			
+				if (scaleDone) {
+					break;
+				} else {
+					if (chatty) listener.getLogger().println("\nOpenShiftScaler will wait 10 seconds, then try to scale again");
+					try {
+						Thread.sleep(10000);
+					} catch (InterruptedException e) {
+					}
+				}
+	    	}
+        	
+        	if (!scaleDone) {
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
+        		return false;
+        	}
+        	
+        	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler got the scale request through");
+        	return true;
+        	        	
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
     		return false;
     	}
 
-		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger image stream now has tags: " + testTag + ", " + prodTag);
-		return true;
     }
 
+    
+    
 	@Override
 	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
 			TaskListener listener) throws InterruptedException, IOException {
@@ -154,12 +233,13 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
     }
 
     /**
-     * Descriptor for {@link OpenShiftImageTagger}. Used as a singleton.
+     * Descriptor for {@link OpenShiftScaler}. Used as a singleton.
      * The class is marked as public so that it can be accessed from views.
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    	private long wait = 180000;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -195,17 +275,22 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckTestTag(@QueryParameter String value)
+        public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set testTag");
+                return FormValidation.error("Please set depCfg");
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckProdTag(@QueryParameter String value)
+        public FormValidation doCheckReplicaCount(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set prodTag");
+                return FormValidation.error("Please set replicaCount");
+            try {
+            	Integer.decode(value);
+            } catch (NumberFormatException e) {
+            	return FormValidation.error("Please specify an integer for replicaCount");
+            }
             return FormValidation.ok();
         }
 
@@ -225,13 +310,18 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Tag an image in OpenShift";
+            return "Scale deployments in OpenShift";
+        }
+        
+        public long getWait() {
+        	return wait;
         }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+        	wait = formData.getLong("wait");
             save();
             return super.configure(req,formData);
         }

@@ -1,4 +1,4 @@
-package com.openshift.openshiftjenkinsbuildutils;
+package com.openshift.jenkins.plugins;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
