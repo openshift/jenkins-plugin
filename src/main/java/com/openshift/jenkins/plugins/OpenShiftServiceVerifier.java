@@ -20,7 +20,6 @@ import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-import com.openshift.restclient.capability.ICapability;
 import com.openshift.restclient.model.IService;
 
 import javax.servlet.ServletException;
@@ -94,7 +93,6 @@ public class OpenShiftServiceVerifier extends Builder implements SimpleBuildStep
     
     protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftServiceVerifier in perform");
     	
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));

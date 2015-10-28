@@ -31,23 +31,6 @@ import java.io.Serializable;
 
 import jenkins.tasks.SimpleBuildStep;
 
-/**
- * OpenShift {@link Builder}.
- *
- * <p>
- * When the user configures the project and enables this builder,
- * {@link DescriptorImpl#newInstance(StaplerRequest)} is invoked
- * and a new {@link OpenShiftDeploymentVerifier} is created. The created
- * instance is persisted to the project configuration XML by using
- * XStream, so this allows you to use instance fields (like {@link #name})
- * to remember the configuration.
- *
- * <p>
- * When a build is performed, the {@link #perform(AbstractBuild, Launcher, BuildListener)}
- * method will be invoked. 
- *
- * @author Gabe Montero
- */
 public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildStep, Serializable {
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
@@ -122,7 +105,6 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 	
 	protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
     	boolean chatty = Boolean.parseBoolean(verbose);
-    	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount);
     	
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));

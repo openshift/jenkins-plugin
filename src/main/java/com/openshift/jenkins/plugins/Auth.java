@@ -25,7 +25,6 @@ import com.openshift.restclient.ISSLCertificateCallback;
 
 import hudson.EnvVars;
 import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
 import hudson.model.TaskListener;
 
 
@@ -147,7 +146,6 @@ public class Auth implements ISSLCertificateCallback {
     			if (verbose)
         			listener.getLogger().println("Auth file exists " + f.getAbsolutePath());
     			FileInputStream fis = null;
-    			ObjectInputStream ois = null;
     			try {
     				fis = new FileInputStream(f);
     				ArrayList<Integer> al = new ArrayList<Integer>();

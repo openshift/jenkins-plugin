@@ -23,7 +23,6 @@ import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.capability.CapabilityVisitor;
-import com.openshift.restclient.capability.ICapability;
 import com.openshift.restclient.capability.resources.IBuildTriggerable;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
@@ -40,23 +39,6 @@ import java.util.List;
 
 import jenkins.tasks.SimpleBuildStep;
 
-/**
- * OpenShift {@link Builder}.
- *
- * <p>
- * When the user configures the project and enables this builder,
- * {@link DescriptorImpl#newInstance(StaplerRequest)} is invoked
- * and a new {@link OpenShiftBuilder} is created. The created
- * instance is persisted to the project configuration XML by using
- * XStream, so this allows you to use instance fields (like {@link #name})
- * to remember the configuration.
- *
- * <p>
- * When a build is performed, the {@link #perform(AbstractBuild, Launcher, BuildListener)}
- * method will be invoked. 
- *
- * @author Gabe Montero
- */
 public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serializable {
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
@@ -151,7 +133,6 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
 	
 	protected boolean coreBuildLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	System.setProperty(ICapability.OPENSHIFT_BINARY_LOCATION, Constants.OC_LOCATION);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg);
 		
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));

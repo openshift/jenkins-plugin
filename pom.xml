@@ -75,4 +75,11 @@
     
   </dependencies>
 
+  <organization>
+  	<name>Red Hat, Inc</name>
+  	<url>http://www.redhat.com</url>
+  </organization>
+  <scm>
+  	<url>https://github.com/gabemontero/jenkins-plugin</url>
+  </scm>
 </project>
