@@ -11,7 +11,7 @@
     <relativePath/>
   </parent>
   <groupId>com.openshift</groupId>
-  <artifactId>openshift-plugin</artifactId>
+  <artifactId>openshift</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>hpi</packaging>
 
