@@ -79,7 +79,7 @@
   	<url>http://www.redhat.com</url>
   </organization>
   <scm>
-  	<url>https://github.com/gabemontero/jenkins-plugin</url>
+  	<url>https://github.com/openshift/jenkins-plugin</url>
   </scm>
   <description>This project provides a plugin into Jenkins which facilitates the construction of jobs, pipelines, and workflows that operate on a Kubernetes based OpenShift server.</description>
 </project>
