@@ -13,11 +13,5 @@
     so it should be straightforward to find them.
   -->
   <f:section title="OpenShift Image Streams">
-  <!--
-    <f:entry title="French" field="useFrench"
-      description="Check if we should say hello in French">
-      <f:checkbox />
-    </f:entry>
-  -->
   </f:section>
 </j:jelly>

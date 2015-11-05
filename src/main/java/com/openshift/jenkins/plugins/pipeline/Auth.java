@@ -1,4 +1,4 @@
-package com.openshift.jenkins.plugins;
+package com.openshift.jenkins.plugins.pipeline;
 
 
 import java.io.ByteArrayInputStream;

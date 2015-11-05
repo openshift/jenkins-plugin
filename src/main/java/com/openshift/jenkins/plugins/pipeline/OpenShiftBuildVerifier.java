@@ -1,4 +1,4 @@
-package com.openshift.jenkins.plugins;
+package com.openshift.jenkins.plugins.pipeline;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
@@ -16,26 +16,28 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-import com.openshift.restclient.capability.ICapability;
-import com.openshift.restclient.model.IDeploymentConfig;
-import com.openshift.restclient.model.IReplicationController;
+import com.openshift.restclient.model.IBuild;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import jenkins.tasks.SimpleBuildStep;
 
-public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Serializable {
-
+public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, Serializable {
+	
     private String apiURL = "https://openshift.default.svc.cluster.local";
-    private String depCfg = "frontend";
+    private String bldCfg = "frontend";
     private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
@@ -43,9 +45,9 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose) {
+    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose) {
         this.apiURL = apiURL;
-        this.depCfg = depCfg;
+        this.bldCfg = bldCfg;
         this.namespace = namespace;
         this.authToken = authToken;
         this.verbose = verbose;
@@ -58,8 +60,8 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
 		return apiURL;
 	}
 
-	public String getDepCfg() {
-		return depCfg;
+	public String getBldCfg() {
+		return bldCfg;
 	}
 
 	public String getNamespace() {
@@ -69,18 +71,19 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
 	public String getAuthToken() {
 		return authToken;
 	}
-
+	
     public String getVerbose() {
 		return verbose;
 	}
-
-    protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
+    
+    protected boolean coreLogic(AbstractBuild build, Launcher launcer, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeployer in perform for " + depCfg);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg);
     	
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
     	Auth auth = Auth.createInstance(chatty ? listener : null);
-    	    	
+    	
+    	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, auth);
     	
@@ -88,76 +91,58 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
     		// seed the auth
         	client.setAuthorizationStrategy(bearerToken);
         	
-        	
-        	// do the oc deploy ... may need to retry
-        	long currTime = System.currentTimeMillis();
-        	boolean deployDone = false;
-        	if (chatty)
-        		listener.getLogger().println("\nOpenShiftDeployer wait " + getDescriptor().getWait());
-        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-        		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-				int latestVersion =  -1;
-        		if (dc != null) {
-        			latestVersion = dc.getLatestVersionNumber();
-
-        			// oc deploy gets the rc after the dc prior to putting the dc;
-        			// we'll do the same ... currently, if a rc exists at the right level,
-        			// the deployment is cancelled by oc; we won't fail the build step, just 
-        			// print the info message; no rc result in exception with openshift-restclient-java api
-        			// but will still check for null in try block in case that changes
-    				try {
-    					IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
-    					if (chatty)
-    						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
-    					if (rc != null) {
-    						ReplicationController rcImpl = (ReplicationController)rc;
-    						String state = rc.getAnnotation("openshift.io/deployment.phase");//Deployment.getReplicationControllerState(rcImpl, chatty ? listener : null);
-    						if (!state.equals("Complete") && !state.equals("Failed")) {
-    							listener.getLogger().println("\n\nBUILD STEP EXIT:  " + rc.getName() + " is in progress.");
-    							return true;
-    						}
-    					}
-    				} catch (Throwable t) {
-    				}
-    				
-    				// now lets update the latest version of the dc
-    				try {
-    					dc.setLatestVersionNumber(latestVersion + 1);
-    					client.update(dc);
-    					deployDone = true;
-    				} catch (Throwable t) {
-    					if (chatty)
-    						t.printStackTrace(listener.getLogger());
-    				}
-					
-					if (deployDone) {
-						break;
-					} else {
-						if (chatty)
-	        				listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc scale again");
-						try {
-							Thread.sleep(10000);
-						} catch (InterruptedException e) {
-						}
+			String bldState = null;
+			long currTime = System.currentTimeMillis();
+			if (chatty)
+				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
+			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+				List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
+				Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
+				List<String> ourKeys = new ArrayList<String>();
+				for (IBuild bld : blds) {
+					if (bld.getName().startsWith(bldCfg)) {
+						ourKeys.add(bld.getName());
+						ourBlds.put(bld.getName(), bld);
 					}
-        				
-        			
-        		}
-        	}
-        	
-        	if (!deployDone) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not get oc deploy executed");
-        		return false;
-        	}
-        	
-        	
+				}
+				
+				if (ourKeys.size() > 0) {
+					Collections.sort(ourKeys);
+					IBuild bld = ourBlds.get(ourKeys.get(ourKeys.size() - 1));
+					if (chatty)
+						listener.getLogger().println("\nOpenShiftBuildVerifier latest bld id " + ourKeys.get(ourKeys.size() - 1));
+					bldState = bld.getStatus();
+				}
+				
+				if (chatty)
+					listener.getLogger().println("\nOpenShiftBuildVerifier post bld launch bld state:  " + bldState);
+				if (bldState == null || !bldState.equals("Complete")) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+					}
+				} else {
+					break;
+				}
+			}
+			
+			if (bldState == null || !bldState.equals("Complete")) {
+				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
+				return false;
+			} else {
+				if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
+					listener.getLogger().println("\nBUILD STEP EXIT: OpenShiftBuildVerifier exit successfully");
+					return true;
+				} else {
+					listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuildVerifier not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
+					return false;
+				}
+			}
+    				        		
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier could not get oc client");
     		return false;
     	}
-
-    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer exit successfully");
-    	return true;
     	
     }
     
@@ -172,7 +157,23 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
 		return coreLogic(build, launcher, listener);
     }
 
-    // Overridden for better type safety.
+    public void setApiURL(String apiURL) {
+		this.apiURL = apiURL;
+	}
+
+	public void setBldCfg(String bldCfg) {
+		this.bldCfg = bldCfg;
+	}
+
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
+	}
+
+	public void setAuthToken(String authToken) {
+		this.authToken = authToken;
+	}
+
+	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
     @Override
@@ -181,7 +182,7 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
     }
 
     /**
-     * Descriptor for {@link OpenShiftDeployer}. Used as a singleton.
+     * Descriptor for {@link OpenShiftBuildVerifier}. Used as a singleton.
      * The class is marked as public so that it can be accessed from views.
      *
      */
@@ -223,10 +224,10 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckDepCfg(@QueryParameter String value)
+        public FormValidation doCheckBldCfg(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set depCfg");
+                return FormValidation.error("Please set bldCfg");
             return FormValidation.ok();
         }
 
@@ -236,7 +237,7 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
                 return FormValidation.error("Please set namespace");
             return FormValidation.ok();
         }
-
+        
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
             // Indicates that this builder can be used with all kinds of project types 
             return true;
@@ -246,7 +247,7 @@ public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Seria
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Trigger a deployment in OpenShift";
+            return "Get latest OpenShift build status";
         }
         
         public long getWait() {

@@ -10,13 +10,12 @@
     <version>1.580.1</version>
     <relativePath/>
   </parent>
-  <groupId>com.openshift</groupId>
-  <artifactId>openshift</artifactId>
+  <groupId>com.openshift.jenkins</groupId>
+  <artifactId>openshift-pipeline</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>hpi</packaging>
 
-  <name>OpenShift Jenkins Plugin</name>
-  <description>OpenShift Jenkins Plugin</description>
+  <name>OpenShift Pipeline Jenkins Plugin</name>
   <url>http://openshift.redhat.com</url>
   <licenses>
     <license>
@@ -82,4 +81,5 @@
   <scm>
   	<url>https://github.com/gabemontero/jenkins-plugin</url>
   </scm>
+  <description>This project provides a plugin into Jenkins which facilitates the construction of jobs, pipelines, and workflows that operate on a Kubernetes based OpenShift server.</description>
 </project>

@@ -1,15 +1,19 @@
-package com.openshift.jenkins.plugins;
+package com.openshift.jenkins.plugins.pipeline;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.Result;
 import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
 import hudson.model.Run;
+import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Publisher;
+import hudson.tasks.Recorder;
 import net.sf.json.JSONObject;
 
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -20,37 +24,50 @@ import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-import com.openshift.restclient.model.IBuild;
+import com.openshift.restclient.model.IDeploymentConfig;
+import com.openshift.restclient.model.IReplicationController;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import jenkins.tasks.SimpleBuildStep;
 
-public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, Serializable {
+/**
+ * OpenShift {@link Builder}.
+ *
+ * <p>
+ * When the user configures the project and enables this builder,
+ * {@link DescriptorImpl#newInstance(StaplerRequest)} is invoked
+ * and a new {@link OpenShiftDeployCanceller} is created. The created
+ * instance is persisted to the project configuration XML by using
+ * XStream, so this allows you to use instance fields (like {@link #name})
+ * to remember the configuration.
+ *
+ * <p>
+ * When a build is performed, the {@link #perform(AbstractBuild, Launcher, BuildListener)}
+ * method will be invoked. 
+ *
+ * @author Gabe Montero
+ */
+public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildStep, Serializable {
 	
     private String apiURL = "https://openshift.default.svc.cluster.local";
-    private String bldCfg = "frontend";
     private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
+    private String depCfg ="frontend";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose) {
+    public OpenShiftDeployCanceller(String apiURL, String namespace, String authToken, String verbose, String deployConfig) {
         this.apiURL = apiURL;
-        this.bldCfg = bldCfg;
         this.namespace = namespace;
         this.authToken = authToken;
         this.verbose = verbose;
+        this.depCfg = deployConfig;
     }
 
     /**
@@ -58,10 +75,6 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
      */
     public String getApiURL() {
 		return apiURL;
-	}
-
-	public String getBldCfg() {
-		return bldCfg;
 	}
 
 	public String getNamespace() {
@@ -75,94 +88,13 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
     public String getVerbose() {
 		return verbose;
 	}
-    
-    protected boolean coreLogic(AbstractBuild build, Launcher launcer, TaskListener listener) {
-		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg);
-    	
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
-    	
-    	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
-    	
-    	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
-			String bldState = null;
-			long currTime = System.currentTimeMillis();
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
-			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-				List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
-				Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
-				List<String> ourKeys = new ArrayList<String>();
-				for (IBuild bld : blds) {
-					if (bld.getName().startsWith(bldCfg)) {
-						ourKeys.add(bld.getName());
-						ourBlds.put(bld.getName(), bld);
-					}
-				}
-				
-				if (ourKeys.size() > 0) {
-					Collections.sort(ourKeys);
-					IBuild bld = ourBlds.get(ourKeys.get(ourKeys.size() - 1));
-					if (chatty)
-						listener.getLogger().println("\nOpenShiftBuildVerifier latest bld id " + ourKeys.get(ourKeys.size() - 1));
-					bldState = bld.getStatus();
-				}
-				
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftBuildVerifier post bld launch bld state:  " + bldState);
-				if (bldState == null || !bldState.equals("Complete")) {
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-					}
-				} else {
-					break;
-				}
-			}
-			
-			if (bldState == null || !bldState.equals("Complete")) {
-				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
-				return false;
-			} else {
-				if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
-					listener.getLogger().println("\nBUILD STEP EXIT: OpenShiftBuildVerifier exit successfully");
-					return true;
-				} else {
-					listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuildVerifier not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
-					return false;
-				}
-			}
-    				        		
-    	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier could not get oc client");
-    		return false;
-    	}
-    	
-    }
-    
-	@Override
-	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
-			TaskListener listener) throws InterruptedException, IOException {
-		coreLogic(null, launcher, listener);
-	}
 
-	@Override
-    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
-		return coreLogic(build, launcher, listener);
-    }
+	public void setVerbose(String verbose) {
+		this.verbose = verbose;
+	}
 
     public void setApiURL(String apiURL) {
 		this.apiURL = apiURL;
-	}
-
-	public void setBldCfg(String bldCfg) {
-		this.bldCfg = bldCfg;
 	}
 
 	public void setNamespace(String namespace) {
@@ -173,6 +105,15 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
 		this.authToken = authToken;
 	}
 
+
+	public String getDepCfg() {
+		return depCfg;
+	}
+
+	public void setDepCfg(String deployConfig) {
+		this.depCfg = deployConfig;
+	}
+
 	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
@@ -181,14 +122,98 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
         return (DescriptorImpl)super.getDescriptor();
     }
 
-    /**
-     * Descriptor for {@link OpenShiftBuildVerifier}. Used as a singleton.
+    
+    
+	@Override
+	public BuildStepMonitor getRequiredMonitorService() {
+		return BuildStepMonitor.NONE;
+	}
+
+	@Override
+	public boolean needsToRunAfterFinalized() {
+		return true;
+	}
+	
+	protected boolean coreLogic(AbstractBuild<?,?> build, Launcher launcher, TaskListener listener) {
+		boolean chatty = Boolean.parseBoolean(verbose);
+		Result result = build.getResult();
+		
+		// in theory, success should mean that the builds completed successfully,
+		// at this time, we'll scan the builds either way to clean up rogue builds
+		if (result.isWorseThan(Result.SUCCESS)) {
+			if (chatty)
+				listener.getLogger().println("\nOpenShiftDeployCanceller build did not succeed");
+		} else {
+			if (chatty)
+				listener.getLogger().println("\nOpenShiftDeployCanceller build succeeded");			
+		}
+
+    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+    	Auth auth = Auth.createInstance(chatty ? listener : null);
+		
+    	// get oc client (sometime REST, sometimes Exec of oc command
+    	IClient client = new ClientFactory().create(apiURL, auth);
+    	
+    	if (client != null) {
+    		// seed the auth
+        	client.setAuthorizationStrategy(bearerToken);
+			
+    		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+    		
+    		if (dc == null) {
+    			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentCanceller no valid deployment config found for " + depCfg);
+    			return false;
+    		}
+
+			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentCanceller checking if deployment out there for " + depCfg);
+			
+			int latestVersion = dc.getLatestVersionNumber();
+			IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+				
+			if (rc != null) {
+				String state = rc.getAnnotation("openshift.io/deployment.phase");
+        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete")) {
+        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment " + rc.getName() + " done");
+        			return false;
+        		}
+        		
+        		rc.setAnnotation("openshift.io/deployment.cancelled", "true");
+        		rc.setAnnotation("openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
+				
+        		client.update(rc);
+        		
+			} else {
+    			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller could not get resource controller with key:  " + depCfg + "-" + latestVersion);
+				return false;
+			}					
+    		
+    	}			
+		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller completed");
+		return true;
+		
+	}
+
+	@Override
+	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
+			TaskListener listener) throws InterruptedException, IOException {
+		coreLogic(null, launcher, listener);
+	}
+
+	@Override
+	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher,
+			BuildListener listener) throws InterruptedException, IOException {
+		return coreLogic(build, launcher, listener);
+	}
+
+
+
+	/**
+     * Descriptor for {@link OpenShiftDeployCanceller}. Used as a singleton.
      * The class is marked as public so that it can be accessed from views.
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-    	private long wait = 60000;
+    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -224,10 +249,10 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckBldCfg(@QueryParameter String value)
+        public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set bldCfg");
+                return FormValidation.error("Please set depCfg");
             return FormValidation.ok();
         }
 
@@ -247,23 +272,19 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Get latest OpenShift build status";
-        }
-        
-        public long getWait() {
-        	return wait;
+            return "Cancel deployments in OpenShift";
         }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
-        	wait = formData.getLong("wait");
             save();
             return super.configure(req,formData);
         }
 
     }
+
 
 }
 

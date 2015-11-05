@@ -1,8 +1,10 @@
 # OpenShift V3 Plug-in for Jenkins
-This project provides a series Jenkins plug-in implementations that operate on [V3 of OpenShift](https://docs.openshift.org/latest/welcome/index.html).  In summary
+This project provides a series Jenkins plug-in implementations that operate on [Kubernetes based OpenShift](https://docs.openshift.org/latest/welcome/index.html).  In summary
 they are a series of REST clients that interface with the OpenShift server via the [exposed API](https://docs.openshift.org/latest/rest_api/overview.html).
 They minimally mimic the REST flows of common uses of the `oc` [CLI command](https://docs.openshift.org/latest/cli_reference/basic_cli_operations.html), but in several
 instances additional REST flows have been added to provide validation of the operations being performed.
+
+Their ultimate intent is to provide easy to use building blocks that simplify the construction of the jobs, workflows, and pipelines in Jenkins that operate against an OpenShift deployments.
 
 ## Jenkins "build steps"
 
@@ -48,21 +50,21 @@ A few Jenkins "post-build action" implementations are also provided, which you c
 Each of the Jenkins "build steps" can also be used as steps in a Jenkins Workflow plug-in Groovy script, as they implement `jenkins.tasks.SimpleBuildStep` and `java.io.Serializable`.  From your Groovy script, instantiate the associated Java object, and then leverage the workflow plug-in `step` keyword to call out to the object with the necessary workflow contexts.  [Here](https://github.com/jenkinsci/workflow-plugin/blob/master/TUTORIAL.md) is a useful reference on constructing Jenkins Workflow Groovy scripts.
 
 As a point of reference, here are the Java classes for each of the Jenkins "build steps":
-1.  "Perform builds in OpenShift":  com.openshift.jenkins.plugins.OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs)
+1.  "Perform builds in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs)
 
-2.  "Scale deployments in OpenShift":  com.openshift.jenkins.plugins.OpenShiftScaler(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose)
+2.  "Scale deployments in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftScaler(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose)
 
-3.  "Trigger a deployment in OpenShift":  com.openshift.jenkins.plugins.OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose)
+3.  "Trigger a deployment in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose)
 
-4.  "Verify a service is up in OpenShift":  com.openshift.jenkins.plugins.OpenShiftServiceVerifier(String apiURL, String svcName, String namespace, String authToken, String verbose)
+4.  "Verify a service is up in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftServiceVerifier(String apiURL, String svcName, String namespace, String authToken, String verbose)
 
-5.  "Tag an image in OpenShift":  com.openshift.jenkins.plugins.OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose)
+5.  "Tag an image in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose)
 
-6.  "Check deployment success in OpenShift":  com.openshift.jenkins.plugins.OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose)
+6.  "Check deployment success in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose)
 
-7.  "Get latest OpenShift build status":  com.openshift.jenkins.plugins.OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose)
+7.  "Get latest OpenShift build status":  com.openshift.jenkins.plugins.pipeline.OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose)
 
-8.  "Create resource(s) in OpenShift":  com.openshift.jenkins.plugins.OpenShiftCreator(String apiURL, String namespace, String authToken, String verbose, String jsonyaml)
+8.  "Create resource(s) in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftCreator(String apiURL, String namespace, String authToken, String verbose, String jsonyaml)
 
 ## Common aspects across the REST based functions
 

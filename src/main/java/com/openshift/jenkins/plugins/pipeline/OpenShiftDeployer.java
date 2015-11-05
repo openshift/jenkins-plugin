@@ -1,4 +1,4 @@
-package com.openshift.jenkins.plugins;
+package com.openshift.jenkins.plugins.pipeline;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
@@ -16,12 +16,14 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+import com.openshift.restclient.capability.ICapability;
+import com.openshift.restclient.model.IDeploymentConfig;
+import com.openshift.restclient.model.IReplicationController;
 
 import javax.servlet.ServletException;
 
@@ -30,40 +32,21 @@ import java.io.Serializable;
 
 import jenkins.tasks.SimpleBuildStep;
 
-/**
- * OpenShift {@link Builder}.
- *
- * <p>
- * When the user configures the project and enables this builder,
- * {@link DescriptorImpl#newInstance(StaplerRequest)} is invoked
- * and a new {@link OpenShiftScaler} is created. The created
- * instance is persisted to the project configuration XML by using
- * XStream, so this allows you to use instance fields (like {@link #name})
- * to remember the configuration.
- *
- * <p>
- * When a build is performed, the {@link #perform(AbstractBuild, Launcher, BuildListener)}
- * method will be invoked. 
- *
- * @author Gabe Montero
- */
-public class OpenShiftScaler extends Builder implements SimpleBuildStep, Serializable {
+public class OpenShiftDeployer extends Builder implements SimpleBuildStep, Serializable {
 
     private String apiURL = "https://openshift.default.svc.cluster.local";
     private String depCfg = "frontend";
     private String namespace = "test";
-    private String replicaCount = "0";
     private String authToken = "";
     private String verbose = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftScaler(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose) {
+    public OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose) {
         this.apiURL = apiURL;
         this.depCfg = depCfg;
         this.namespace = namespace;
-        this.replicaCount = replicaCount;
         this.authToken = authToken;
         this.verbose = verbose;
     }
@@ -83,10 +66,6 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
 		return namespace;
 	}
 	
-	public String getReplicaCount() {
-		return replicaCount;
-	}
-	
 	public String getAuthToken() {
 		return authToken;
 	}
@@ -94,10 +73,10 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
     public String getVerbose() {
 		return verbose;
 	}
-    
+
     protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftScaler in perform for " + depCfg + " wanting to get to replica count " + replicaCount);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeployer in perform for " + depCfg);
     	
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
     	Auth auth = Auth.createInstance(chatty ? listener : null);
@@ -109,101 +88,78 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
     		// seed the auth
         	client.setAuthorizationStrategy(bearerToken);
         	
-        	String depId = null;
-        	ReplicationController rc = null;
-        	int latestVersion = -1;
-        	// find corresponding rep ctrl and scale it to the right value
+        	
+        	// do the oc deploy ... may need to retry
         	long currTime = System.currentTimeMillis();
-        	// in testing with the jenkins-ci sample, the initial deploy after
-        	// a build is kinda slow ... gotta wait more than one minute
+        	boolean deployDone = false;
         	if (chatty)
-        		listener.getLogger().println("\nOpenShiftScaler wait " + getDescriptor().getWait());
+        		listener.getLogger().println("\nOpenShiftDeployer wait " + getDescriptor().getWait());
         	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-            	// get ReplicationController ref
-        		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-        		
-        		if (dc == null) {
-        			if (chatty) listener.getLogger().println("\nOpenShiftScaler dc is null");
-        		} else {
+        		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+				int latestVersion =  -1;
+        		if (dc != null) {
+        			latestVersion = dc.getLatestVersionNumber();
+
+        			// oc deploy gets the rc after the dc prior to putting the dc;
+        			// we'll do the same ... currently, if a rc exists at the right level,
+        			// the deployment is cancelled by oc; we won't fail the build step, just 
+        			// print the info message; no rc result in exception with openshift-restclient-java api
+        			// but will still check for null in try block in case that changes
     				try {
-    					latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+    					IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+    					if (chatty)
+    						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
+    					if (rc != null) {
+    						ReplicationController rcImpl = (ReplicationController)rc;
+    						String state = rc.getAnnotation("openshift.io/deployment.phase");//Deployment.getReplicationControllerState(rcImpl, chatty ? listener : null);
+    						if (!state.equals("Complete") && !state.equals("Failed")) {
+    							listener.getLogger().println("\n\nBUILD STEP EXIT:  " + rc.getName() + " is in progress.");
+    							return true;
+    						}
+    					}
     				} catch (Throwable t) {
-    					latestVersion = 0;
     				}
-    				depId = depCfg + "-" + latestVersion;
+    				
+    				// now lets update the latest version of the dc
     				try {
-    					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
+    					dc.setLatestVersionNumber(latestVersion + 1);
+    					client.update(dc);
+    					deployDone = true;
     				} catch (Throwable t) {
-    					
+    					if (chatty)
+    						t.printStackTrace(listener.getLogger());
     				}
+					
+					if (deployDone) {
+						break;
+					} else {
+						if (chatty)
+	        				listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc scale again");
+						try {
+							Thread.sleep(10000);
+						} catch (InterruptedException e) {
+						}
+					}
+        				
+        			
         		}
-        		
-            	// if they want to scale down to 0 and there is no rc to begin with, just punt / consider a no-op
-            	if (rc != null || replicaCount.equals("0")) {
-            		if (chatty) listener.getLogger().println("\nOpenShiftScaler rc to use " + rc);
-            		break;
-            	} else {
-					if (chatty) listener.getLogger().println("\nOpenShiftScaler wait 10 seconds, then look for rep ctrl again");
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-					}
-            	}
         	}
         	
-        	if (rc == null) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler did not find any replication controllers for " + depCfg);
-        		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
-        		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
-        		// we refrain from adding yet 1 more config option
-        		if (replicaCount.equals("0"))
-        			return true;
-        		else
-        			return false;
-        	}
-        	
-        	// do the oc scale ... may need to retry        	
-        	boolean scaleDone = false;
-        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-        		// Find the right node in the json and update it
-        		// refetch to avoid optimistic update collision on k8s side
-	        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
-	        	rcImpl.setDesiredReplicaCount(Integer.decode(replicaCount));
-	        	try {
-	        		rcImpl = client.update(rcImpl);
-		        	scaleDone = true;
-	        	} catch (Throwable t) {
-	        		if (chatty)
-	        			t.printStackTrace(listener.getLogger());
-	        	}
-				
-				if (scaleDone) {
-					break;
-				} else {
-					if (chatty) listener.getLogger().println("\nOpenShiftScaler will wait 10 seconds, then try to scale again");
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-					}
-				}
-	    	}
-        	
-        	if (!scaleDone) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
+        	if (!deployDone) {
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not get oc deploy executed");
         		return false;
         	}
         	
-        	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler got the scale request through");
-        	return true;
-        	        	
+        	
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not get oc client");
     		return false;
     	}
 
+    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer exit successfully");
+    	return true;
+    	
     }
-
-    
     
 	@Override
 	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
@@ -225,13 +181,13 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
     }
 
     /**
-     * Descriptor for {@link OpenShiftScaler}. Used as a singleton.
+     * Descriptor for {@link OpenShiftDeployer}. Used as a singleton.
      * The class is marked as public so that it can be accessed from views.
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-    	private long wait = 180000;
+    	private long wait = 60000;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -274,18 +230,6 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckReplicaCount(@QueryParameter String value)
-                throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set replicaCount");
-            try {
-            	Integer.decode(value);
-            } catch (NumberFormatException e) {
-            	return FormValidation.error("Please specify an integer for replicaCount");
-            }
-            return FormValidation.ok();
-        }
-
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
@@ -302,7 +246,7 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Scale deployments in OpenShift";
+            return "Trigger a deployment in OpenShift";
         }
         
         public long getWait() {

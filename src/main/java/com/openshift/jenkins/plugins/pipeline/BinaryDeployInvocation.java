@@ -1,4 +1,4 @@
-package com.openshift.jenkins.plugins;
+package com.openshift.jenkins.plugins.pipeline;
 
 import java.io.InputStream;
 import java.io.SequenceInputStream;
@@ -10,11 +10,11 @@ import com.openshift.restclient.IClient;
 import com.openshift.restclient.capability.resources.IPodLogRetrieval;
 import com.trilead.ssh2.util.IOUtils;
 
-public class BinaryScaleInvocation extends AbstractOpenShiftBinaryCapability implements IPodLogRetrieval {
-	
-	// we are replacing this use of this class with REST flow in OpenShiftScaler, but leave this class present
-	// in the interim.  Just in case, here is an example of how this class would be used:
-//	BinaryScaleInvocation runner = new BinaryScaleInvocation(replicaCount, depId, nameSpace, client);
+public class BinaryDeployInvocation extends AbstractOpenShiftBinaryCapability implements IPodLogRetrieval {
+
+	// while the class is still present, we've replaced it with a REST flow in OpenShiftDeployer. the
+	// following is an example of how this class was leveraged in OpenShiftDeployer:
+//	BinaryDeployInvocation runner = new BinaryDeployInvocation(depCfg, nameSpace, client);
 //	InputStream logs = null;
 //	// create stream and copy bytes
 //	try {
@@ -23,7 +23,7 @@ public class BinaryScaleInvocation extends AbstractOpenShiftBinaryCapability imp
 //		while ((b = logs.read()) != -1) {
 //			listener.getLogger().write(b);
 //		}
-//		scaleDone = true;
+//		deployDone = true;
 //	} catch (Throwable e) {
 //		e.printStackTrace(listener.getLogger());
 //	} finally {
@@ -39,23 +39,19 @@ public class BinaryScaleInvocation extends AbstractOpenShiftBinaryCapability imp
 //	if (logs != null) {
 //		break;
 //	} else {
-//		listener.getLogger().println("OpenShiftScaler wait 10 seconds, then try oc scale again");
+//		listener.getLogger().println("OpenShiftDeployer wait 10 seconds, then try oc deploy again");
 //		try {
 //			Thread.sleep(10000);
 //		} catch (InterruptedException e) {
 //		}
 //	}
-//}
 	
-
-	private final String replicaCount;
 	private final String deployment;
 	private final String nameSpace;
 	private StringBuilder args;
 	
-	public BinaryScaleInvocation(String replicaCount, String deployment, String nameSpace, IClient client) {
+	public BinaryDeployInvocation(String deployment, String nameSpace, IClient client) {
 		super(client);
-		this.replicaCount = replicaCount;
 		this.deployment = deployment;
 		this.nameSpace = nameSpace;
 	}
@@ -67,7 +63,7 @@ public class BinaryScaleInvocation extends AbstractOpenShiftBinaryCapability imp
 
 	@Override
 	public String getName() {
-		return BinaryScaleInvocation.class.getSimpleName();
+		return BinaryDeployInvocation.class.getSimpleName();
 	}
 
 	@Override
@@ -89,12 +85,11 @@ public class BinaryScaleInvocation extends AbstractOpenShiftBinaryCapability imp
 		String sec = " --insecure-skip-tls-verify=true ";
 		if (Auth.useCert())
 			sec = Auth.CERT_ARG;
-		args.append(" -n ").append(nameSpace).append(" scale ")
-			.append("--replicas=").append(replicaCount).append(" ")
+		args.append(" -n ").append(nameSpace).append(" deploy ")
+			.append(deployment).append(" ")
 			.append(sec)
 			.append(" --server=").append(getClient().getBaseURL()).append(" ")
-			.append(" rc ")
-			.append(deployment).append(" ");
+			.append(" --latest ");
 		addToken(args);
 		return StringUtils.split(args.toString(), " ");
 	}
