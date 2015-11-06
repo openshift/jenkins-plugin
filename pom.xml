@@ -16,29 +16,14 @@
   <packaging>hpi</packaging>
 
   <name>OpenShift Pipeline Jenkins Plugin</name>
-  <url>http://openshift.redhat.com</url>
+  <!-- <url>http://openshift.redhat.com</url> -->
+  <url>https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin</url>
   <licenses>
     <license>
       <name>Apache License</name>
       <url>http://www.apache.org/licenses/LICENSE-2.0</url>
     </license>
   </licenses>
-  <!-- If you want this to appear on the wiki page:
-  <developers>
-    <developer>
-      <id>bhacker</id>
-      <name>Bob Q. Hacker</name>
-      <email>bhacker@nowhere.net</email>
-    </developer>
-  </developers>
-  -->
-  <!-- Assuming you want to host on @jenkinsci:
-  <scm>
-    <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
-    <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
-    <url>http://github.com/jenkinsci/${project.artifactId}-plugin</url>
-  </scm>
-   -->
   <repositories>
     <repository>
       <id>repo.jenkins-ci.org</id>
@@ -78,8 +63,22 @@
   	<name>Red Hat, Inc</name>
   	<url>http://www.redhat.com</url>
   </organization>
+  <!-- 
   <scm>
   	<url>https://github.com/openshift/jenkins-plugin</url>
   </scm>
+  -->
+  <scm>
+    <connection>scm:git:ssh://github.com/jenkinsci/openshift-pipeline-plugin.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openshift-pipeline-plugin.git</developerConnection>
+     <url>https://github.com/jenkinsci/openshift-pipeline-plugin</url>
+  </scm>
+  <developers>
+    <developer>
+      <id>gmontero</id> <!-- The ID is your jenkins-ci.org account -->
+      <name>Gabe Montero</name>
+      <email>gmontero@redhat.com</email>
+    </developer>
+  </developers>
   <description>This project provides a plugin into Jenkins which facilitates the construction of jobs, pipelines, and workflows that operate on a Kubernetes based OpenShift server.</description>
 </project>
