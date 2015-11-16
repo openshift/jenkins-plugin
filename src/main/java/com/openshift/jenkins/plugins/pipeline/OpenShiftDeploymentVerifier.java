@@ -105,7 +105,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 	
 	protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
     	boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount);
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount + " on namespace " + namespace);
     	
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
     	Auth auth = Auth.createInstance(chatty ? listener : null);

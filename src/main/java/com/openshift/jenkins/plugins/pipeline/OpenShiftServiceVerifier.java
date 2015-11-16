@@ -93,7 +93,7 @@ public class OpenShiftServiceVerifier extends Builder implements SimpleBuildStep
     
     protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftServiceVerifier in perform");
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftServiceVerifier in perform on namespace " + namespace);
     	
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
     	Auth auth = Auth.createInstance(chatty ? listener : null);

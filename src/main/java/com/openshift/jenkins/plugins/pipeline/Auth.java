@@ -29,7 +29,7 @@ import hudson.model.TaskListener;
 
 
 public class Auth implements ISSLCertificateCallback {
-	private static final String AUTH_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/token";
+	private static final String AUTH_FILE = "/run/secrets/kubernetes.io/serviceaccount/token";
 	private static final String CERT_FILE = "/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 	public static final String CERT_ARG = " --certificate-authority=/run/secrets/kubernetes.io/serviceaccount/ca.crt ";
 	private static boolean useCert = false;
@@ -69,6 +69,7 @@ public class Auth implements ISSLCertificateCallback {
 		if (this.listener != null) {
 			listener.getLogger().println("Auth - allowCertificate with incoming chain of len  " + certificateChain.length);
 		}
+
 		// means we are a skip tls equivalent run
 		if (this.cert == null)
 			return true;
@@ -96,8 +97,45 @@ public class Auth implements ISSLCertificateCallback {
 	public static boolean useCert() {
 		return useCert;
 	}
+	
+	private static String pullTokenFromFile(File f, TaskListener listener) {
+		FileInputStream fis = null;
+		String authToken = null;
+		try {
+			fis = new FileInputStream(f);
+			ArrayList<Integer> al = new ArrayList<Integer>();
+			int rawbyte = -1;
+			while ((rawbyte = fis.read()) != -1) {
+				al.add(rawbyte);
+			}
+			
+			byte[] buf = new byte[al.size()];
+			for (int i = 0; i < al.size(); i++) {
+				buf[i] = (byte)al.get(i).intValue();
+			}
+    		synchronized(Auth.class) {
+    			if (authToken == null || authToken.length() == 0) {
+    				authToken = new String(buf);
+    			}
+    		}
+			
+		} catch (FileNotFoundException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IOException e) {
+			e.printStackTrace(listener.getLogger());
+		} finally {
+			try {
+				fis.close();
+			} catch (Throwable e) {
+			}
+		}
+		return authToken;
+	}
 
 	public static String deriveBearerToken(AbstractBuild<?, ?> build, String at, TaskListener listener, boolean verbose) {
+		// the scm path may call this without a listener
+		if (listener == null)
+			verbose = false;
 		String authToken = at;
 		// order of precedence is auth token set at the build step, then when set as a parameter to the build;
 		// then as a global setting
@@ -120,7 +158,14 @@ public class Auth implements ISSLCertificateCallback {
     			if (authToken != null && authToken.length() > 0) {
     				if (verbose) 
     					listener.getLogger().println("Auth token from build vars " + authToken);
-    				return authToken;
+    				File f = new File(authToken);
+    				if (f.exists()) {
+    	    			if (verbose)
+    	        			listener.getLogger().println("Auth file exists " + f.getAbsolutePath());
+    	    			authToken = pullTokenFromFile(f, listener);    					
+    				} else {
+    					return authToken;
+    				}
     			}
     			
     			// global properties under manage jenkins
@@ -131,8 +176,14 @@ public class Auth implements ISSLCertificateCallback {
     				if (authToken != null && authToken.length() > 0) {
     					if (verbose) 
     						listener.getLogger().println("Auth token from global env vars " + authToken);
-    					return authToken;
     				}
+    				File f = new File(authToken);
+    				if (f.exists()) {
+    	    			if (verbose)
+    	        			listener.getLogger().println("Auth file exists " + f.getAbsolutePath());
+    	    			authToken = pullTokenFromFile(f, listener);    					
+    				}
+    				return authToken;
     			} catch (IOException e1) {
     				if (verbose)
     					e1.printStackTrace(listener.getLogger());
@@ -149,35 +200,7 @@ public class Auth implements ISSLCertificateCallback {
     		if (f.exists()) {
     			if (verbose)
         			listener.getLogger().println("Auth file exists " + f.getAbsolutePath());
-    			FileInputStream fis = null;
-    			try {
-    				fis = new FileInputStream(f);
-    				ArrayList<Integer> al = new ArrayList<Integer>();
-    				int rawbyte = -1;
-    				while ((rawbyte = fis.read()) != -1) {
-    					al.add(rawbyte);
-    				}
-    				
-    				byte[] buf = new byte[al.size()];
-    				for (int i = 0; i < al.size(); i++) {
-    					buf[i] = (byte)al.get(i).intValue();
-    				}
-    	    		synchronized(Auth.class) {
-    	    			if (authToken == null || authToken.length() == 0) {
-    	    				authToken = new String(buf);
-    	    			}
-    	    		}
-    				
-    			} catch (FileNotFoundException e) {
-					e.printStackTrace(listener.getLogger());
-				} catch (IOException e) {
-					e.printStackTrace(listener.getLogger());
-				} finally {
-    				try {
-						fis.close();
-					} catch (Throwable e) {
-					}
-    			}
+    			authToken = pullTokenFromFile(f, listener);
     		} else {
     			listener.getLogger().println("Auth file for auth token " + f.toString() + " does not exist");
     		}
