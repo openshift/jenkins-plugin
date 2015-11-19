@@ -6,6 +6,8 @@ instances additional REST flows have been added to provide validation of the ope
 
 Their ultimate intent is to provide easy to use building blocks that simplify the construction of the jobs, workflows, and pipelines in Jenkins that operate against an OpenShift deployments.
 
+NOTE:  This plug-in requires JDK 1.8, based on its maven dependency openshift-restclient-java.
+
 ## Jenkins "build steps"
 
 A series of Jenkins "build step" implementations are provided, which you can select from the `Add build step` pull down available on any project's configure page:
