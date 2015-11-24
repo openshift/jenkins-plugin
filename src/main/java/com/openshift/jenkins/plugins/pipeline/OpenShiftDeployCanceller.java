@@ -1,4 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline;
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
@@ -31,6 +32,7 @@ import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Field;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -88,7 +90,7 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
     public String getVerbose() {
 		return verbose;
 	}
-
+/*
 	public void setVerbose(String verbose) {
 		this.verbose = verbose;
 	}
@@ -104,16 +106,16 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 	public void setAuthToken(String authToken) {
 		this.authToken = authToken;
 	}
-
+*/
 
 	public String getDepCfg() {
 		return depCfg;
 	}
-
+/*
 	public void setDepCfg(String deployConfig) {
 		this.depCfg = deployConfig;
 	}
-
+*/
 	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
@@ -134,8 +136,48 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 		return true;
 	}
 	
+	// unfortunately a base class would not have access to private fields in this class; could munge our way through
+	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
+	// for now, duplicating this small piece of logic in each build step is the path taken
+	protected void inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
+		String className = this.getClass().getName();
+		try {
+			EnvVars env = build.getEnvironment(listener);
+			if (env == null)
+				return;
+			Class<?> c = Class.forName(className);
+			Field[] fields = c.getDeclaredFields();
+			for (Field f : fields) {
+				String key = f.getName();
+				// can assume field is of type String 
+				String val = (String) f.get(this);
+				if (chatty)
+					listener.getLogger().println("inspectBuildEnvAndOverrideFields found field " + key + " with current value " + val);
+				if (val == null)
+					continue;
+				String envval = env.get(val);
+				if (chatty)
+					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
+				if (envval != null && envval.length() > 0) {
+					f.set(this, envval);
+				}
+			}
+		} catch (ClassNotFoundException e1) {
+			e1.printStackTrace(listener.getLogger());
+		} catch (IOException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (InterruptedException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalAccessException e) {
+			e.printStackTrace(listener.getLogger());
+		}
+	}
+	
 	protected boolean coreLogic(AbstractBuild<?,?> build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
+		inspectBuildEnvAndOverrideFields(build, listener, chatty);
 		Result result = build.getResult();
 		
 		// in theory, success should mean that the builds completed successfully,

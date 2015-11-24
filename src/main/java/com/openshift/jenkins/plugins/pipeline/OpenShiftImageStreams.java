@@ -56,49 +56,49 @@ public class OpenShiftImageStreams extends SCM {
 		return apiURL;
 	}
 
-	public void setApiURL(String apiURL) {
-		this.apiURL = apiURL;
-	}
+//	public void setApiURL(String apiURL) {
+//		this.apiURL = apiURL;
+//	}
 
 	public String getNamespace() {
 		return namespace;
 	}
 
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
+//	public void setNamespace(String namespace) {
+//		this.namespace = namespace;
+//	}
 
 	public String getAuthToken() {
 		return authToken;
 	}
 
-	public void setAuthToken(String authToken) {
-		this.authToken = authToken;
-	}
+//	public void setAuthToken(String authToken) {
+//		this.authToken = authToken;
+//	}
 	
 	public String getImageStreamName() {
 		return imageStreamName;
 	}
 
-	public void setImageStreamName(String imageStreamName) {
-		this.imageStreamName = imageStreamName;
-	}
+//	public void setImageStreamName(String imageStreamName) {
+//		this.imageStreamName = imageStreamName;
+//	}
 
 	public String getTag() {
 		return tag;
 	}
 
-	public void setTag(String tag) {
-		this.tag = tag;
-	}
+//	public void setTag(String tag) {
+//		this.tag = tag;
+//	}
 
 	public String getVerbose() {
 		return verbose;
 	}
 
-	public void setVerbose(String verbose) {
-		this.verbose = verbose;
-	}
+//	public void setVerbose(String verbose) {
+//		this.verbose = verbose;
+//	}
 
 	private String getCommitId(TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);

@@ -1,4 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline;
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
@@ -32,6 +33,7 @@ import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
@@ -64,9 +66,6 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
         this.showBuildLogs = showBuildLogs;
     }
 
-    /**
-     * We'll use this from the <tt>config.jelly</tt>.
-     */
     public String getApiURL() {
 		return apiURL;
 	}
@@ -91,48 +90,56 @@ public class OpenShiftBuilder extends Builder implements SimpleBuildStep, Serial
 		return commitID;
 	}
 
-	public void setCommitID(String commitID) {
-		this.commitID = commitID;
-	}
-
-	public void setVerbose(String verbose) {
-		this.verbose = verbose;
-	}
-
-    public void setApiURL(String apiURL) {
-		this.apiURL = apiURL;
-	}
-
-	public void setBldCfg(String bldCfg) {
-		this.bldCfg = bldCfg;
-	}
-
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
-
-	public void setAuthToken(String authToken) {
-		this.authToken = authToken;
-	}
-
 	public String getBuildName() {
 		return buildName;
-	}
-
-	public void setBuildName(String buildName) {
-		this.buildName = buildName;
 	}
 
 	public String getShowBuildLogs() {
 		return showBuildLogs;
 	}
-
-	public void setShowBuildLogs(String showBuildLogs) {
-		this.showBuildLogs = showBuildLogs;
+	
+	// unfortunately a base class would not have access to private fields in this class; could munge our way through
+	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
+	// for now, duplicating this small piece of logic in each build step is the path taken
+	protected void inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
+		String className = this.getClass().getName();
+		try {
+			EnvVars env = build.getEnvironment(listener);
+			if (env == null)
+				return;
+			Class<?> c = Class.forName(className);
+			Field[] fields = c.getDeclaredFields();
+			for (Field f : fields) {
+				String key = f.getName();
+				// can assume field is of type String 
+				String val = (String) f.get(this);
+				if (chatty)
+					listener.getLogger().println("inspectBuildEnvAndOverrideFields found field " + key + " with current value " + val);
+				if (val == null)
+					continue;
+				String envval = env.get(val);
+				if (chatty)
+					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
+				if (envval != null && envval.length() > 0) {
+					f.set(this, envval);
+				}
+			}
+		} catch (ClassNotFoundException e1) {
+			e1.printStackTrace(listener.getLogger());
+		} catch (IOException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (InterruptedException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalAccessException e) {
+			e.printStackTrace(listener.getLogger());
+		}
 	}
 	
 	protected boolean coreBuildLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
+		inspectBuildEnvAndOverrideFields(build, listener, chatty);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg + " on namespace " + namespace);
 		
     	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));

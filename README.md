@@ -1,12 +1,12 @@
-# OpenShift V3 Plug-in for Jenkins
-This project provides a series Jenkins plug-in implementations that operate on [Kubernetes based OpenShift](https://docs.openshift.org/latest/welcome/index.html).  In summary
+# OpenShift V3 Plugin for Jenkins
+This project provides a series Jenkins plugin implementations that operate on [Kubernetes based OpenShift](https://docs.openshift.org/latest/welcome/index.html).  In summary
 they are a series of REST clients that interface with the OpenShift server via the [exposed API](https://docs.openshift.org/latest/rest_api/overview.html).
 They minimally mimic the REST flows of common uses of the `oc` [CLI command](https://docs.openshift.org/latest/cli_reference/basic_cli_operations.html), but in several
 instances additional REST flows have been added to provide validation of the operations being performed.
 
 Their ultimate intent is to provide easy to use building blocks that simplify the construction of the jobs, workflows, and pipelines in Jenkins that operate against an OpenShift deployments.
 
-NOTE:  This plug-in requires JDK 1.8, based on its maven dependency openshift-restclient-java.
+NOTE:  This plugin requires JDK 1.8, based on its maven dependency openshift-restclient-java.
 
 ## Jenkins "build steps"
 
@@ -49,7 +49,7 @@ A few Jenkins "post-build action" implementations are also provided, which you c
 
 ## Jenkins Workflow 
 
-Each of the Jenkins "build steps" can also be used as steps in a Jenkins Workflow plug-in Groovy script, as they implement `jenkins.tasks.SimpleBuildStep` and `java.io.Serializable`.  From your Groovy script, instantiate the associated Java object, and then leverage the workflow plug-in `step` keyword to call out to the object with the necessary workflow contexts.  [Here](https://github.com/jenkinsci/workflow-plugin/blob/master/TUTORIAL.md) is a useful reference on constructing Jenkins Workflow Groovy scripts.
+Each of the Jenkins "build steps" can also be used as steps in a Jenkins Workflow plugin Groovy script, as they implement `jenkins.tasks.SimpleBuildStep` and `java.io.Serializable`.  From your Groovy script, instantiate the associated Java object, and then leverage the workflow plugin `step` keyword to call out to the object with the necessary workflow contexts.  [Here](https://github.com/jenkinsci/workflow-plugin/blob/master/TUTORIAL.md) is a useful reference on constructing Jenkins Workflow Groovy scripts.
 
 As a point of reference, here are the Java classes for each of the Jenkins "build steps":
 1.  "Perform builds in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs)
@@ -68,17 +68,19 @@ As a point of reference, here are the Java classes for each of the Jenkins "buil
 
 8.  "Create resource(s) in OpenShift":  com.openshift.jenkins.plugins.pipeline.OpenShiftCreator(String apiURL, String namespace, String authToken, String verbose, String jsonyaml)
 
-## Common aspects across the REST based functions
+## Common aspects across the REST based functions (build steps, SCM, post-build actions)
 
 For all of these, with each required parameter, a default value is provided where it makes sense.  Optional parameters can be left blank.  And each parameter field has help text available via clicking the help icon located just right of the parameter input field.
 
-For each of the build step or post build step plugins, the bearer authentication token can be provided by the user via the following:
+Also, when processing any provided values for any of the parameters, the plugin will first see if that value, when used as as key, retrieves a non-null, non-empty value from the Jenkins build environment parameters.  If so, the plugin will substitute that value retrieved from the Jenkins build environment parameters in place of what was provided in the input field. 
+
+Next, the bearer authentication token can be provided by the user via the following:
 	- the field for the token in the specific build step
 	- if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Job panel, where the value is the token
 	- if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
 
 Otherwise, the plugin will assume you are running off of the OpenShift Jenkins Docker image (http://github.com/openshift/jenkins), and will read in the token from a well known location in the image that allows authorized access to the OpenShift master associated with the running OpenShift Jenkins image.
 
-The CA cert is currently pulled from a well known location in the OpenShift Jenkins Docker image.
+The CA cert is currently pulled from a well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt").
 
 For "Monitor OpenShift ImageStreams", only specifying the token in the plugin configuration or leveraging the token embedded in the OpenShift Jenkins image is supported.
