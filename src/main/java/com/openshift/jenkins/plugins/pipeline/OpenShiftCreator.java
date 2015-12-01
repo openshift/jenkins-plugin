@@ -83,8 +83,8 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
 		String response = null;
 		URL url = null;
     	try {
-    		if (chatty) listener.getLogger().println("\nOpenShiftCreator PUT URI " + "/oapi/v1/namespaces/"+namespace+"/"+path+"s");
-			url = new URL(apiURL + "/oapi/v1/namespaces/" + namespace + "/" + path + "s");
+    		if (chatty) listener.getLogger().println("\nOpenShiftCreator PUT URI " + (path.equals("service") ? "/api" : "/oapi") + "/v1/namespaces/"+namespace+"/"+path+"s");
+			url = new URL(apiURL + (path.equals("service") ? "/api" : "/oapi") + "/v1/namespaces/" + namespace + "/" + path + "s");
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 			return false;
