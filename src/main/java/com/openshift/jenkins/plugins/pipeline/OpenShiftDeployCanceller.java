@@ -90,32 +90,11 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
     public String getVerbose() {
 		return verbose;
 	}
-/*
-	public void setVerbose(String verbose) {
-		this.verbose = verbose;
-	}
-
-    public void setApiURL(String apiURL) {
-		this.apiURL = apiURL;
-	}
-
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
-
-	public void setAuthToken(String authToken) {
-		this.authToken = authToken;
-	}
-*/
 
 	public String getDepCfg() {
 		return depCfg;
 	}
-/*
-	public void setDepCfg(String deployConfig) {
-		this.depCfg = deployConfig;
-	}
-*/
+
 	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.

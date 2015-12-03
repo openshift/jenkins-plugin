@@ -34,12 +34,14 @@ public class Deployment {
 				} catch (InterruptedException e) {
 				}
 			} else {
+				if (chatty)
+					listener.getLogger().println("\n trigger fired for deployment");
 				break;
 			}
 		}
 		
 		if (chatty) {
-			listener.getLogger().println("\n seeing if dc " + dc.getName() );
+			listener.getLogger().println("\n done checking dc " + dc.getName() );
 		}
 		
 		return dc.didImageTrigger(imageTag);
@@ -103,7 +105,7 @@ public class Deployment {
 
 		String imageTag = null;
 		try {
-			imageTag = bc.getOutputRepositoryName();//bcJson.get("spec").get("output").get("to").get("name").asString();
+			imageTag = bc.getOutputRepositoryName();
 			if (chatty) listener.getLogger().println("\n\n build config output image tag " + imageTag);
 		} catch (Throwable t) {
 		}
@@ -144,7 +146,7 @@ public class Deployment {
 				continue;
 			}
 			
-			if (didImageChangeFromPreviousVersion(client, dc.getLatestVersionNumber()/*getDeploymentConfigLatestVersion((DeploymentConfig)dc, listener).asInt()*/, 
+			if (didImageChangeFromPreviousVersion(client, dc.getLatestVersionNumber(), 
 					chatty, listener, dc.getName(), namespace, latestImageHexID, imageTag)) {
 				if (chatty)
 					listener.getLogger().println("\n dc " + dc.getName() + " did trigger based on image change as expected");

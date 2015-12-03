@@ -40,6 +40,7 @@ public class OpenShiftImageStreams extends SCM {
     private String namespace = "test";
     private String authToken = "";
     private String verbose = "false";
+    private String lastCommitId = null;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
@@ -56,49 +57,25 @@ public class OpenShiftImageStreams extends SCM {
 		return apiURL;
 	}
 
-//	public void setApiURL(String apiURL) {
-//		this.apiURL = apiURL;
-//	}
-
 	public String getNamespace() {
 		return namespace;
 	}
-
-//	public void setNamespace(String namespace) {
-//		this.namespace = namespace;
-//	}
 
 	public String getAuthToken() {
 		return authToken;
 	}
 
-//	public void setAuthToken(String authToken) {
-//		this.authToken = authToken;
-//	}
-	
 	public String getImageStreamName() {
 		return imageStreamName;
 	}
-
-//	public void setImageStreamName(String imageStreamName) {
-//		this.imageStreamName = imageStreamName;
-//	}
 
 	public String getTag() {
 		return tag;
 	}
 
-//	public void setTag(String tag) {
-//		this.tag = tag;
-//	}
-
 	public String getVerbose() {
 		return verbose;
 	}
-
-//	public void setVerbose(String verbose) {
-//		this.verbose = verbose;
-//	}
 
 	private String getCommitId(TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
@@ -114,7 +91,6 @@ public class OpenShiftImageStreams extends SCM {
 		IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
 		// we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
 		String commitId = isImpl.getImageId(tag);
-
 
 		// always print this
 		listener.getLogger().println("\n\nOpenShiftImageStreams image ID used for Jenkins 'commitId' is " + commitId);
@@ -149,7 +125,7 @@ public class OpenShiftImageStreams extends SCM {
 			bldName = build.getDisplayName();
 		listener.getLogger().println("\n\nOpenShiftImageStreams calcRevisionsFromBuild for " + bldName);
     	
-    	String commitId = this.getCommitId(listener);
+    	String commitId = lastCommitId;
 			
 		ImageStreamRevisionState currIMSState = null;
 		if (commitId != null)
@@ -178,6 +154,14 @@ public class OpenShiftImageStreams extends SCM {
 		boolean changes = false;
 		if (baseline != null && baseline instanceof ImageStreamRevisionState && currIMSState != null)
 			changes = !currIMSState.equals(baseline);
+		
+		if (baseline == null && currIMSState != null) {
+			changes = true;
+		}
+		
+		if (changes) {
+			lastCommitId = commitId;
+		}
 			
 		return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
     				        		

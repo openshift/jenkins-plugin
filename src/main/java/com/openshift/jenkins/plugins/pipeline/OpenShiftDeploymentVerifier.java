@@ -53,35 +53,10 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
         this.authToken = authToken;
         this.verbose = verbose;
     }
-/*
-    public void setApiURL(String apiURL) {
-		this.apiURL = apiURL;
-	}
 
-	public void setDepCfg(String depCfg) {
-		this.depCfg = depCfg;
-	}
-
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
-
-	public void setReplicaCount(String replicaCount) {
-		this.replicaCount = replicaCount;
-	}
-
-	public void setAuthToken(String authToken) {
-		this.authToken = authToken;
-	}
-*/
-	public String getVerbose() {
+    public String getVerbose() {
 		return verbose;
 	}
-/*
-	public void setVerbose(String verbose) {
-		this.verbose = verbose;
-	}
-*/
 
 	public String getApiURL() {
 		return apiURL;
@@ -180,62 +155,67 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 			if (count == -1)
 				count = dc.getReplicas();
 			
-			if (count > 0) {
+			if (count > 0)
 				dcWithReplicas = true;
 				
-				if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
-				
-				// confirm the deployment has kicked in from completed build;
-	        	// in testing with the jenkins-ci sample, the initial deploy after
-	        	// a build is kinda slow ... gotta wait more than one minute
-				long currTime = System.currentTimeMillis();
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getDescriptor().getWait());
-				while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-					int latestVersion = -1;
-					try {
-						latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
-					} catch (Throwable t) {
-						latestVersion = 0;
-					}
-					
-					if (chatty)
-						listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + latestVersion);
-					
-					ReplicationController rc = null;
-					try {
-						rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
-					} catch (Throwable t) {
-						if (chatty)
-							t.printStackTrace(listener.getLogger());
-					}
-    					
-					if (rc != null) {
-						String state = rc.getAnnotation("openshift.io/deployment.phase");//Deployment.getReplicationControllerState(rc, chatty ? listener : null);
-						// first check state
-		        		if (state.equalsIgnoreCase("Failed")) {
-		        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
-		        			return false;
-		        		}
-						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier current count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount() + " current state " + state);
-						
-						// then check replica count
-		        		if (rc.getCurrentReplicaCount() >= rc.getDesiredReplicaCount() && state.equalsIgnoreCase("Complete")) {
-		        			scaledAppropriately = true;
-		        			break;
-		        		}
-		        		
-					}
-										        										
-	        		try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-					}
-
+			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
+			
+			// confirm the deployment has kicked in from completed build;
+        	// in testing with the jenkins-ci sample, the initial deploy after
+        	// a build is kinda slow ... gotta wait more than one minute
+			long currTime = System.currentTimeMillis();
+			if (chatty)
+				listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getDescriptor().getWait());
+			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+				int latestVersion = -1;
+				try {
+					// refresh dc first
+					dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+					latestVersion = dc.getLatestVersionNumber();
+				} catch (Throwable t) {
+					latestVersion = 0;
 				}
-			} else {
-    			//TODO should we check if 0 cfg reps are in fact 0, 
-				if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier dc has zero replicas, moving on");
+				
+				if (chatty)
+					listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + latestVersion);
+				
+				if (latestVersion == 0 && !dcWithReplicas) {
+					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier not yet deployed and expecting no replicas");
+					return true;
+				}
+				
+				ReplicationController rc = null;
+				try {
+					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+				} catch (Throwable t) {
+					if (chatty)
+						t.printStackTrace(listener.getLogger());
+				}
+					
+				if (rc != null) {
+					if (chatty)
+						listener.getLogger().println("\nOpenShiftDeploymentVerifier current rc " + rc.toPrettyString());
+					String state = rc.getAnnotation("openshift.io/deployment.phase");
+					// first check state
+	        		if (state.equalsIgnoreCase("Failed")) {
+	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
+	        			return false;
+	        		}
+					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state);
+					
+					// then check replica count
+	        		if (rc.getCurrentReplicaCount() >= count && state.equalsIgnoreCase("Complete")) {
+	        			scaledAppropriately = true;
+	        			break;
+	        		}
+	        		
+				}
+									        										
+        		try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+				}
+
 			}
         			
         		
@@ -248,7 +228,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
         		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled approrpiately with no replicas");
         		return true;
         	}
-    				
+        	
         		
         		
     	} else {

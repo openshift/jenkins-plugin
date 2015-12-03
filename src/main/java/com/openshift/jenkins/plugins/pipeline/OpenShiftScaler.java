@@ -211,8 +211,12 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
         		// refetch to avoid optimistic update collision on k8s side
 	        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
 	        	rcImpl.setDesiredReplicaCount(Integer.decode(replicaCount));
+	        	if (chatty)
+	        		listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + replicaCount + " on " + depId);
 	        	try {
 	        		rcImpl = client.update(rcImpl);
+	        		if (chatty)
+	        			listener.getLogger().println("\nOpenShiftScaler rc returned from update current replica count " + rcImpl.getCurrentReplicaCount() + " desired count " + rcImpl.getDesiredReplicaCount());
 		        	scaleDone = true;
 	        	} catch (Throwable t) {
 	        		if (chatty)
