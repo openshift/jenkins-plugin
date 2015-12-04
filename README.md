@@ -80,10 +80,15 @@ Here are a couple of screen shots to help illustrate.  First, the definition of 
 <img width="840" src="EnvVar-1.png"/>
 </p>
 
-And then how a build step could consume the parameter:
+Then how a build step could consume the parameter:
 
 <p align="center">
-<img width="1260" src="EnvVar-2.png"/>
+<img width="840" src="EnvVar-2.png"/>
+</p>
+
+And then how you would run the job, specifying a valid value for the parameter:
+<p align="center">
+<img width="840" src="EnvVars-3.png"/>
 </p>
 
 
