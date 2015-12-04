@@ -45,6 +45,46 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
     private String verbose = "false";
     private String jsonyaml = "";
     
+    private static final Map<String, String[]> apiMap;
+    static
+    {
+        String api = "/api";
+        String oapi = "/oapi";
+
+        // OpenShift API endpoints
+        apiMap = new HashMap<String, String[]>();
+    	apiMap.put("BuildConfig", new String[]{oapi, "buildconfigs"});
+    	apiMap.put("Build", new String[]{oapi, "builds"});
+    	apiMap.put("DeploymentConfigRollback", new String[]{oapi, "deploymentconfigrollbacks"});
+    	apiMap.put("DeploymentConfig", new String[]{oapi, "deploymentconfigs"});
+    	apiMap.put("ImageStreamMapping", new String[]{oapi, "imagestreammappings"});
+    	apiMap.put("ImageStream", new String[]{oapi, "imagestreams"});
+    	apiMap.put("LocalResourceAccessReview", new String[]{oapi, "localresourceaccessreviews"});
+    	apiMap.put("LocalSubjectAccessReview", new String[]{oapi, "localsubjectaccessreviews"});
+    	apiMap.put("Policy", new String[]{oapi, "policies"});
+    	apiMap.put("PolicyBinding", new String[]{oapi, "policybindings"});
+    	//apiMap.put("Template", new String[]{oapi, "processedtemplates"}); // Different from templates?
+    	apiMap.put("ResourceAccessReview", new String[]{oapi, "resourceaccessreviews"});
+    	apiMap.put("RoleBinding", new String[]{oapi, "rolebindings"});
+    	apiMap.put("Role", new String[]{oapi, "roles"});
+    	apiMap.put("Route", new String[]{oapi, "routes"});
+    	apiMap.put("SubjectAccessReview", new String[]{oapi, "subjectaccessreviews"});
+    	apiMap.put("Template", new String[]{oapi, "templates"});
+
+        // Kubernetes API endpoints
+    	apiMap.put("Binding", new String[]{api, "bindings"});
+    	apiMap.put("Endpoint", new String[]{api, "endpoints"});
+    	apiMap.put("Event", new String[]{api, "events"});
+    	apiMap.put("LimitRange", new String[]{api, "limitranges"});
+    	apiMap.put("PersistentVolumeClaim", new String[]{api, "persistentvolumeclaims"});
+    	apiMap.put("Pod", new String[]{api, "pods"});
+    	apiMap.put("PodTemplate", new String[]{api, "podtemplates"});
+    	apiMap.put("ReplicationController", new String[]{api, "replicationcontrollers"});
+    	apiMap.put("ResourceQuota", new String[]{api, "resourcequotas"});
+    	apiMap.put("Secret", new String[]{api, "secrets"});
+    	apiMap.put("ServiceAccount", new String[]{api, "serviceaccounts"});
+    	apiMap.put("Service", new String[]{api, "services"});
+    }
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
@@ -83,8 +123,8 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
 		String response = null;
 		URL url = null;
     	try {
-    		if (chatty) listener.getLogger().println("\nOpenShiftCreator PUT URI " + "/oapi/v1/namespaces/"+namespace+"/"+path+"s");
-			url = new URL(apiURL + "/oapi/v1/namespaces/" + namespace + "/" + path + "s");
+    		if (chatty) listener.getLogger().println("\nOpenShiftCreator POST URI " + apiMap.get(path)[0] + "/v1/namespaces/" +namespace + "/" + apiMap.get(path)[1]);
+			url = new URL(apiURL + apiMap.get(path)[0] + "/v1/namespaces/" + namespace + "/" + apiMap.get(path)[1]);
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 			return false;
@@ -98,7 +138,7 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
 		try {
 	    	KubernetesResource kr = new KubernetesResource(resource, client, null);
 			response = urlClient.post(url, 10 * 1000, kr);
-			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST PUT response " + response);
+			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST POST response " + response);
 		} catch (SocketTimeoutException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
     		listener.getLogger().println("\n\n OpenShiftCreator BUILD STEP EXIT:  socket timeout");
@@ -171,13 +211,13 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
     	if (kind.equalsIgnoreCase("List")) {
     		List<ModelNode> list = resources.get("items").asList();
     		for (ModelNode node : list) {
-    			String path = node.get("kind").asString().toLowerCase();
+    			String path = node.get("kind").asString(); //.toLowerCase();
     			success = this.makeRESTCall(chatty, listener, path, auth, urlClient, node);
     			if (!success)
     				break;
     		}
     	} else {
-    		String path = kind.toLowerCase();
+    		String path = kind; //.toLowerCase();
     		success = this.makeRESTCall(chatty, listener, path, auth, urlClient, resources);
     	}
 
