@@ -72,7 +72,20 @@ As a point of reference, here are the Java classes for each of the Jenkins "buil
 
 For all of these, with each required parameter, a default value is provided where it makes sense.  Optional parameters can be left blank.  And each parameter field has help text available via clicking the help icon located just right of the parameter input field.
 
-Also, when processing any provided values for any of the parameters, the plugin will first see if that value, when used as as key, retrieves a non-null, non-empty value from the Jenkins build environment parameters.  If so, the plugin will substitute that value retrieved from the Jenkins build environment parameters in place of what was provided in the input field. 
+Also, when processing any provided values for any of the parameters, the plugin will first see if that value, when used as as key, retrieves a non-null, non-empty value from the Jenkins build environment parameters.  If so, the plugin will substitute that value retrieved from the Jenkins build environment parameters in place of what was provided in the input field.
+
+Here are a couple of screen shots to help illustrate.  First, the definition of the parameter:
+
+<p align="center">
+<img width="840" src="EnvVar-1.png"/>
+</p>
+
+And then how a build step could consume the parameter:
+
+<p align="center">
+<img width="1260" src="EnvVar-2.png"/>
+</p>
+
 
 Next, the bearer authentication token can be provided by the user via the following:
 	- the field for the token in the specific build step
