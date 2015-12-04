@@ -33,6 +33,8 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -117,13 +119,14 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 	
 	// unfortunately a base class would not have access to private fields in this class; could munge our way through
 	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
-	// for now, duplicating this small piece of logic in each build step is the path taken
-	protected void inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
+	// for now, duplicating this small piece of logic in each build step
+	protected HashMap<String,String> inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
 		String className = this.getClass().getName();
+		HashMap<String,String> overridenFields = new HashMap<String,String>();
 		try {
 			EnvVars env = build.getEnvironment(listener);
 			if (env == null)
-				return;
+				return overridenFields;
 			Class<?> c = Class.forName(className);
 			Field[] fields = c.getDeclaredFields();
 			for (Field f : fields) {
@@ -139,6 +142,7 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
 				if (envval != null && envval.length() > 0) {
 					f.set(this, envval);
+					overridenFields.put(f.getName(), val);
 				}
 			}
 		} catch (ClassNotFoundException e1) {
@@ -152,65 +156,91 @@ public class OpenShiftDeployCanceller extends Recorder implements SimpleBuildSte
 		} catch (IllegalAccessException e) {
 			e.printStackTrace(listener.getLogger());
 		}
+		return overridenFields;
+	}
+	
+	protected void restoreOverridenFields(HashMap<String,String> overrides, TaskListener listener) {
+		String className = this.getClass().getName();
+		try {
+			Class<?> c = Class.forName(className);
+			for (Entry<String, String> entry : overrides.entrySet()) {
+				Field f = c.getDeclaredField(entry.getKey());
+				f.set(this, entry.getValue());
+			}
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (NoSuchFieldException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (SecurityException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalAccessException e) {
+			e.printStackTrace(listener.getLogger());
+		}
 	}
 	
 	protected boolean coreLogic(AbstractBuild<?,?> build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		inspectBuildEnvAndOverrideFields(build, listener, chatty);
-		Result result = build.getResult();
-		
-		// in theory, success should mean that the builds completed successfully,
-		// at this time, we'll scan the builds either way to clean up rogue builds
-		if (result.isWorseThan(Result.SUCCESS)) {
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftDeployCanceller build did not succeed");
-		} else {
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftDeployCanceller build succeeded");			
-		}
-
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
-		
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
-    	
-    	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-			
-    		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-    		
-    		if (dc == null) {
-    			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentCanceller no valid deployment config found for " + depCfg);
-    			return false;
-    		}
-
-			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentCanceller checking if deployment out there for " + depCfg);
-			
-			int latestVersion = dc.getLatestVersionNumber();
-			IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
-				
-			if (rc != null) {
-				String state = rc.getAnnotation("openshift.io/deployment.phase");
-        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete")) {
-        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment " + rc.getName() + " done");
-        			return false;
-        		}
-        		
-        		rc.setAnnotation("openshift.io/deployment.cancelled", "true");
-        		rc.setAnnotation("openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
-				
-        		client.update(rc);
-        		
+		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(build, listener, chatty);
+		try {
+			Result result = build.getResult();
+			// in theory, success should mean that the builds completed successfully,
+			// at this time, we'll scan the builds either way to clean up rogue builds
+			if (result.isWorseThan(Result.SUCCESS)) {
+				if (chatty)
+					listener.getLogger().println("\nOpenShiftDeployCanceller build did not succeed");
 			} else {
-    			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller could not get resource controller with key:  " + depCfg + "-" + latestVersion);
-				return false;
-			}					
-    		
-    	}			
-		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller completed");
-		return true;
+				if (chatty)
+					listener.getLogger().println("\nOpenShiftDeployCanceller build succeeded");			
+			}
+
+	    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+	    	Auth auth = Auth.createInstance(chatty ? listener : null);
+			
+	    	// get oc client (sometime REST, sometimes Exec of oc command
+	    	IClient client = new ClientFactory().create(apiURL, auth);
+	    	
+	    	if (client != null) {
+	    		// seed the auth
+	        	client.setAuthorizationStrategy(bearerToken);
+				
+	    		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+	    		
+	    		if (dc == null) {
+	    			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentCanceller no valid deployment config found for " + depCfg);
+	    			return false;
+	    		}
+
+				if (chatty) listener.getLogger().println("\nOpenShiftDeploymentCanceller checking if deployment out there for " + depCfg);
+				
+				int latestVersion = dc.getLatestVersionNumber();
+				IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+					
+				if (rc != null) {
+					String state = rc.getAnnotation("openshift.io/deployment.phase");
+	        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete")) {
+	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment " + rc.getName() + " done");
+	        			return false;
+	        		}
+	        		
+	        		rc.setAnnotation("openshift.io/deployment.cancelled", "true");
+	        		rc.setAnnotation("openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
+					
+	        		client.update(rc);
+	        		
+				} else {
+	    			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller could not get resource controller with key:  " + depCfg + "-" + latestVersion);
+					return false;
+				}					
+	    		
+	    	}			
+			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller completed");
+			return true;
+		} finally {
+			this.restoreOverridenFields(overrides, listener);
+		}
+		
 		
 	}
 

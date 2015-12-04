@@ -29,7 +29,9 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.StringTokenizer;
+import java.util.Map.Entry;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -83,13 +85,14 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
     
 	// unfortunately a base class would not have access to private fields in this class; could munge our way through
 	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
-	// for now, duplicating this small piece of logic in each build step is the path taken
-	protected void inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
+	// for now, duplicating this small piece of logic in each build step
+	protected HashMap<String,String> inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
 		String className = this.getClass().getName();
+		HashMap<String,String> overridenFields = new HashMap<String,String>();
 		try {
 			EnvVars env = build.getEnvironment(listener);
 			if (env == null)
-				return;
+				return overridenFields;
 			Class<?> c = Class.forName(className);
 			Field[] fields = c.getDeclaredFields();
 			for (Field f : fields) {
@@ -105,6 +108,7 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
 					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
 				if (envval != null && envval.length() > 0) {
 					f.set(this, envval);
+					overridenFields.put(f.getName(), val);
 				}
 			}
 		} catch (ClassNotFoundException e1) {
@@ -118,44 +122,70 @@ public class OpenShiftImageTagger extends Builder implements SimpleBuildStep, Se
 		} catch (IllegalAccessException e) {
 			e.printStackTrace(listener.getLogger());
 		}
+		return overridenFields;
+	}
+	
+	protected void restoreOverridenFields(HashMap<String,String> overrides, TaskListener listener) {
+		String className = this.getClass().getName();
+		try {
+			Class<?> c = Class.forName(className);
+			for (Entry<String, String> entry : overrides.entrySet()) {
+				Field f = c.getDeclaredField(entry.getKey());
+				f.set(this, entry.getValue());
+			}
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (NoSuchFieldException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (SecurityException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalAccessException e) {
+			e.printStackTrace(listener.getLogger());
+		}
 	}
 	
 	protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		inspectBuildEnvAndOverrideFields(build, listener, chatty);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform on namespace " + namespace);
-    	
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
-    	    	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
-    	
-    	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
-        	//tag image
-			StringTokenizer st = new StringTokenizer(prodTag, ":");
-			String imageStreamName = null;
-			String tagName = null;
-			if (st.countTokens() > 1) {
-				imageStreamName = st.nextToken();
-				tagName = st.nextToken();
+		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(build, listener, chatty);
+		try {
+	    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform on namespace " + namespace);
+	    	
+	    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+	    	Auth auth = Auth.createInstance(chatty ? listener : null);
+	    	    	
+	    	// get oc client (sometime REST, sometimes Exec of oc command
+	    	IClient client = new ClientFactory().create(apiURL, auth);
+	    	
+	    	if (client != null) {
+	    		// seed the auth
+	        	client.setAuthorizationStrategy(bearerToken);
+	        	
+	        	//tag image
+				StringTokenizer st = new StringTokenizer(prodTag, ":");
+				String imageStreamName = null;
+				String tagName = null;
+				if (st.countTokens() > 1) {
+					imageStreamName = st.nextToken();
+					tagName = st.nextToken();
+					
+					IImageStream is = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
+					is.setTag(tagName, testTag);
+					client.update(is);
+				}
 				
-				IImageStream is = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
-				is.setTag(tagName, testTag);
-				client.update(is);
-			}
-			
-			
-    	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not get oc client");
-    		return false;
-    	}
+				
+	    	} else {
+	    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not get oc client");
+	    		return false;
+	    	}
 
-		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger image stream now has tags: " + testTag + ", " + prodTag);
-		return true;
+			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger image stream now has tags: " + testTag + ", " + prodTag);
+			return true;
+		} finally {
+			this.restoreOverridenFields(overrides, listener);
+		}
     }
 
 	@Override

@@ -36,6 +36,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -157,12 +158,13 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
 	// unfortunately a base class would not have access to private fields in this class; could munge our way through
 	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
 	// for now, duplicating this small piece of logic in each build step is the path taken
-	protected void inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
+	protected HashMap<String,String> inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
 		String className = this.getClass().getName();
+		HashMap<String,String> overridenFields = new HashMap<String,String>();
 		try {
 			EnvVars env = build.getEnvironment(listener);
 			if (env == null)
-				return;
+				return overridenFields;
 			Class<?> c = Class.forName(className);
 			Field[] fields = c.getDeclaredFields();
 			for (Field f : fields) {
@@ -180,6 +182,7 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
 					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
 				if (envval != null) {
 					f.set(this, envval);
+					overridenFields.put(f.getName(), (String)val);
 				}
 			}
 		} catch (ClassNotFoundException e1) {
@@ -193,41 +196,67 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
 		} catch (IllegalAccessException e) {
 			e.printStackTrace(listener.getLogger());
 		}
+		return overridenFields;
+	}
+	
+	protected void restoreOverridenFields(HashMap<String,String> overrides, TaskListener listener) {
+		String className = this.getClass().getName();
+		try {
+			Class<?> c = Class.forName(className);
+			for (Entry<String, String> entry : overrides.entrySet()) {
+				Field f = c.getDeclaredField(entry.getKey());
+				f.set(this, entry.getValue());
+			}
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (NoSuchFieldException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (SecurityException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalAccessException e) {
+			e.printStackTrace(listener.getLogger());
+		}
 	}
 	
     protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		inspectBuildEnvAndOverrideFields(build, listener, chatty);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform on namespace " + namespace);
-    	
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
-    	    	
-    	ModelNode resources = ModelNode.fromJSONString(jsonyaml);
-    	    	
-    	//cycle through json and POST to appropriate resource
-    	String kind = resources.get("kind").asString();
-		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-				null, "application/json", null, auth, null, null);
-		urlClient.setAuthorizationStrategy(bearerToken);
-		
-    	boolean success = false;
-    	if (kind.equalsIgnoreCase("List")) {
-    		List<ModelNode> list = resources.get("items").asList();
-    		for (ModelNode node : list) {
-    			String path = node.get("kind").asString();
-    			success = this.makeRESTCall(chatty, listener, path, auth, urlClient, node);
-    			if (!success)
-    				break;
-    		}
-    	} else {
-    		String path = kind;
-    		success = this.makeRESTCall(chatty, listener, path, auth, urlClient, resources);
-    	}
+		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(build, listener, chatty);
+		try {
+	    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform on namespace " + namespace);
+	    	
+	    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+	    	Auth auth = Auth.createInstance(chatty ? listener : null);
+	    	    	
+	    	ModelNode resources = ModelNode.fromJSONString(jsonyaml);
+	    	    	
+	    	//cycle through json and POST to appropriate resource
+	    	String kind = resources.get("kind").asString();
+			UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+					null, "application/json", null, auth, null, null);
+			urlClient.setAuthorizationStrategy(bearerToken);
+			
+	    	boolean success = false;
+	    	if (kind.equalsIgnoreCase("List")) {
+	    		List<ModelNode> list = resources.get("items").asList();
+	    		for (ModelNode node : list) {
+	    			String path = node.get("kind").asString();
+	    			success = this.makeRESTCall(chatty, listener, path, auth, urlClient, node);
+	    			if (!success)
+	    				break;
+	    		}
+	    	} else {
+	    		String path = kind;
+	    		success = this.makeRESTCall(chatty, listener, path, auth, urlClient, resources);
+	    	}
 
-    	if (success)
-    		listener.getLogger().println("\n\n OpenShiftCreator BUILD STEP EXIT:  resources(s) created");
-		return success;
+	    	if (success)
+	    		listener.getLogger().println("\n\n OpenShiftCreator BUILD STEP EXIT:  resources(s) created");
+			return success;
+		} finally {
+			this.restoreOverridenFields(overrides, listener);
+		}
     	
     }
     

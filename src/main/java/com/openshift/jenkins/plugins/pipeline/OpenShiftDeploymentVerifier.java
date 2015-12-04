@@ -30,6 +30,8 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -80,13 +82,14 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 	
 	// unfortunately a base class would not have access to private fields in this class; could munge our way through
 	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
-	// for now, duplicating this small piece of logic in each build step is the path taken
-	protected void inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
+	// for now, duplicating this small piece of logic in each build step
+	protected HashMap<String,String> inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
 		String className = this.getClass().getName();
+		HashMap<String,String> overridenFields = new HashMap<String,String>();
 		try {
 			EnvVars env = build.getEnvironment(listener);
 			if (env == null)
-				return;
+				return overridenFields;
 			Class<?> c = Class.forName(className);
 			Field[] fields = c.getDeclaredFields();
 			for (Field f : fields) {
@@ -102,6 +105,7 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
 				if (envval != null && envval.length() > 0) {
 					f.set(this, envval);
+					overridenFields.put(f.getName(), val);
 				}
 			}
 		} catch (ClassNotFoundException e1) {
@@ -115,129 +119,155 @@ public class OpenShiftDeploymentVerifier extends Builder implements SimpleBuildS
 		} catch (IllegalAccessException e) {
 			e.printStackTrace(listener.getLogger());
 		}
+		return overridenFields;
+	}
+	
+	protected void restoreOverridenFields(HashMap<String,String> overrides, TaskListener listener) {
+		String className = this.getClass().getName();
+		try {
+			Class<?> c = Class.forName(className);
+			for (Entry<String, String> entry : overrides.entrySet()) {
+				Field f = c.getDeclaredField(entry.getKey());
+				f.set(this, entry.getValue());
+			}
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (NoSuchFieldException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (SecurityException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalAccessException e) {
+			e.printStackTrace(listener.getLogger());
+		}
 	}
 	
 	protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
     	boolean chatty = Boolean.parseBoolean(verbose);
-		inspectBuildEnvAndOverrideFields(build, listener, chatty);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount + " on namespace " + namespace);
-    	
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
-    	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
-    	
-    	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
+    	HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(build, listener, chatty);
+    	try {
+        	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount + " on namespace " + namespace);
         	
-        	// explicitly set replica count, save that
-        	int count = -1;
-        	if (replicaCount.length() > 0)
-        		count = Integer.parseInt(replicaCount);
+        	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+        	Auth auth = Auth.createInstance(chatty ? listener : null);
+        	
+        	// get oc client (sometime REST, sometimes Exec of oc command
+        	IClient client = new ClientFactory().create(apiURL, auth);
+        	
+        	if (client != null) {
+        		// seed the auth
+            	client.setAuthorizationStrategy(bearerToken);
+            	
+            	// explicitly set replica count, save that
+            	int count = -1;
+            	if (replicaCount.length() > 0)
+            		count = Integer.parseInt(replicaCount);
+            		
+                						
+            	// if the deployment config for this app specifies a desired replica count of 
+            	// of greater than zero, let's also confirm the deployment occurs;
+            	// first, get the deployment config
+        		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
         		
-            						
-        	// if the deployment config for this app specifies a desired replica count of 
-        	// of greater than zero, let's also confirm the deployment occurs;
-        	// first, get the deployment config
-    		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-    		
-    		if (dc == null) {
-    			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerification no valid deployment config found for " + depCfg);
-    			return false;
-    		}
-    		
-        	boolean dcWithReplicas = false;
-        	boolean scaledAppropriately = false;
-        			
-			// if replicaCount not set, get it from config
-			if (count == -1)
-				count = dc.getReplicas();
-			
-			if (count > 0)
-				dcWithReplicas = true;
-				
-			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
-			
-			// confirm the deployment has kicked in from completed build;
-        	// in testing with the jenkins-ci sample, the initial deploy after
-        	// a build is kinda slow ... gotta wait more than one minute
-			long currTime = System.currentTimeMillis();
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getDescriptor().getWait());
-			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-				int latestVersion = -1;
-				try {
-					// refresh dc first
-					dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-					latestVersion = dc.getLatestVersionNumber();
-				} catch (Throwable t) {
-					latestVersion = 0;
-				}
-				
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + latestVersion);
-				
-				if (latestVersion == 0 && !dcWithReplicas) {
-					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier not yet deployed and expecting no replicas");
-					return true;
-				}
-				
-				ReplicationController rc = null;
-				try {
-					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
-				} catch (Throwable t) {
-					if (chatty)
-						t.printStackTrace(listener.getLogger());
-				}
-					
-				if (rc != null) {
-					if (chatty)
-						listener.getLogger().println("\nOpenShiftDeploymentVerifier current rc " + rc.toPrettyString());
-					String state = rc.getAnnotation("openshift.io/deployment.phase");
-					// first check state
-	        		if (state.equalsIgnoreCase("Failed")) {
-	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
-	        			return false;
-	        		}
-					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state);
-					
-					// then check replica count
-	        		if (rc.getCurrentReplicaCount() >= count && state.equalsIgnoreCase("Complete")) {
-	        			scaledAppropriately = true;
-	        			break;
-	        		}
-	        		
-				}
-									        										
-        		try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-				}
+        		if (dc == null) {
+        			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerification no valid deployment config found for " + depCfg);
+        			return false;
+        		}
+        		
+            	boolean dcWithReplicas = false;
+            	boolean scaledAppropriately = false;
+            			
+    			// if replicaCount not set, get it from config
+    			if (count == -1)
+    				count = dc.getReplicas();
+    			
+    			if (count > 0)
+    				dcWithReplicas = true;
+    				
+    			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
+    			
+    			// confirm the deployment has kicked in from completed build;
+            	// in testing with the jenkins-ci sample, the initial deploy after
+            	// a build is kinda slow ... gotta wait more than one minute
+    			long currTime = System.currentTimeMillis();
+    			if (chatty)
+    				listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getDescriptor().getWait());
+    			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+    				int latestVersion = -1;
+    				try {
+    					// refresh dc first
+    					dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+    					latestVersion = dc.getLatestVersionNumber();
+    				} catch (Throwable t) {
+    					latestVersion = 0;
+    				}
+    				
+    				if (chatty)
+    					listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + latestVersion);
+    				
+    				if (latestVersion == 0 && !dcWithReplicas) {
+    					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier not yet deployed and expecting no replicas");
+    					return true;
+    				}
+    				
+    				ReplicationController rc = null;
+    				try {
+    					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+    				} catch (Throwable t) {
+    					if (chatty)
+    						t.printStackTrace(listener.getLogger());
+    				}
+    					
+    				if (rc != null) {
+    					if (chatty)
+    						listener.getLogger().println("\nOpenShiftDeploymentVerifier current rc " + rc.toPrettyString());
+    					String state = rc.getAnnotation("openshift.io/deployment.phase");
+    					// first check state
+    	        		if (state.equalsIgnoreCase("Failed")) {
+    	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
+    	        			return false;
+    	        		}
+    					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state);
+    					
+    					// then check replica count
+    	        		if (rc.getCurrentReplicaCount() >= count && state.equalsIgnoreCase("Complete")) {
+    	        			scaledAppropriately = true;
+    	        			break;
+    	        		}
+    	        		
+    				}
+    									        										
+            		try {
+    					Thread.sleep(1000);
+    				} catch (InterruptedException e) {
+    				}
 
-			}
-        			
-        		
-        	if (dcWithReplicas && scaledAppropriately ) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled with appropriate number of replicas and any necessary image changes");
-        		return true;
+    			}
+            			
+            		
+            	if (dcWithReplicas && scaledAppropriately ) {
+            		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled with appropriate number of replicas and any necessary image changes");
+            		return true;
+            	}
+            	
+            	if (!dcWithReplicas) {
+            		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled approrpiately with no replicas");
+            		return true;
+            	}
+            	
+            		
+            		
+        	} else {
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier could not get oc client");
+        		return false;
         	}
-        	
-        	if (!dcWithReplicas) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled approrpiately with no replicas");
-        		return true;
-        	}
-        	
-        		
-        		
-    	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier could not get oc client");
-    		return false;
+
+        	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier exit unsuccessfully, unexpected conditions occurred");
+        	return false;
+    	} finally {
+    		this.restoreOverridenFields(overrides, listener);
     	}
-
-    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier exit unsuccessfully, unexpected conditions occurred");
-    	return false;
 	}
 	
     @Override

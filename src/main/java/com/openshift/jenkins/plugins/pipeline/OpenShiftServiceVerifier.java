@@ -31,6 +31,8 @@ import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -95,13 +97,14 @@ public class OpenShiftServiceVerifier extends Builder implements SimpleBuildStep
     
 	// unfortunately a base class would not have access to private fields in this class; could munge our way through
 	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
-	// for now, duplicating this small piece of logic in each build step is the path taken
-	protected void inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
+	// for now, duplicating this small piece of logic in each build step
+	protected HashMap<String,String> inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
 		String className = this.getClass().getName();
+		HashMap<String,String> overridenFields = new HashMap<String,String>();
 		try {
 			EnvVars env = build.getEnvironment(listener);
 			if (env == null)
-				return;
+				return overridenFields;
 			Class<?> c = Class.forName(className);
 			Field[] fields = c.getDeclaredFields();
 			for (Field f : fields) {
@@ -117,6 +120,7 @@ public class OpenShiftServiceVerifier extends Builder implements SimpleBuildStep
 					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
 				if (envval != null && envval.length() > 0) {
 					f.set(this, envval);
+					overridenFields.put(f.getName(), val);
 				}
 			}
 		} catch (ClassNotFoundException e1) {
@@ -130,67 +134,93 @@ public class OpenShiftServiceVerifier extends Builder implements SimpleBuildStep
 		} catch (IllegalAccessException e) {
 			e.printStackTrace(listener.getLogger());
 		}
+		return overridenFields;
+	}
+	
+	protected void restoreOverridenFields(HashMap<String,String> overrides, TaskListener listener) {
+		String className = this.getClass().getName();
+		try {
+			Class<?> c = Class.forName(className);
+			for (Entry<String, String> entry : overrides.entrySet()) {
+				Field f = c.getDeclaredField(entry.getKey());
+				f.set(this, entry.getValue());
+			}
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (NoSuchFieldException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (SecurityException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalAccessException e) {
+			e.printStackTrace(listener.getLogger());
+		}
 	}
 	
     protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		inspectBuildEnvAndOverrideFields(build, listener, chatty);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftServiceVerifier in perform on namespace " + namespace);
-    	
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
-    	    	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
-    	
-    	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
-        	// get Service
-        	IService svc = client.get(ResourceKind.SERVICE, svcName, namespace);
-        	String ip = svc.getPortalIP();
-        	int port = svc.getPort();
-        	String spec = "http://" + ip + ":" + port;
-        	URL url = null;
-        	try {
-				url = new URL(spec);
-			} catch (MalformedURLException e) {
-				e.printStackTrace(listener.getLogger());
-				return false;
-			}
-        	int tryCount = 0;
-        	if (chatty)
-        		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
-    		URLConnection conn = null;
-        	while (tryCount < getDescriptor().getRetry()) {
-        		tryCount++;
-        		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
-        		try {
-					conn = url.openConnection();
-				} catch (IOException e) {
-					if (chatty) e.printStackTrace(listener.getLogger());
+		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(build, listener, chatty);
+		try {
+	    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftServiceVerifier in perform on namespace " + namespace);
+	    	
+	    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+	    	Auth auth = Auth.createInstance(chatty ? listener : null);
+	    	    	
+	    	// get oc client (sometime REST, sometimes Exec of oc command
+	    	IClient client = new ClientFactory().create(apiURL, auth);
+	    	
+	    	if (client != null) {
+	    		// seed the auth
+	        	client.setAuthorizationStrategy(bearerToken);
+	        	
+	        	// get Service
+	        	IService svc = client.get(ResourceKind.SERVICE, svcName, namespace);
+	        	String ip = svc.getPortalIP();
+	        	int port = svc.getPort();
+	        	String spec = "http://" + ip + ":" + port;
+	        	URL url = null;
+	        	try {
+					url = new URL(spec);
+				} catch (MalformedURLException e) {
+					e.printStackTrace(listener.getLogger());
+					return false;
 				}
-        		if (conn != null)
-        			break;
-        	}
-        	
-        	if (conn != null) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection made");
-        		return true;
-        	}
-        	
-    	} else {
-    		listener.getLogger().println("\n\nOpenShiftServiceVerifier could not get oc client");
-    		return false;
-    	}
+	        	int tryCount = 0;
+	        	if (chatty)
+	        		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
+	    		URLConnection conn = null;
+	        	while (tryCount < getDescriptor().getRetry()) {
+	        		tryCount++;
+	        		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
+	        		try {
+						conn = url.openConnection();
+					} catch (IOException e) {
+						if (chatty) e.printStackTrace(listener.getLogger());
+					}
+	        		if (conn != null)
+	        			break;
+	        	}
+	        	
+	        	if (conn != null) {
+	        		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection made");
+	        		return true;
+	        	}
+	        	
+	    	} else {
+	    		listener.getLogger().println("\n\nOpenShiftServiceVerifier could not get oc client");
+	    		return false;
+	    	}
 
-    	if (!chatty)
-    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection could not be made, re-run with verbose logging to assist with diagnostics");
-    	else
-    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection made, review verbose logging above to help determine the problem");
+	    	if (!chatty)
+	    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection could not be made, re-run with verbose logging to assist with diagnostics");
+	    	else
+	    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection made, review verbose logging above to help determine the problem");
 
-    	return false;
+	    	return false;
+		} finally {
+			this.restoreOverridenFields(overrides, listener);
+		}
     }
 
 	@Override

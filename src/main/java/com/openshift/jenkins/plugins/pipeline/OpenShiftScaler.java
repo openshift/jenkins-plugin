@@ -29,6 +29,8 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -99,13 +101,14 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
     
 	// unfortunately a base class would not have access to private fields in this class; could munge our way through
 	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
-	// for now, duplicating this small piece of logic in each build step is the path taken
-	protected void inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
+	// for now, duplicating this small piece of logic in each build step
+	protected HashMap<String,String> inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
 		String className = this.getClass().getName();
+		HashMap<String,String> overridenFields = new HashMap<String,String>();
 		try {
 			EnvVars env = build.getEnvironment(listener);
 			if (env == null)
-				return;
+				return overridenFields;
 			Class<?> c = Class.forName(className);
 			Field[] fields = c.getDeclaredFields();
 			for (Field f : fields) {
@@ -121,6 +124,7 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
 					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
 				if (envval != null && envval.length() > 0) {
 					f.set(this, envval);
+					overridenFields.put(f.getName(), val);
 				}
 			}
 		} catch (ClassNotFoundException e1) {
@@ -134,118 +138,144 @@ public class OpenShiftScaler extends Builder implements SimpleBuildStep, Seriali
 		} catch (IllegalAccessException e) {
 			e.printStackTrace(listener.getLogger());
 		}
+		return overridenFields;
+	}
+	
+	protected void restoreOverridenFields(HashMap<String,String> overrides, TaskListener listener) {
+		String className = this.getClass().getName();
+		try {
+			Class<?> c = Class.forName(className);
+			for (Entry<String, String> entry : overrides.entrySet()) {
+				Field f = c.getDeclaredField(entry.getKey());
+				f.set(this, entry.getValue());
+			}
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (NoSuchFieldException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (SecurityException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace(listener.getLogger());
+		} catch (IllegalAccessException e) {
+			e.printStackTrace(listener.getLogger());
+		}
 	}
 	
     protected boolean coreLogic(AbstractBuild build, Launcher launcher, TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		inspectBuildEnvAndOverrideFields(build, listener, chatty);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftScaler in perform for " + depCfg + " wanting to get to replica count " + replicaCount + " on namespace " + namespace);
-    	
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-    	Auth auth = Auth.createInstance(chatty ? listener : null);
-    	    	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
-    	
-    	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
-        	String depId = null;
-        	ReplicationController rc = null;
-        	int latestVersion = -1;
-        	// find corresponding rep ctrl and scale it to the right value
-        	long currTime = System.currentTimeMillis();
-        	// in testing with the jenkins-ci sample, the initial deploy after
-        	// a build is kinda slow ... gotta wait more than one minute
-        	if (chatty)
-        		listener.getLogger().println("\nOpenShiftScaler wait " + getDescriptor().getWait());
-        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-            	// get ReplicationController ref
-        		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-        		
-        		if (dc == null) {
-        			if (chatty) listener.getLogger().println("\nOpenShiftScaler dc is null");
-        		} else {
-    				try {
-    					latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
-    				} catch (Throwable t) {
-    					latestVersion = 0;
-    				}
-    				depId = depCfg + "-" + latestVersion;
-    				try {
-    					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
-    				} catch (Throwable t) {
-    					
-    				}
-        		}
-        		
-            	// if they want to scale down to 0 and there is no rc to begin with, just punt / consider a no-op
-            	if (rc != null || replicaCount.equals("0")) {
-            		if (chatty) listener.getLogger().println("\nOpenShiftScaler rc to use " + rc);
-            		break;
-            	} else {
-					if (chatty) listener.getLogger().println("\nOpenShiftScaler wait 10 seconds, then look for rep ctrl again");
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-					}
-            	}
-        	}
-        	
-        	if (rc == null) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler did not find any replication controllers for " + depCfg);
-        		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
-        		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
-        		// we refrain from adding yet 1 more config option
-        		if (replicaCount.equals("0"))
-        			return true;
-        		else
-        			return false;
-        	}
-        	
-        	// do the oc scale ... may need to retry        	
-        	boolean scaleDone = false;
-        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-        		// Find the right node in the json and update it
-        		// refetch to avoid optimistic update collision on k8s side
-	        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
-	        	rcImpl.setDesiredReplicaCount(Integer.decode(replicaCount));
+		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(build, listener, chatty);
+		try {
+	    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftScaler in perform for " + depCfg + " wanting to get to replica count " + replicaCount + " on namespace " + namespace);
+	    	
+	    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
+	    	Auth auth = Auth.createInstance(chatty ? listener : null);
+	    	    	
+	    	// get oc client (sometime REST, sometimes Exec of oc command
+	    	IClient client = new ClientFactory().create(apiURL, auth);
+	    	
+	    	if (client != null) {
+	    		// seed the auth
+	        	client.setAuthorizationStrategy(bearerToken);
+	        	
+	        	String depId = null;
+	        	ReplicationController rc = null;
+	        	int latestVersion = -1;
+	        	// find corresponding rep ctrl and scale it to the right value
+	        	long currTime = System.currentTimeMillis();
+	        	// in testing with the jenkins-ci sample, the initial deploy after
+	        	// a build is kinda slow ... gotta wait more than one minute
 	        	if (chatty)
-	        		listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + replicaCount + " on " + depId);
-	        	try {
-	        		rcImpl = client.update(rcImpl);
-	        		if (chatty)
-	        			listener.getLogger().println("\nOpenShiftScaler rc returned from update current replica count " + rcImpl.getCurrentReplicaCount() + " desired count " + rcImpl.getDesiredReplicaCount());
-		        	scaleDone = true;
-	        	} catch (Throwable t) {
-	        		if (chatty)
-	        			t.printStackTrace(listener.getLogger());
+	        		listener.getLogger().println("\nOpenShiftScaler wait " + getDescriptor().getWait());
+	        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+	            	// get ReplicationController ref
+	        		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+	        		
+	        		if (dc == null) {
+	        			if (chatty) listener.getLogger().println("\nOpenShiftScaler dc is null");
+	        		} else {
+	    				try {
+	    					latestVersion = dc.getLatestVersionNumber();//Deployment.getDeploymentConfigLatestVersion(dc, chatty ? listener : null).asInt();
+	    				} catch (Throwable t) {
+	    					latestVersion = 0;
+	    				}
+	    				depId = depCfg + "-" + latestVersion;
+	    				try {
+	    					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
+	    				} catch (Throwable t) {
+	    					
+	    				}
+	        		}
+	        		
+	            	// if they want to scale down to 0 and there is no rc to begin with, just punt / consider a no-op
+	            	if (rc != null || replicaCount.equals("0")) {
+	            		if (chatty) listener.getLogger().println("\nOpenShiftScaler rc to use " + rc);
+	            		break;
+	            	} else {
+						if (chatty) listener.getLogger().println("\nOpenShiftScaler wait 10 seconds, then look for rep ctrl again");
+						try {
+							Thread.sleep(10000);
+						} catch (InterruptedException e) {
+						}
+	            	}
 	        	}
-				
-				if (scaleDone) {
-					break;
-				} else {
-					if (chatty) listener.getLogger().println("\nOpenShiftScaler will wait 10 seconds, then try to scale again");
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
+	        	
+	        	if (rc == null) {
+	        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler did not find any replication controllers for " + depCfg);
+	        		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
+	        		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
+	        		// we refrain from adding yet 1 more config option
+	        		if (replicaCount.equals("0"))
+	        			return true;
+	        		else
+	        			return false;
+	        	}
+	        	
+	        	// do the oc scale ... may need to retry        	
+	        	boolean scaleDone = false;
+	        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+	        		// Find the right node in the json and update it
+	        		// refetch to avoid optimistic update collision on k8s side
+		        	ReplicationController rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
+		        	rcImpl.setDesiredReplicaCount(Integer.decode(replicaCount));
+		        	if (chatty)
+		        		listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + replicaCount + " on " + depId);
+		        	try {
+		        		rcImpl = client.update(rcImpl);
+		        		if (chatty)
+		        			listener.getLogger().println("\nOpenShiftScaler rc returned from update current replica count " + rcImpl.getCurrentReplicaCount() + " desired count " + rcImpl.getDesiredReplicaCount());
+			        	scaleDone = true;
+		        	} catch (Throwable t) {
+		        		if (chatty)
+		        			t.printStackTrace(listener.getLogger());
+		        	}
+					
+					if (scaleDone) {
+						break;
+					} else {
+						if (chatty) listener.getLogger().println("\nOpenShiftScaler will wait 10 seconds, then try to scale again");
+						try {
+							Thread.sleep(10000);
+						} catch (InterruptedException e) {
+						}
 					}
-				}
+		    	}
+	        	
+	        	if (!scaleDone) {
+	        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
+	        		return false;
+	        	}
+	        	
+	        	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler got the scale request through");
+	        	return true;
+	        	        	
+	    	} else {
+	    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
+	    		return false;
 	    	}
-        	
-        	if (!scaleDone) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
-        		return false;
-        	}
-        	
-        	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler got the scale request through");
-        	return true;
-        	        	
-    	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler could not get the scale request through");
-    		return false;
-    	}
+		} finally {
+			this.restoreOverridenFields(overrides, listener);
+		}
 
     }
 
