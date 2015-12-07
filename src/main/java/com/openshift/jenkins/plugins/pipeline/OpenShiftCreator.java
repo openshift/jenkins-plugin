@@ -162,7 +162,7 @@ public class OpenShiftCreator extends Builder implements SimpleBuildStep, Serial
 		String className = this.getClass().getName();
 		HashMap<String,String> overridenFields = new HashMap<String,String>();
 		try {
-			EnvVars env = build.getEnvironment(listener);
+			EnvVars env = (build != null ? build.getEnvironment(listener) : null);
 			if (env == null)
 				return overridenFields;
 			Class<?> c = Class.forName(className);
