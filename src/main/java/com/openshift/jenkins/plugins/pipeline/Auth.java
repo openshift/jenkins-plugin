@@ -25,6 +25,7 @@ import com.openshift.restclient.ISSLCertificateCallback;
 
 import hudson.EnvVars;
 import hudson.model.AbstractBuild;
+import hudson.model.Run;
 import hudson.model.TaskListener;
 
 
@@ -131,8 +132,8 @@ public class Auth implements ISSLCertificateCallback {
 		}
 		return authToken;
 	}
-
-	public static String deriveBearerToken(AbstractBuild<?, ?> build, String at, TaskListener listener, boolean verbose) {
+	
+	public static String deriveBearerToken(String at, TaskListener listener, boolean verbose, Map<String,String> vars, EnvVars env) {
 		// the scm path may call this without a listener
 		if (listener == null)
 			verbose = false;
@@ -151,9 +152,8 @@ public class Auth implements ISSLCertificateCallback {
     			listener.getLogger().println("Auth authToken len " + authToken.length());
     	}
     	if (authToken == null || authToken.length() == 0) {
-    		if (build != null) {
+    		if (vars != null) {
     			// params from within the job definition, lowest level 
-    			Map<String,String> vars = build.getBuildVariables();
     			authToken = vars.get("AUTH_TOKEN");
     			if (authToken != null && authToken.length() > 0) {
     				if (verbose) 
@@ -167,30 +167,22 @@ public class Auth implements ISSLCertificateCallback {
     					return authToken;
     				}
     			}
-    			
+    		}
+    		
+    		if (env != null) {
     			// global properties under manage jenkins
-        		EnvVars env = null;
-        		try {
-    				env = build.getEnvironment(listener);
-    				authToken = env.get("AUTH_TOKEN");
-    				if (authToken != null && authToken.length() > 0) {
-    					if (verbose) 
-    						listener.getLogger().println("Auth token from global env vars " + authToken);
-    				}
-    				File f = new File(authToken);
-    				if (f.exists()) {
-    	    			if (verbose)
-    	        			listener.getLogger().println("Auth file exists " + f.getAbsolutePath());
-    	    			authToken = pullTokenFromFile(f, listener);    					
-    				}
-    				return authToken;
-    			} catch (IOException e1) {
-    				if (verbose)
-    					e1.printStackTrace(listener.getLogger());
-    			} catch (InterruptedException e1) {
-    				if (verbose)
-    					e1.printStackTrace(listener.getLogger());
-    			}
+				authToken = env.get("AUTH_TOKEN");
+				if (authToken != null && authToken.length() > 0) {
+					if (verbose) 
+						listener.getLogger().println("Auth token from global env vars " + authToken);
+					File f = new File(authToken);
+					if (f.exists()) {
+		    			if (verbose)
+		        			listener.getLogger().println("Auth file exists " + f.getAbsolutePath());
+		    			authToken = pullTokenFromFile(f, listener);    					
+					}
+					return authToken;
+				}
     		}
     		
     		
@@ -206,6 +198,38 @@ public class Auth implements ISSLCertificateCallback {
     		}
     	}
 		return authToken;
+	}
+
+	public static String deriveBearerToken(AbstractBuild<?, ?> build, String at, TaskListener listener, boolean verbose) {
+		Map<String,String> vars = null;
+		EnvVars env = null;
+		if (build != null) {
+			vars = build.getBuildVariables();
+			try {
+				env = build.getEnvironment(listener);
+			} catch (IOException e) {
+				e.printStackTrace(listener.getLogger());
+			} catch (InterruptedException e) {
+				e.printStackTrace(listener.getLogger());
+			}
+		}
+		return deriveBearerToken(at, listener, verbose, vars, env);
+	}
+	
+	public static String deriveBearerToken(Run<?, ?> run, String at, TaskListener listener, boolean verbose) {
+		// no BuildVariables() equivalent with Run obj's
+		Map<String,String> vars = null;
+		EnvVars env = null;
+		if (run != null) {
+			try {
+				env = run.getEnvironment(listener);
+			} catch (IOException e) {
+				e.printStackTrace(listener.getLogger());
+			} catch (InterruptedException e) {
+				e.printStackTrace(listener.getLogger());
+			}
+		}
+		return deriveBearerToken(at, listener, verbose, vars, env);
 	}
 	
 	public static String deriveCA(String ca, TaskListener listener, boolean verbose) {

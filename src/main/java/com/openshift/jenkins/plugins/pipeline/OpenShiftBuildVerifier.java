@@ -1,14 +1,10 @@
 package com.openshift.jenkins.plugins.pipeline;
 import hudson.EnvVars;
-import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
 import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
-import hudson.model.Run;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
@@ -20,31 +16,21 @@ import org.kohsuke.stapler.QueryParameter;
 import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.model.IBuild;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
-import jenkins.tasks.SimpleBuildStep;
 
-public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, Serializable {
+public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 	
-    private String apiURL = "https://openshift.default.svc.cluster.local";
-    private String bldCfg = "frontend";
-    private String namespace = "test";
-    private String authToken = "";
-    private String verbose = "false";
-    
+    protected String bldCfg = "frontend";
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
@@ -56,194 +42,79 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
         this.verbose = verbose;
     }
 
-    /**
-     * We'll use this from the <tt>config.jelly</tt>.
-     */
-    public String getApiURL() {
-		return apiURL;
-	}
-
 	public String getBldCfg() {
 		return bldCfg;
 	}
-
-	public String getNamespace() {
-		return namespace;
-	}
-	
-	public String getAuthToken() {
-		return authToken;
-	}
-	
-    public String getVerbose() {
-		return verbose;
-	}
     
-	// unfortunately a base class would not have access to private fields in this class; could munge our way through
-	// inspecting the methods and try to match field names and methods starting with get/set ... seems problematic;
-	// for now, duplicating this small piece of logic in each build step
-	protected HashMap<String,String> inspectBuildEnvAndOverrideFields(AbstractBuild build, TaskListener listener, boolean chatty) {
-		String className = this.getClass().getName();
-		HashMap<String,String> overridenFields = new HashMap<String,String>();
-		try {
-			EnvVars env = build.getEnvironment(listener);
-			if (env == null)
-				return overridenFields;
-			Class<?> c = Class.forName(className);
-			Field[] fields = c.getDeclaredFields();
-			for (Field f : fields) {
-				String key = f.getName();
-				// can assume field is of type String 
-				String val = (String) f.get(this);
-				if (chatty)
-					listener.getLogger().println("inspectBuildEnvAndOverrideFields found field " + key + " with current value " + val);
-				if (val == null)
-					continue;
-				String envval = env.get(val);
-				if (chatty)
-					listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
-				if (envval != null && envval.length() > 0) {
-					f.set(this, envval);
-					overridenFields.put(f.getName(), val);
-				}
-			}
-		} catch (ClassNotFoundException e1) {
-			e1.printStackTrace(listener.getLogger());
-		} catch (IOException e) {
-			e.printStackTrace(listener.getLogger());
-		} catch (InterruptedException e) {
-			e.printStackTrace(listener.getLogger());
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace(listener.getLogger());
-		} catch (IllegalAccessException e) {
-			e.printStackTrace(listener.getLogger());
-		}
-		return overridenFields;
-	}
-	
-	protected void restoreOverridenFields(HashMap<String,String> overrides, TaskListener listener) {
-		String className = this.getClass().getName();
-		try {
-			Class<?> c = Class.forName(className);
-			for (Entry<String, String> entry : overrides.entrySet()) {
-				Field f = c.getDeclaredField(entry.getKey());
-				f.set(this, entry.getValue());
-			}
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace(listener.getLogger());
-		} catch (NoSuchFieldException e) {
-			e.printStackTrace(listener.getLogger());
-		} catch (SecurityException e) {
-			e.printStackTrace(listener.getLogger());
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace(listener.getLogger());
-		} catch (IllegalAccessException e) {
-			e.printStackTrace(listener.getLogger());
-		}
-	}
-	
-    protected boolean coreLogic(AbstractBuild build, Launcher launcer, TaskListener listener) {
+	@Override
+	protected boolean coreLogic(Launcher launcher, TaskListener listener,
+			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(build, listener, chatty);
-		try {
-	    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg + " on namespace " + namespace);
-	    	
-	    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, chatty));
-	    	Auth auth = Auth.createInstance(chatty ? listener : null);
-	    	
-	    	
-	    	// get oc client (sometime REST, sometimes Exec of oc command
-	    	IClient client = new ClientFactory().create(apiURL, auth);
-	    	
-	    	if (client != null) {
-	    		// seed the auth
-	        	client.setAuthorizationStrategy(bearerToken);
-	        	
-				String bldState = null;
-				long currTime = System.currentTimeMillis();
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
-				while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-					List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
-					Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
-					List<String> ourKeys = new ArrayList<String>();
-					for (IBuild bld : blds) {
-						if (bld.getName().startsWith(bldCfg)) {
-							ourKeys.add(bld.getName());
-							ourBlds.put(bld.getName(), bld);
-						}
-					}
-					
-					if (ourKeys.size() > 0) {
-						Collections.sort(ourKeys);
-						IBuild bld = ourBlds.get(ourKeys.get(ourKeys.size() - 1));
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuildVerifier latest bld id " + ourKeys.get(ourKeys.size() - 1));
-						bldState = bld.getStatus();
-					}
-					
-					if (chatty)
-						listener.getLogger().println("\nOpenShiftBuildVerifier post bld launch bld state:  " + bldState);
-					if (bldState == null || !bldState.equals("Complete")) {
-						try {
-							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-						}
-					} else {
-						break;
+    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg + " on namespace " + namespace);
+    	
+    	// get oc client (sometime REST, sometimes Exec of oc command
+    	IClient client = new ClientFactory().create(apiURL, auth);
+    	
+    	if (client != null) {
+    		// seed the auth
+        	client.setAuthorizationStrategy(bearerToken);
+        	
+			String bldState = null;
+			long currTime = System.currentTimeMillis();
+			if (chatty)
+				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
+			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+				List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
+				Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
+				List<String> ourKeys = new ArrayList<String>();
+				for (IBuild bld : blds) {
+					if (bld.getName().startsWith(bldCfg)) {
+						ourKeys.add(bld.getName());
+						ourBlds.put(bld.getName(), bld);
 					}
 				}
 				
-				if (bldState == null || !bldState.equals("Complete")) {
-					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
-					return false;
-				} else {
-					if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
-						listener.getLogger().println("\nBUILD STEP EXIT: OpenShiftBuildVerifier exit successfully");
-						return true;
-					} else {
-						listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuildVerifier not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
-						return false;
-					}
+				if (ourKeys.size() > 0) {
+					Collections.sort(ourKeys);
+					IBuild bld = ourBlds.get(ourKeys.get(ourKeys.size() - 1));
+					if (chatty)
+						listener.getLogger().println("\nOpenShiftBuildVerifier latest bld id " + ourKeys.get(ourKeys.size() - 1));
+					bldState = bld.getStatus();
 				}
-	    				        		
-	    	} else {
-	    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier could not get oc client");
-	    		return false;
-	    	}
-		} finally {
-			this.restoreOverridenFields(overrides, listener);
-		}
+				
+				if (chatty)
+					listener.getLogger().println("\nOpenShiftBuildVerifier post bld launch bld state:  " + bldState);
+				if (bldState == null || !bldState.equals("Complete")) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+					}
+				} else {
+					break;
+				}
+			}
+			
+			if (bldState == null || !bldState.equals("Complete")) {
+				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
+				return false;
+			} else {
+				if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
+					listener.getLogger().println("\nBUILD STEP EXIT: OpenShiftBuildVerifier exit successfully");
+					return true;
+				} else {
+					listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuildVerifier not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
+					return false;
+				}
+			}
+    				        		
+    	} else {
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier could not get oc client");
+    		return false;
+    	}
     	
-    }
+	}
     
-	@Override
-	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
-			TaskListener listener) throws InterruptedException, IOException {
-		coreLogic(null, launcher, listener);
-	}
-
-	@Override
-    public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
-		return coreLogic(build, launcher, listener);
-    }
-/*
-    public void setApiURL(String apiURL) {
-		this.apiURL = apiURL;
-	}
-
-	public void setBldCfg(String bldCfg) {
-		this.bldCfg = bldCfg;
-	}
-
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
-
-	public void setAuthToken(String authToken) {
-		this.authToken = authToken;
-	}
-*/
+	
 	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
@@ -335,6 +206,7 @@ public class OpenShiftBuildVerifier extends Builder implements SimpleBuildStep, 
         }
 
     }
+
 
 }
 
