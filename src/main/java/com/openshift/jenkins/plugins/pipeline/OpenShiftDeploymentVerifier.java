@@ -154,7 +154,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
         	}
         	
         	if (!dcWithReplicas) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled approrpiately with no replicas");
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled appropriately with no replicas");
         		return true;
         	}
         	
