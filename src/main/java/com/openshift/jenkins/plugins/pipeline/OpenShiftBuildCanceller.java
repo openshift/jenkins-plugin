@@ -34,12 +34,12 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuildCanceller(String apiURL, String namespace, String authToken, String verbose, String buildConfig) {
+    public OpenShiftBuildCanceller(String apiURL, String namespace, String authToken, String verbose, String bldCfg) {
         this.apiURL = apiURL;
         this.namespace = namespace;
         this.authToken = authToken;
         this.verbose = verbose;
-        this.bldCfg = buildConfig;
+        this.bldCfg = bldCfg;
     }
 
 	

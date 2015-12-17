@@ -65,8 +65,6 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
     		// seed the auth
         	client.setAuthorizationStrategy(bearerToken);
         	
-        	if (depCfg == null)
-        		depCfg = "frontend";
 			
     		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
     		
