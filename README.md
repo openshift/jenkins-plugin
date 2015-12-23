@@ -102,3 +102,5 @@ Otherwise, the plugin will assume you are running off of the OpenShift Jenkins D
 The CA cert is currently pulled from a well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt").
 
 For "Monitor OpenShift ImageStreams", only specifying the token in the plugin configuration or leveraging the token embedded in the OpenShift Jenkins image is supported.
+
+The default timeouts for the various interactions with the OpenShift API endpoint are also configurable for those steps that have to wait on results.  Overriding the timeouts are currently done globally across all instances of a given build step or post-build step.  Go to the "Configure System" panel under "Manage Jenkins" of the Jenkins UI (i.e. http://<host:port>/configure), and then change the "Wait interval" for the item of interest.  Similarly, the OpenShift Service Verification has a retry count for attempts to contact the OpenShift Service successfully.
