@@ -25,11 +25,12 @@ A series of Jenkins "build step" implementations are provided, which you can sel
 6. "Check deployment success in OpenShift":  determines whether the expected set of DeploymentConfig's, ReplicationController's, and active replicas are present based on prior use of either the "Scale deployments in OpenShift" (2) or "Trigger a deployment in OpenShift" (3) steps; its activities specifically include:
 
    - it first confirms the specified deployment config exists.
-   - it then gets the list of all replication controllers for that DC, and finds the latest incarnation.
-   - and then sees if within a reasonable time the current replica count is at least equal to the desired replica count.
+   - it then gets the list of all replication controllers for that DC, and determines which replication controller is the latest generation/incarnation of the deployment.
+   - and then sees for the latest replication controller if a) the deployment phase annotation is not marked as "Failed", and then b) if within a reasonable time the current replica count is at least equal to the desired replica count.
+   - NOTE: success with older incarnations of the replication controllers for a deployment is not sufficient for this Build Step; the state of the latest generation is what is verified.
 
 
-7. "Get latest OpenShift build status":  performs the equivalent of an 'oc get builds` command invocation for the provided build config key provided; once the list of builds are obtained, the state of the latest build is inspected to see if it has completed successfully within a reasonable time period; it will also employ the same deployment triggering on image change verification done in the "Perform builds in OpenShift" build step; this build step allows for monitoring of builds either generated internally or externally from the Jenkins Job configuration
+7. "Get latest OpenShift build status":  performs the equivalent of an 'oc get builds` command invocation for the provided build config key provided; once the list of builds are obtained, the state of the latest build is inspected to see if it has completed successfully within a reasonable time period; it will also employ the same deployment triggering on image change verification done in the "Perform builds in OpenShift" build step; this build step allows for monitoring of builds either generated internally or externally from the Jenkins Job configuration.  NOTE: success or failure of older builds has no bearing; only the state of the latest build is examined.
 
 8. "Create resource(s) in OpenShift":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are specified.
 

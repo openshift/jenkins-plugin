@@ -23,6 +23,6 @@
     <f:textbox default="" />
   </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
-    <f:textbox default="booleanRadio" />
+    <f:booleanRadio default="false" />
   </f:entry>
 </j:jelly>

@@ -34,6 +34,7 @@ import java.util.List;
 
 
 public class OpenShiftBuilder extends OpenShiftBaseStep {
+	
     protected String bldCfg = "frontend";
     protected String commitID = "";
     protected String buildName = "";
@@ -63,6 +64,10 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 
 	public String getShowBuildLogs() {
 		return showBuildLogs;
+	}
+	
+	public String getBldCfg() {
+		return bldCfg;
 	}
 	
 	protected boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
@@ -308,7 +313,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-    	private long wait = 120000;
+    	private long wait = 300000;
     	
         /**
          * To persist global configuration information,
