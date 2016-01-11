@@ -42,6 +42,9 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
         this.bldCfg = bldCfg;
     }
 
+    public String getBldCfg() {
+    	return bldCfg;
+    }
 	
 	protected boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env, Result result) {
