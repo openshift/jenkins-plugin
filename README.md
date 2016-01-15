@@ -94,9 +94,10 @@ And then how you would run the job, specifying a valid value for the parameter:
 
 
 Next, the bearer authentication token can be provided by the user via the following:
-	- the field for the token in the specific build step
-	- if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Job panel, where the value is the token
-	- if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
+
+- the field for the token in the specific build step
+- if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Job panel, where the value is the token
+- if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
 
 Otherwise, the plugin will assume you are running off of the OpenShift Jenkins Docker image (http://github.com/openshift/jenkins), and will read in the token from a well known location in the image that allows authorized access to the OpenShift master associated with the running OpenShift Jenkins image.
 
