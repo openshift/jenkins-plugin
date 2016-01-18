@@ -3,6 +3,7 @@ package com.openshift.jenkins.plugins.pipeline;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
@@ -46,6 +47,9 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
     protected HashMap<String,String> setFields(HashMap<String,String> overridenFields, Field[] fields, EnvVars env, boolean chatty, TaskListener listener) throws IllegalArgumentException, IllegalAccessException {
 		for (Field f : fields) {
 			String key = f.getName();
+			// parameterized builds should only apply to instance variables, not static ones (and fyi, static fields in the classes extending this one will not be accessible by default)
+			if (Modifier.isStatic(f.getModifiers()))
+				continue;
 			Object val = f.get(this);
 			if (chatty)
 				listener.getLogger().println("inspectBuildEnvAndOverrideFields found field " + key + " with current value " + val);
