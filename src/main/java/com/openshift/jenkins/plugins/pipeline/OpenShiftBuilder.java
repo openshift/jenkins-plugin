@@ -39,11 +39,12 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     protected String commitID = "";
     protected String buildName = "";
     protected String showBuildLogs = "false";
+    protected String checkForTriggeredDeployments = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs) {
+    public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs, String checkForTriggeredDeployments) {
         this.apiURL = apiURL;
         this.bldCfg = bldCfg;
         this.namespace = namespace;
@@ -52,6 +53,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         this.commitID = commitID;
         this.buildName = buildName;
         this.showBuildLogs = showBuildLogs;
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments;
     }
 
 	public String getCommitID() {
@@ -70,8 +72,13 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		return bldCfg;
 	}
 	
+	public String getCheckForTriggeredDeployments() {
+		return checkForTriggeredDeployments;
+	}
+	
 	protected boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
+		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg + " on namespace " + namespace);
 		
     	String bldId = null;
@@ -274,12 +281,17 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
     					return false;
     				} else {
-    					if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
-    						listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully");
-    						return true;
+    					if (checkDeps) {    						
+        					if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
+        						listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully (including deploy check)");
+        						return true;
+        					} else {
+        						listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuild not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
+        						return false;
+        					}
     					} else {
-    						listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuild not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
-    						return false;
+    						listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully (no deploy check)");
+    						return true;
     					}
     				}
     				
@@ -361,6 +373,18 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
                 throws IOException, ServletException {
             if (value.length() == 0)
                 return FormValidation.error("Please set namespace");
+            return FormValidation.ok();
+        }
+        
+        public FormValidation doCheckCheckForTriggeredDeployments(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.length() == 0)
+                return FormValidation.error("Please set trigger check");
+            try {
+            	Boolean.parseBoolean(value);
+            } catch (Throwable t) {
+            	return FormValidation.error(t.getMessage());
+            }
             return FormValidation.ok();
         }
         

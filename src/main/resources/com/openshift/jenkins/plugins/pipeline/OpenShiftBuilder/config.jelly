@@ -34,4 +34,7 @@
   <f:entry title="Pipe the build logs from OpenShift to the Jenkins console" field="showBuildLogs">
     <f:booleanRadio default="false" />
   </f:entry>
+  <f:entry title="Verify whether any deployments triggered by this build's output fired" field="checkForTriggeredDeployments">
+    <f:booleanRadio default="false" />
+  </f:entry>
 </j:jelly>
