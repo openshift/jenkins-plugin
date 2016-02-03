@@ -8,6 +8,9 @@ Their ultimate intent is to provide easy to use building blocks that simplify th
 
 NOTE:  This plugin requires JDK 1.8, based on its maven dependency openshift-restclient-java.
 
+This document represents the most technical, detailed description of this plugin.  For reference, the associated wiki page for this plugin on the Jenkins site is [here](https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin).
+The most important piece of information on that page will be the indication of the latest officially released version of this plugin.
+
 ## Jenkins "build steps"
 
 A series of Jenkins "build step" implementations are provided, which you can select from the `Add build step` pull down available on any project's configure page:
@@ -106,3 +109,21 @@ The CA cert is currently pulled from a well known location ("/run/secrets/kubern
 For "Monitor OpenShift ImageStreams", only specifying the token in the plugin configuration or leveraging the token embedded in the OpenShift Jenkins image is supported.
 
 The default timeouts for the various interactions with the OpenShift API endpoint are also configurable for those steps that have to wait on results.  Overriding the timeouts are currently done globally across all instances of a given build step or post-build step.  Go to the "Configure System" panel under "Manage Jenkins" of the Jenkins UI (i.e. http://<host:port>/configure), and then change the "Wait interval" for the item of interest.  Similarly, the OpenShift Service Verification has a retry count for attempts to contact the OpenShift Service successfully.
+
+## Build and Install
+
+Like the Jenkins project itself, this project is a maven based project.  To build this project, after you install maven, and cd to this projects root directory (where the `pom.xml` file is located), run `mvn clean package`.  If built successfully, and `openshift-pipeline.hpi` file will reside in the `target` subdirectory.
+
+Aside from building the plugin locally, there are a few other ways to obtain built version of the plugin:
+
+1.  The Centos and RHEL versions of the OpenShift Jenkins Docker Image, starting officially with V3.2 of OpenShift, will have the plugin installed.  See the [Jenkins Docker Image repository](https://github.com/openshift/jenkins) for details. 
+
+2.  As noted earlier, [wiki page](https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin) has a linke to the latest official version of the plugin.
+
+3.  You could also go to the [openshift-pipeline page](https://updates.jenkins-ci.org/download/plugins/openshift-pipeline/) at the Jenkins Update Center to view the complete list of released plugins.
+
+4.  The Jenkins server used for OpenShift development has a [job](https://ci.openshift.redhat.com/jenkins/job/openshift-pipeline-plugin/) that build the latest commit to the master repo.  The resulting `openshift-pipeline.hpi` file be a saved artifact from that job.
+
+5.  A RHEL RPM is also available as of V3.2 of OpenShift.
+
+Unless you are using a OpenShift Jenkins Docker Image with the plugin preinstalled, follow the Jenkins instructions for installing a plugin either by supplying the `openshift-pipeline.hpi` file, or by pulling it down from the Jenkins Update Center. 
