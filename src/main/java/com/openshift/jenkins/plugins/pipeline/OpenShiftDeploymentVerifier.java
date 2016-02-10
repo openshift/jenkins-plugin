@@ -27,17 +27,19 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 
     protected String depCfg = "frontend";
     protected String replicaCount = "0";
+    protected String verifyReplicaCount = "false";
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose) {
+    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose, String verifyReplicaCount) {
         this.apiURL = apiURL;
         this.depCfg = depCfg;
         this.namespace = namespace;
         this.replicaCount = replicaCount;
         this.authToken = authToken;
         this.verbose = verbose;
+        this.verifyReplicaCount = verifyReplicaCount;
     }
 
 	public String getDepCfg() {
@@ -48,10 +50,15 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 		return replicaCount;
 	}
 	
+	public String getVerifyReplicaCount() {
+		return verifyReplicaCount;
+	}
+	
 	@Override
 	protected boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
     	boolean chatty = Boolean.parseBoolean(verbose);
+    	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount + " on namespace " + namespace);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
@@ -130,13 +137,18 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
 	        			return false;
 	        		}
-					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state);
+					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
 					
-					// then check replica count
-	        		if (rc.getCurrentReplicaCount() >= count && state.equalsIgnoreCase("Complete")) {
-	        			scaledAppropriately = true;
-	        			break;
-	        		}
+					// check state, and if needed then check replica count
+					if (state.equalsIgnoreCase("Complete")) {
+						if (!checkCount) {
+							scaledAppropriately = true;
+							break;
+						} else if (rc.getCurrentReplicaCount() >= count) {
+		        			scaledAppropriately = true;
+		        			break;
+		        		}
+					}
 	        		
 				}
 									        										

@@ -13,19 +13,22 @@
   <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
     <f:textbox default="https://openshift.default.svc.cluster.local" />
   </f:entry>
-  <f:entry title="The name of the DeploymentConfig to trigger" field="depCfg">
+  <f:entry title="The name of the DeploymentConfig to validate" field="depCfg">
     <f:textbox default="frontend" />
   </f:entry>
   <f:entry title="The name of the project the DeploymentConfig is stored in" field="namespace">
     <f:textbox default="test" />
   </f:entry>
-  <f:entry title="The number of replicas the deployment is scaled to" field="replicaCount">
+  <f:entry title="The number of replicas you expect the deployment to scale to" field="replicaCount">
     <f:textbox default="0" />
   </f:entry>
   <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
     <f:textbox default="" />
   </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
+    <f:booleanRadio default="false" />
+  </f:entry>
+  <f:entry title="Verify whether the specified number of replicas are up" field="verifyReplicaCount">
     <f:booleanRadio default="false" />
   </f:entry>
 </j:jelly>

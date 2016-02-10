@@ -27,17 +27,19 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
 
     protected String depCfg = "frontend";
     protected String replicaCount = "0";
+    protected String verifyReplicaCount = "false";
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftScaler(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose) {
+    public OpenShiftScaler(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose, String verifyReplicaCount) {
         this.apiURL = apiURL;
         this.depCfg = depCfg;
         this.namespace = namespace;
         this.replicaCount = replicaCount;
         this.authToken = authToken;
         this.verbose = verbose;
-    }
+        this.verifyReplicaCount = verifyReplicaCount;
+}
 
 	public String getDepCfg() {
 		return depCfg;
@@ -47,10 +49,15 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
 		return replicaCount;
 	}
 	
+	public String getVerifyReplicaCount() {
+		return verifyReplicaCount;
+	}
+	
 	@Override
 	protected boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
+    	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftScaler in perform for " + depCfg + " wanting to get to replica count " + replicaCount + " on namespace " + namespace);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
@@ -109,7 +116,7 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
         		// we refrain from adding yet 1 more config option
         		if (replicaCount.equals("0"))
         			return true;
-        		else
+        		else if (checkCount)
         			return false;
         	}
         	
@@ -126,7 +133,13 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
 	        		rcImpl = client.update(rcImpl);
 	        		if (chatty)
 	        			listener.getLogger().println("\nOpenShiftScaler rc returned from update current replica count " + rcImpl.getCurrentReplicaCount() + " desired count " + rcImpl.getDesiredReplicaCount());
-		        	scaleDone = true;
+	        		if (checkCount) {
+	        			rcImpl = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
+	        			if (rcImpl.getCurrentReplicaCount() == Integer.parseInt(replicaCount)) {
+	        				scaleDone = true;
+	        			}
+	        		} else
+	        			scaleDone = true;
 	        	} catch (Throwable t) {
 	        		if (chatty)
 	        			t.printStackTrace(listener.getLogger());

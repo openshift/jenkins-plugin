@@ -13,7 +13,7 @@
   <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
     <f:textbox default="https://openshift.default.svc.cluster.local" />
   </f:entry>
-  <f:entry title="The name of the DeploymentConfig to manipulate" field="depCfg">
+  <f:entry title="The name of the DeploymentConfig to trigger a deployment for" field="depCfg">
     <f:textbox default="frontend" />
   </f:entry>
   <f:entry title="The name of the project the DeploymentConfig is stored in" field="namespace">

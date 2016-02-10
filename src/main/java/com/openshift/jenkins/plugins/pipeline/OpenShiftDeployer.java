@@ -66,6 +66,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
         		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
 				int latestVersion =  -1;
+				boolean phaseComplete = false;
         		if (dc != null) {
         			latestVersion = dc.getLatestVersionNumber();
 
@@ -79,31 +80,41 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
     					if (chatty)
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
     					if (rc != null) {
-    						ReplicationController rcImpl = (ReplicationController)rc;
-    						String state = rc.getAnnotation("openshift.io/deployment.phase");//Deployment.getReplicationControllerState(rcImpl, chatty ? listener : null);
-    						if (!state.equals("Complete") && !state.equals("Failed")) {
-    							listener.getLogger().println("\n\nBUILD STEP EXIT:  " + rc.getName() + " is in progress.");
-    							return true;
+    						String state = rc.getAnnotation("openshift.io/deployment.phase");
+    						if (state.equalsIgnoreCase("Complete")) {
+    							if (chatty)
+    								listener.getLogger().println("\nOpenShiftDeploy phase complete.");
+    							phaseComplete = true;
+    						} else if (state.equalsIgnoreCase("Failed")) {
+    							listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeployer got Failed status for ReplicationController " + rc.getName());
+    							return false;
+    						} else {
+    							if (chatty)
+    								listener.getLogger().println("\nOpenShiftDeploy current phase " + state);
     						}
     					}
     				} catch (Throwable t) {
-    				}
-    				
-    				// now lets update the latest version of the dc
-    				try {
-    					dc.setLatestVersionNumber(latestVersion + 1);
-    					client.update(dc);
-    					deployDone = true;
-    				} catch (Throwable t) {
     					if (chatty)
     						t.printStackTrace(listener.getLogger());
+    				}
+    				
+    				if (phaseComplete) {
+        				// now lets update the latest version of the dc
+        				try {
+        					dc.setLatestVersionNumber(latestVersion + 1);
+        					client.update(dc);
+        					deployDone = true;
+        				} catch (Throwable t) {
+        					if (chatty)
+        						t.printStackTrace(listener.getLogger());
+        				}
     				}
 					
 					if (deployDone) {
 						break;
 					} else {
 						if (chatty)
-	        				listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc scale again");
+	        				listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc deploy again");
 						try {
 							Thread.sleep(10000);
 						} catch (InterruptedException e) {
@@ -115,13 +126,13 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	}
         	
         	if (!deployDone) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not get oc deploy executed");
+        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer did not succeed in time");
         		return false;
         	}
         	
         	
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not get oc client");
+    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not connect to the server");
     		return false;
     	}
 
