@@ -63,18 +63,24 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	boolean deployDone = false;
         	if (chatty)
         		listener.getLogger().println("\nOpenShiftDeployer wait " + getDescriptor().getWait());
+			int latestVersion =  -1;
         	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
         		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-				int latestVersion =  -1;
-				boolean phaseComplete = false;
         		if (dc != null) {
-        			latestVersion = dc.getLatestVersionNumber();
+        			if (latestVersion == -1) {
+        				latestVersion = dc.getLatestVersionNumber() +1;
+        				try {
+        					dc.setLatestVersionNumber(latestVersion);
+        					client.update(dc);
+        				} catch (Throwable t) {
+        					if (chatty)
+        						t.printStackTrace(listener.getLogger());
+        				}
+        			}
+        			
+        			if (chatty) 
+        				listener.getLogger().println("\nOpenShiftDeployer latest version now " + latestVersion);
 
-        			// oc deploy gets the rc after the dc prior to putting the dc;
-        			// we'll do the same ... currently, if a rc exists at the right level,
-        			// the deployment is cancelled by oc; we won't fail the build step, just 
-        			// print the info message; no rc result in exception with openshift-restclient-java api
-        			// but will still check for null in try block in case that changes
     				try {
     					IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
     					if (chatty)
@@ -84,7 +90,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
     						if (state.equalsIgnoreCase("Complete")) {
     							if (chatty)
     								listener.getLogger().println("\nOpenShiftDeploy phase complete.");
-    							phaseComplete = true;
+            					deployDone = true;
     						} else if (state.equalsIgnoreCase("Failed")) {
     							listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeployer got Failed status for ReplicationController " + rc.getName());
     							return false;
@@ -92,23 +98,15 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
     							if (chatty)
     								listener.getLogger().println("\nOpenShiftDeploy current phase " + state);
     						}
+    					} else {
+    						if (chatty)
+    							listener.getLogger().println("\nOpenShiftDeploy no rc for latest version yet");
     					}
     				} catch (Throwable t) {
     					if (chatty)
     						t.printStackTrace(listener.getLogger());
     				}
     				
-    				if (phaseComplete) {
-        				// now lets update the latest version of the dc
-        				try {
-        					dc.setLatestVersionNumber(latestVersion + 1);
-        					client.update(dc);
-        					deployDone = true;
-        				} catch (Throwable t) {
-        					if (chatty)
-        						t.printStackTrace(listener.getLogger());
-        				}
-    				}
 					
 					if (deployDone) {
 						break;
