@@ -14,7 +14,7 @@
     <f:textbox default="https://openshift.default.svc.cluster.local" />
   </f:entry>
   <f:entry title="The JSON or YAML that defines the OpenShift resource(s) to create" field="jsonyaml">
-    <f:textbox default="" />
+    <f:textarea default="" />
   </f:entry>
   <f:entry title="The name of the project to create the resources in" field="namespace">
     <f:textbox default="test" />
