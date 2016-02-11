@@ -28,4 +28,7 @@
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
     <f:booleanRadio default="false" />
   </f:entry>
+  <f:entry title="Tag using image reference" field="tagImageReference">
+    <f:booleanRadio default="false" />
+  </f:entry>
 </j:jelly>

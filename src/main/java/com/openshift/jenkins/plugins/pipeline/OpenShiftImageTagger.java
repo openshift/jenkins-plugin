@@ -21,21 +21,25 @@ import com.openshift.restclient.model.IImageStream;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.StringTokenizer;
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep {
 
     protected String testTag = "origin-nodejs-sample:latest";
-    protected String prodTag = "origin-nodejs-sample:prod";    
+    protected String prodTag = "origin-nodejs-sample:prod";
+    private String tagImageReference = "false";
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose) {
+    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String tagImageReference, String verbose) {
         this.apiURL = apiURL;
         this.testTag = testTag;
         this.namespace = namespace;
         this.prodTag = prodTag;
         this.authToken = authToken;
+        this.tagImageReference = tagImageReference;
         this.verbose = verbose;
     }
 
@@ -51,6 +55,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 	protected boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
+		boolean tagMode = Boolean.parseBoolean(tagImageReference);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform on namespace " + namespace);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
@@ -72,8 +77,16 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 					listener.getLogger().println("\nBUILD STEP: image stream name " + imageStreamName + " tag name " + tagName);
 				
 				IImageStream is = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
-				is.setTag(tagName, testTag);
+				
+				if (tagMode) {
+					String testTagId = "dmp@" + is.getImageId(testTag.split(":")[1]);
+					is.setTagWithImageId(tagName, testTagId);
+				}
+				else {
+					is.setTag(tagName, testTag);
+				}
 				client.update(is);
+
 			}
 			
 			
