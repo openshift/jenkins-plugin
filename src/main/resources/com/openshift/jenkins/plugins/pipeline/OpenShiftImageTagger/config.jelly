@@ -14,10 +14,16 @@
     <f:textbox default="https://openshift.default.svc.cluster.local" />
   </f:entry>
   <f:entry title="The name of the current image tag" field="testTag">
-    <f:textbox default="origin-nodejs-sample:latest" />
+    <f:textbox default="latest" />
+  </f:entry>
+  <f:entry title="The name of the ImageStream for the current image tag" field="testStream">
+    <f:textbox default="origin-nodejs-sample" />
   </f:entry>
   <f:entry title="The name of the new image tag" field="prodTag">
-    <f:textbox default="origin-nodejs-sample:prod" />
+    <f:textbox default="prod" />
+  </f:entry>
+  <f:entry title="The name of the ImageStream for the new image tag" field="prodStream">
+    <f:textbox default="origin-nodejs-sample" />
   </f:entry>
   <f:entry title="The name of the project the image is stored in" field="namespace">
     <f:textbox default="test" />
