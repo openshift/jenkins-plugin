@@ -21,8 +21,6 @@ import com.openshift.restclient.model.IImageStream;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.StringTokenizer;
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep {
@@ -79,7 +77,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 				IImageStream is = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
 				
 				if (tagMode) {
-					String testTagId = "dmp@" + is.getImageId(testTag.split(":")[1]);
+					String testTagId =  is.getName() + "@" + is.getImageId(testTag.split(":")[1]);
 					is.setTagWithImageId(tagName, testTagId);
 				}
 				else {
