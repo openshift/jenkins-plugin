@@ -75,10 +75,10 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 			if (chatty)
 				listener.getLogger().println("\nBUILD STEP: src tag " + testTag + " dest tag " + prodTag + " src stream " + testStream + " dest stream " + prodStream);
         	//tag image
+
 			IImageStream is = client.get(ResourceKind.IMAGE_STREAM, testStream, namespace);
 			is.setTag(prodTag, testStream + ":" + testTag);
-			client.update(is);
-			
+			client.update(is);			
 			
     	} else {
     		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not get oc client");
