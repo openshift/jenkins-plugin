@@ -25,20 +25,22 @@ import java.util.StringTokenizer;
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep {
 
-    protected String testTag = "origin-nodejs-sample:latest";
-    protected String prodTag = "origin-nodejs-sample:prod";
-    private String tagImageReference = "false";
+    protected String testTag = "latest";
+    protected String prodTag = "prod";
+    protected String testStream = "origin-nodejs-sample";
+    protected String prodStream = "origin-nodejs-sample";
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String tagImageReference, String verbose) {
+    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose, String testStream, String prodStream) {
         this.apiURL = apiURL;
         this.testTag = testTag;
         this.namespace = namespace;
         this.prodTag = prodTag;
         this.authToken = authToken;
-        this.tagImageReference = tagImageReference;
         this.verbose = verbose;
+        this.prodStream = prodStream;
+        this.testStream = testStream;
     }
 
 	public String getTestTag() {
@@ -49,11 +51,18 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 		return prodTag;
 	}
 	
+	public String getTestStream() {
+		return testStream;
+	}
+
+	public String getProdStream() {
+		return prodStream;
+	}
+
 	@Override
 	protected boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		boolean tagMode = Boolean.parseBoolean(tagImageReference);
     	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform on namespace " + namespace);
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
@@ -63,30 +72,13 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     		// seed the auth
         	client.setAuthorizationStrategy(bearerToken);
         	
+			if (chatty)
+				listener.getLogger().println("\nBUILD STEP: src tag " + testTag + " dest tag " + prodTag + " src stream " + testStream + " dest stream " + prodStream);
         	//tag image
-			StringTokenizer st = new StringTokenizer(prodTag, ":");
-			String imageStreamName = null;
-			String tagName = null;
-			if (st.countTokens() > 1) {
-				imageStreamName = st.nextToken();
-				tagName = st.nextToken();
-				
-				if (chatty)
-					listener.getLogger().println("\nBUILD STEP: image stream name " + imageStreamName + " tag name " + tagName);
-				
-				IImageStream is = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
-				
-				if (tagMode) {
-					String testTagId =  is.getName() + "@" + is.getImageId(testTag.split(":")[1]);
-					is.setTagWithImageId(tagName, testTagId);
-				}
-				else {
-					is.setTag(tagName, testTag);
-				}
-				client.update(is);
 
-			}
-			
+			IImageStream is = client.get(ResourceKind.IMAGE_STREAM, testStream, namespace);
+			is.setTag(prodTag, testStream + ":" + testTag);
+			client.update(is);			
 			
     	} else {
     		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not get oc client");
