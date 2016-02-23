@@ -96,6 +96,13 @@ And then how you would run the job, specifying a valid value for the parameter:
 <img width="840" src="EnvVars-3.png"/>
 </p>
 
+An examination of the configuration fields for each type of the build steps will quickly discover that there are some common configuration parameters across the build steps.  These common parameters included:
+- the URL of the OpenShift API Endpoint
+- the name of the OpenShift project (or namespace in Kubernetes terminology)
+- whether to turn on verbose logging (off by default)
+- the bearer authentication token
+
+For the API Endpoint and Project name, any value specified for the specific step takes precedence.  That value can be either the actual value needed to connect, or as articulated above, a Jenkins build environment parameter.  But if no value is set, then OpenShift Pipeline plugin will inspect the environment variable set by the OpenShift Jenkins image (where the name of the variable for the endpoint is `KUBERNETES_SERVICE_HOST` and for the project is `PROJECT_NAME`).  In the case of the API Endpoint, if a non-null, non-empty value is still not obtained after checking the environment variable, the plugin will try to communicate with "https://openshift.default.svc.cluster.local".
 
 Next, the bearer authentication token can be provided by the user via the following:
 

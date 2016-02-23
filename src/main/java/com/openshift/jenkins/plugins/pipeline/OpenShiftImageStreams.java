@@ -2,6 +2,7 @@ package com.openshift.jenkins.plugins.pipeline;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 
 import javax.servlet.ServletException;
 
@@ -18,6 +19,7 @@ import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.model.IImageStream;
 
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -33,14 +35,15 @@ import hudson.scm.SCM;
 import hudson.util.FormValidation;
 
 public class OpenShiftImageStreams extends SCM {
-
-	private String imageStreamName = "nodejs-010-centos7";
-	private String tag = "latest";
-    private String apiURL = "https://openshift.default.svc.cluster.local";
-    private String namespace = "test";
-    private String authToken = "";
-    private String verbose = "false";
+	
+	private String imageStreamName;
+	private String tag;
+    private String apiURL;
+    private String namespace;
+    private String authToken;
+    private String verbose;
     private String lastCommitId = null;
+    private transient HashMap<String,String> overrides = new HashMap<String,String>();
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
@@ -77,9 +80,25 @@ public class OpenShiftImageStreams extends SCM {
 		return verbose;
 	}
 
+    protected void pullDefaultsIfNeeded(EnvVars env) {
+		if (apiURL == null || apiURL.length() == 0) {
+			overrides.put("apiURL", apiURL);
+			if (env != null)
+				apiURL = env.get("KUBERNETES_SERVICE_HOST");
+			if (apiURL == null || apiURL.length() == 0)
+				apiURL = "https://openshift.default.svc.cluster.local";
+		}
+		if (apiURL != null && !apiURL.startsWith("https://"))
+			apiURL = "https://" + apiURL;
+		
+		if (namespace == null || namespace.length() == 0) {
+			overrides.put("namespace", namespace);
+			namespace = env.get("PROJECT_NAME");
+		}
+    }
+    
 	private String getCommitId(TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
     	Auth auth = Auth.createInstance(null);
@@ -91,7 +110,7 @@ public class OpenShiftImageStreams extends SCM {
 		IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
 		// we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
 		String commitId = isImpl.getImageId(tag);
-
+		
 		// always print this
 		listener.getLogger().println("\n\nOpenShiftImageStreams image ID used for Jenkins 'commitId' is " + commitId);
 		return commitId;
@@ -104,6 +123,8 @@ public class OpenShiftImageStreams extends SCM {
 	public void checkout(Run<?, ?> build, Launcher launcher,
 			FilePath workspace, TaskListener listener, File changelogFile,
 			SCMRevisionState baseline) throws IOException, InterruptedException {
+		pullDefaultsIfNeeded(build.getEnvironment(listener));
+
 		String bldName = null;
 		if (build != null)
 			bldName = build.getDisplayName();
@@ -142,7 +163,7 @@ public class OpenShiftImageStreams extends SCM {
 			FilePath workspace, TaskListener listener, SCMRevisionState baseline)
 			throws IOException, InterruptedException {
 		listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith");
-    	
+    			
     	String commitId = this.getCommitId(listener);
 		
 		ImageStreamRevisionState currIMSState = null;
@@ -162,6 +183,12 @@ public class OpenShiftImageStreams extends SCM {
 		if (changes) {
 			lastCommitId = commitId;
 		}
+		
+		if (overrides.containsKey("apiURL"))
+			apiURL = overrides.get("apiURL");
+		if (overrides.containsKey("namespace"))
+			namespace = overrides.get("namespace");
+		overrides.clear();
 			
 		return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
     				        		
@@ -193,28 +220,35 @@ public class OpenShiftImageStreams extends SCM {
         public FormValidation doCheckApiURL(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set apiURL");
+                return FormValidation.warning("Unless you specify a value here, one of the default API endpoints will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckDepCfg(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.length() == 0)
+                return FormValidation.error("You must set a DeploymentConfig name");
             return FormValidation.ok();
         }
 
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set namespace");
-            return FormValidation.ok();
-        }
-        
-        public FormValidation doCheckImageStreamName(@QueryParameter String value)
-                throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set imageStreamName");
+                return FormValidation.warning("Unless you specify a value here, the default namespace will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
             return FormValidation.ok();
         }
         
         public FormValidation doCheckTag(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set tag");
+                return FormValidation.error("Please set the name of the image stream tag you want to poll");
+            return FormValidation.ok();
+        }
+        
+        public FormValidation doCheckImageStreamName(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.length() == 0)
+                return FormValidation.error("Please set the name of the image stream you want to poll");
             return FormValidation.ok();
         }
         

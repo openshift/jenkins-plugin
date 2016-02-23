@@ -11,16 +11,16 @@
     When submitted, it will be passed to the corresponding constructor parameter.
   -->
   <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
-    <f:textbox default="https://openshift.default.svc.cluster.local" />
+    <f:textbox  />
   </f:entry>
   <f:entry title="The name of the BuildConfig to trigger" field="bldCfg">
-    <f:textbox default="frontend" />
+    <f:textbox  />
   </f:entry>
   <f:entry title="The name of the project the BuildConfig is stored in" field="namespace">
-    <f:textbox default="test" />
+    <f:textbox  />
   </f:entry>
   <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
-    <f:textbox default="" />
+    <f:textbox  />
   </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
     <f:booleanRadio default="false" />

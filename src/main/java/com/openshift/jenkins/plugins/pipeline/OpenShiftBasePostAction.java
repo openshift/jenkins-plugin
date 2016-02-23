@@ -22,10 +22,10 @@ import hudson.tasks.Recorder;
 
 public abstract class OpenShiftBasePostAction extends Recorder implements SimpleBuildStep, Serializable {
 
-    protected String apiURL = "https://openshift.default.svc.cluster.local";
-    protected String namespace = "test";
-    protected String authToken = "";
-    protected String verbose = "false";
+    protected String apiURL;
+    protected String namespace;
+    protected String authToken;
+    protected String verbose;
     protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
 
@@ -132,6 +132,23 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
 	
     protected abstract boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env, Result result);
     
+    protected void pullDefaultsIfNeeded(EnvVars env, HashMap<String,String> overrides) {
+		if (apiURL == null || apiURL.length() == 0) {
+			overrides.put("apiURL", apiURL);
+			if (env != null)
+				apiURL = env.get("KUBERNETES_SERVICE_HOST");
+			if (apiURL == null || apiURL.length() == 0)
+				apiURL = "https://openshift.default.svc.cluster.local";
+		}
+		if (apiURL != null && !apiURL.startsWith("https://"))
+			apiURL = "https://" + apiURL;
+		
+		if (namespace == null || namespace.length() == 0) {
+			overrides.put("namespace", namespace);
+			namespace = env.get("PROJECT_NAME");
+		}
+    }
+    
 	@Override
 	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
 			TaskListener listener) throws InterruptedException, IOException {
@@ -139,8 +156,11 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
 		auth = Auth.createInstance(chatty ? listener : null);
     	bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(run, authToken, listener, chatty));
     	EnvVars env = run.getEnvironment(listener);
+    	if (chatty)
+    		listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + env);
 		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(env, listener, chatty);
 		try {
+			pullDefaultsIfNeeded(env, overrides);
 			coreLogic(launcher, listener, run.getEnvironment(listener), null);
 		} finally {
 			this.restoreOverridenFields(overrides, listener);
@@ -153,8 +173,11 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
 		auth = Auth.createInstance(chatty ? listener : null);
     	bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, authToken, listener, Boolean.parseBoolean(verbose)));
     	EnvVars env = build.getEnvironment(listener);
+    	if (chatty)
+    		listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + env);
 		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(env, listener, chatty);
 		try {
+			pullDefaultsIfNeeded(env, overrides);
 			return coreLogic(launcher, listener, env, build.getResult());
 		} finally {
 			this.restoreOverridenFields(overrides, listener);			

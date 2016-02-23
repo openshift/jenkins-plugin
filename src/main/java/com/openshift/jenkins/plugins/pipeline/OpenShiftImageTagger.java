@@ -135,30 +135,46 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
         public FormValidation doCheckApiURL(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set apiURL");
-            return FormValidation.ok();
-        }
-
-        public FormValidation doCheckTestTag(@QueryParameter String value)
-                throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set testTag");
-            return FormValidation.ok();
-        }
-
-        public FormValidation doCheckProdTag(@QueryParameter String value)
-                throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set prodTag");
+                return FormValidation.warning("Unless you specify a value here, one of the default API endpoints will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
             return FormValidation.ok();
         }
 
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set namespace");
+                return FormValidation.warning("Unless you specify a value here, the default namespace will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
             return FormValidation.ok();
         }
+
+        public FormValidation doCheckTestTag(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.length() == 0)
+                return FormValidation.error("Please set the name of image stream tag that serves as the source of the operation");
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckProdTag(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.length() == 0)
+                return FormValidation.error("Please set the name of the image stream tag that serves as the destination or target of the operation");
+            return FormValidation.ok();
+        }
+
+
+        public FormValidation doCheckTestStream(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.length() == 0)
+                return FormValidation.error("Please set the name of image stream that serves as the source of the operation");
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckProdStream(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.length() == 0)
+                return FormValidation.error("Please set the name of the image stream that serves as the destination or target of the operation");
+            return FormValidation.ok();
+        }
+
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
             // Indicates that this builder can be used with all kinds of project types 

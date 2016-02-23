@@ -70,7 +70,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
         	
         	// explicitly set replica count, save that
         	int count = -1;
-        	if (replicaCount.length() > 0)
+        	if (checkCount && replicaCount != null && replicaCount.length() > 0)
         		count = Integer.parseInt(replicaCount);
         		
             						
@@ -88,7 +88,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
         	boolean scaledAppropriately = false;
         			
 			// if replicaCount not set, get it from config
-			if (count == -1)
+			if (checkCount && count == -1)
 				count = dc.getReplicas();
 			
 			if (count > 0)
@@ -228,32 +228,30 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
         public FormValidation doCheckApiURL(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set apiURL");
+                return FormValidation.warning("Unless you specify a value here, one of the default API endpoints will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
             return FormValidation.ok();
         }
 
         public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set depCfg");
+                return FormValidation.error("You must set a DeploymentConfig name");
             return FormValidation.ok();
         }
 
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set namespace");
+                return FormValidation.warning("Unless you specify a value here, the default namespace will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
             return FormValidation.ok();
         }
         
         public FormValidation doCheckReplicaCount(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.ok();
             try {
             	Integer.decode(value);
             } catch (NumberFormatException e) {
-            	return FormValidation.error("Please specify an integer for replicaCount");
+            	return FormValidation.warning("If you want to validate the number of replicas, please specify an integer for the replica count");
             }
             return FormValidation.ok();
         }

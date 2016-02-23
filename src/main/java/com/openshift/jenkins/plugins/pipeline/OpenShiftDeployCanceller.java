@@ -149,21 +149,21 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
         public FormValidation doCheckApiURL(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set apiURL");
+                return FormValidation.warning("Unless you specify a value here, one of the default API endpoints will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
             return FormValidation.ok();
         }
 
         public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set depCfg");
+                return FormValidation.error("You must set a DeploymentConfig name");
             return FormValidation.ok();
         }
 
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.error("Please set namespace");
+                return FormValidation.warning("Unless you specify a value here, the default namespace will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
             return FormValidation.ok();
         }
         
