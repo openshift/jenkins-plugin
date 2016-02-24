@@ -83,7 +83,7 @@ public class Auth implements ISSLCertificateCallback {
 				return true;
 			}
 		}
-		if (this.listener.getLogger() != null)
+		if (this.listener != null)
 			this.listener.getLogger().println("Auth - allowCertificate returning false");
 		return false;
 	}
@@ -102,6 +102,7 @@ public class Auth implements ISSLCertificateCallback {
 	private static String pullTokenFromFile(File f, TaskListener listener) {
 		FileInputStream fis = null;
 		String authToken = null;
+		boolean verbose = listener != null;
 		try {
 			fis = new FileInputStream(f);
 			ArrayList<Integer> al = new ArrayList<Integer>();
@@ -121,9 +122,11 @@ public class Auth implements ISSLCertificateCallback {
     		}
 			
 		} catch (FileNotFoundException e) {
-			e.printStackTrace(listener.getLogger());
+			if (verbose)
+				e.printStackTrace(listener.getLogger());
 		} catch (IOException e) {
-			e.printStackTrace(listener.getLogger());
+			if (verbose)
+				e.printStackTrace(listener.getLogger());
 		} finally {
 			try {
 				fis.close();
@@ -194,7 +197,8 @@ public class Auth implements ISSLCertificateCallback {
         			listener.getLogger().println("Auth file exists " + f.getAbsolutePath());
     			authToken = pullTokenFromFile(f, listener);
     		} else {
-    			listener.getLogger().println("Auth file for auth token " + f.toString() + " does not exist");
+    			if (verbose)
+    				listener.getLogger().println("Auth file for auth token " + f.toString() + " does not exist");
     		}
     	}
 		return authToken;
@@ -208,9 +212,11 @@ public class Auth implements ISSLCertificateCallback {
 			try {
 				env = build.getEnvironment(listener);
 			} catch (IOException e) {
-				e.printStackTrace(listener.getLogger());
+				if (verbose && listener != null)
+					e.printStackTrace(listener.getLogger());
 			} catch (InterruptedException e) {
-				e.printStackTrace(listener.getLogger());
+				if (verbose && listener != null)
+					e.printStackTrace(listener.getLogger());
 			}
 		}
 		return deriveBearerToken(at, listener, verbose, vars, env);
@@ -224,9 +230,11 @@ public class Auth implements ISSLCertificateCallback {
 			try {
 				env = run.getEnvironment(listener);
 			} catch (IOException e) {
-				e.printStackTrace(listener.getLogger());
+				if (verbose && listener != null)
+					e.printStackTrace(listener.getLogger());
 			} catch (InterruptedException e) {
-				e.printStackTrace(listener.getLogger());
+				if (verbose && listener != null)
+					e.printStackTrace(listener.getLogger());
 			}
 		}
 		return deriveBearerToken(at, listener, verbose, vars, env);
@@ -234,22 +242,22 @@ public class Auth implements ISSLCertificateCallback {
 	
 	public static String deriveCA(String ca, TaskListener listener, boolean verbose) {
 		String caCert = ca;
-		if (verbose)
+		if (verbose && listener != null)
 			listener.getLogger().println("\n\n");
 		
 		if (caCert == null) {
-			if (verbose)
+			if (verbose && listener != null)
 				listener.getLogger().println("CA Cert null");
 		} else {
-			if (verbose)
+			if (verbose && listener != null)
 				listener.getLogger().println("CA Cert len " + caCert.length());
 		}
 		if (caCert == null || caCert.length() == 0) {
 			File f = new File(CERT_FILE);
-			if (verbose)
+			if (verbose && listener != null)
 				listener.getLogger().println("Cert opened file object " + f);
 			if (f.exists()) {
-    			if (verbose)
+    			if (verbose && listener != null)
         			listener.getLogger().println("Cert file exists " + f.getAbsolutePath());
     			FileInputStream fis = null;
     			ObjectInputStream ois = null;
@@ -272,9 +280,11 @@ public class Auth implements ISSLCertificateCallback {
     	    		}
     				
     			} catch (FileNotFoundException e) {
-					e.printStackTrace(listener.getLogger());
+    				if (verbose && listener != null)
+    					e.printStackTrace(listener.getLogger());
 				} catch (IOException e) {
-					e.printStackTrace(listener.getLogger());
+					if (verbose && listener != null)
+						e.printStackTrace(listener.getLogger());
 				} finally {
     				try {
 						fis.close();
@@ -282,7 +292,8 @@ public class Auth implements ISSLCertificateCallback {
 					}
     			}
 			} else {
-				listener.getLogger().println("Cert file " + f.toString() + " does not exist");
+				if (verbose && listener != null)
+					listener.getLogger().println("Cert file " + f.toString() + " does not exist");
 			}
 		}
 		
