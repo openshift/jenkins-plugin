@@ -29,8 +29,9 @@ import java.util.List;
 
 public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 	
-    protected String bldCfg;
-    
+	protected final static String DISPLAY_NAME = "Cancel OpenShift Builds";
+	
+    protected String bldCfg;    
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
@@ -60,6 +61,8 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 				listener.getLogger().println("\nOpenShiftBuildCanceller build succeeded / result is " + result);			
 		}
 		
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" action for build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
+		
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, auth);
     	
@@ -68,14 +71,14 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
         	client.setAuthorizationStrategy(bearerToken);
 			
 			try {
-				//TODO do we want to scope builds to a specific build config vs. all builds within a project?
 				List<IBuild> list = client.list(ResourceKind.BUILD, namespace);
+				int count = 0;
 				for (IBuild bld : list) {
 					String phaseStr = bld.getStatus();
 					
 					// if build active, let's cancel it
-					if (!phaseStr.equalsIgnoreCase("Complete") && !phaseStr.equalsIgnoreCase("Failed") && !phaseStr.equalsIgnoreCase("Cancelled")) {
-						String buildName = bld.getName();
+					String buildName = bld.getName();
+					if (buildName.startsWith(bldCfg) && !phaseStr.equalsIgnoreCase("Complete") && !phaseStr.equalsIgnoreCase("Failed") && !phaseStr.equalsIgnoreCase("Cancelled")) {
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftBuildCanceller found active build " + buildName);
 						
@@ -87,18 +90,24 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 		    					return cancelable.cancel();
 		    				}
 		    			}, null);
-	    				
-						listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftBuildCanceller cancel build called for " + buildName);
-						
+	    										
+	    				listener.getLogger().println(String.format("  Cancelled build \"%s\".", buildName));
+	    				count++;
 					
 					}
 				}
+
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully with %d builds cancelled.", DISPLAY_NAME, count));
+				
+				return true;
 			} catch (HttpClientException e1) {
 				e1.printStackTrace(listener.getLogger());
 				return false;
 			}
-    	}			
-		return true;
+    	} else {
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
+    		return false;
+    	}
 	}
 
 	// Overridden for better type safety.
@@ -175,7 +184,7 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Cancel builds in OpenShift";
+            return DISPLAY_NAME;
         }
 
         @Override

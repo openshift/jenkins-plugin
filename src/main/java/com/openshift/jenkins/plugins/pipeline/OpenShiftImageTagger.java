@@ -25,6 +25,8 @@ import java.util.StringTokenizer;
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep {
 
+	protected final static String DISPLAY_NAME = "Tag OpenShift Image";
+	
     protected String testTag = "latest";
     protected String prodTag = "prod";
     protected String testStream = "origin-nodejs-sample";
@@ -63,7 +65,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 	protected boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftImageTagger in perform on namespace " + namespace);
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with the source [image stream:tag] \"%s:%s\" and destination [image stream:tag] \"%s:%s\" from the project \"%s\".", DISPLAY_NAME, testStream, testTag, prodStream, prodTag, namespace));
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, auth);
@@ -72,21 +74,20 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     		// seed the auth
         	client.setAuthorizationStrategy(bearerToken);
         	
-			if (chatty)
-				listener.getLogger().println("\nBUILD STEP: src tag " + testTag + " dest tag " + prodTag + " src stream " + testStream + " dest stream " + prodStream);
+			listener.getLogger().println("");
         	//tag image
 			IImageStream is = client.get(ResourceKind.IMAGE_STREAM, testStream, namespace);
 			is.setTag(prodTag, testStream + ":" + testTag);
 			client.update(is);
 			
 			
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully.", DISPLAY_NAME));
+			return true;
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger could not get oc client");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 
-		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftImageTagger image stream now has tags: " + testTag + ", " + prodTag);
-		return true;
 	}
 
     // Overridden for better type safety.
@@ -185,7 +186,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Tag an image in OpenShift";
+            return DISPLAY_NAME;
         }
 
         @Override

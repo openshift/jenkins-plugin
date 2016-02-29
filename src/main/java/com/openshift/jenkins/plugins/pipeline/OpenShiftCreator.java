@@ -32,6 +32,8 @@ import java.util.Map;
 
 
 public class OpenShiftCreator extends OpenShiftBaseStep {
+	
+	protected final static String DISPLAY_NAME = "Create OpenShift Resource(s)";
     protected String jsonyaml = "";
     
     private static final Map<String, String[]> apiMap;
@@ -102,7 +104,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	
     	IClient client = new ClientFactory().create(apiURL, auth);
     	if (client == null) {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftCreator could not create client");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 		try {
@@ -111,11 +113,11 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST POST response " + response);
 		} catch (SocketTimeoutException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftCreatorsocket timeout");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a socket level communication timeout to  \"%s\" occurred.", DISPLAY_NAME, apiURL));
 			return false;
 		} catch (HttpClientException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftCreator HTTP client exception");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a HTTP level communication error to  \"%s\" occurred.", DISPLAY_NAME, apiURL));
 			return false;
 		}
 		
@@ -126,7 +128,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 	protected boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftCreator in perform on namespace " + namespace);
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with the project \"%s\".", DISPLAY_NAME, namespace));
     	
     	ModelNode resources = ModelNode.fromJSONString(jsonyaml);
     	    	
@@ -137,21 +139,27 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 		urlClient.setAuthorizationStrategy(bearerToken);
 		
     	boolean success = false;
+    	int count = 0;
     	if (kind.equalsIgnoreCase("List")) {
     		List<ModelNode> list = resources.get("items").asList();
     		for (ModelNode node : list) {
     			String path = node.get("kind").asString();
+				listener.getLogger().println(String.format("  Creating a \"%s\"...", path));
     			success = this.makeRESTCall(chatty, listener, path, auth, urlClient, node);
     			if (!success)
     				break;
+    			else
+    				count++;
     		}
     	} else {
     		String path = kind;
+			listener.getLogger().println(String.format("  Creating a \"%s\"...", path));
     		success = this.makeRESTCall(chatty, listener, path, auth, urlClient, resources);
+    		if (success)
+    			count = 1;
     	}
 
-    	if (success)
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftCreator resources(s) created");
+    	listener.getLogger().println(String.format("\n\nExiting \"%s\" %ssuccessfully, with %d resource(s) created at \"%s\" under project \"%s\".", DISPLAY_NAME, success ? "" : "un", count, apiURL, namespace));
 		return success;
 	}
     
@@ -234,7 +242,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Create resource(s) in OpenShift";
+            return DISPLAY_NAME;
         }
 
         @Override

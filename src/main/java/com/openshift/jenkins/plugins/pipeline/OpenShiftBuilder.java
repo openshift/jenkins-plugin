@@ -37,6 +37,8 @@ import java.util.List;
 
 public class OpenShiftBuilder extends OpenShiftBaseStep {
 	
+	protected final static String DISPLAY_NAME = "Trigger OpenShift Build";
+	
     protected String bldCfg = "frontend";
     protected String commitID = "";
     protected String buildName = "";
@@ -81,7 +83,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 	protected boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuilder in perform for " + bldCfg + " on namespace " + namespace);
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
 		
     	String bldId = null;
     	boolean follow = Boolean.parseBoolean(showBuildLogs);
@@ -138,12 +140,11 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     			
     			
     			if(bld == null) {
-    				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder triggered build is null");
+    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a build could not be started", DISPLAY_NAME));
     				return false;
     			} else {
     				bldId = bld.getName();
-    				if (chatty)
-    					listener.getLogger().println("\nOpenShiftBuilder triggered build id is " + bldId);
+    				listener.getLogger().println(String.format("  Started build \"%s\" and waiting for build completion %s...", bldId, checkDeps ? "followed by a new deployment" : ""));
     				
     				
     				boolean foundPod = false;
@@ -261,51 +262,21 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     				}
     				
     				if (!foundPod) {
-    					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder did not find build pod for " + bldId + " in time.  If possible interrogate the OpenShift server with the oc command and inspect the server logs.");
+        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the build pod for build \"%s\" was not found in time.", DISPLAY_NAME, bldId));
     					return false;
     				}
     				
-					while (System.currentTimeMillis() < (startTime + getDescriptor().getWait())) {
-						bld = client.get(ResourceKind.BUILD, bldId, namespace);
-						bldState = bld.getStatus();
-						if (chatty)
-							listener.getLogger().println("\nOpenShiftBuilder post bld launch bld state:  " + bldState);
-						if (!bldState.equals("Complete")) {
-							try {
-								Thread.sleep(1000);
-							} catch (InterruptedException e) {
-							}
-						} else {
-							break;
-						}
-					}
-    				if (bldState == null || !bldState.equals("Complete")) {
-    					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
-    					return false;
-    				} else {
-    					if (checkDeps) {    						
-        					if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
-        						listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully (including deploy check)");
-        						return true;
-        					} else {
-        						listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuild not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
-        						return false;
-        					}
-    					} else {
-    						listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder exit successfully (no deploy check)");
-    						return true;
-    					}
-    				}
-    				
+    				return this.verifyBuild(startTime, getDescriptor().getWait(), client, bldCfg, bldId, namespace, chatty, listener, DISPLAY_NAME, checkDeps);
+    				    				
     			}
         		
         		
         	} else {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder could not get build config");
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the build config \"%s\" could not be read.", DISPLAY_NAME, bldCfg));
         		return false;
         	}
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilder could not get oc client");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 
@@ -399,7 +370,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Perform builds in OpenShift";
+            return DISPLAY_NAME;
         }
         
         public long getWait() {

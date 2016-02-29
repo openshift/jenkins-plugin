@@ -26,8 +26,9 @@ import java.io.IOException;
 
 public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 
-    protected String depCfg = "frontend";
-
+	protected static final String DISPLAY_NAME = "Cancel OpenShift Deployment";
+	
+	protected String depCfg = "frontend";
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
@@ -58,6 +59,8 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 				listener.getLogger().println("\nOpenShiftDeployCanceller build succeeded / result " + result);			
 		}
 
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" action for deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));		
+		
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, auth);
     	
@@ -69,19 +72,18 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
     		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
     		
     		if (dc == null) {
-    			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentCanceller no valid deployment config found for " + depCfg);
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the deployment config \"%s\" could not be retrieved.", DISPLAY_NAME, depCfg));
     			return false;
     		}
-
-			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentCanceller checking if deployment out there for " + depCfg);
 			
 			int latestVersion = dc.getLatestVersionNumber();
-			IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+			String repId = depCfg + "-" + latestVersion;
+			IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, repId, namespace);
 				
 			if (rc != null) {
 				String state = rc.getAnnotation("openshift.io/deployment.phase");
-        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete")) {
-        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller deployment " + rc.getName() + " done");
+        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete") || state.equalsIgnoreCase("Cancelled")) {
+        	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" is not in-progress; the phase is:  \"%s\".", DISPLAY_NAME, repId, state));
         			return true;
         		}
         		
@@ -90,14 +92,17 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 				
         		client.update(rc);
         		
+    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" has been cancelled.", DISPLAY_NAME, repId));
+        		return true;
 			} else {
-    			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller could not get resource controller with key:  " + depCfg + "-" + latestVersion);
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the latest deployment \"%s\" could not be retrieved.", DISPLAY_NAME, repId));
 				return false;
 			}					
     		
-    	}			
-		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentCanceller completed");
-		return true;
+    	} else {
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
+	    	return false;
+    	}
 		
 	}
 
@@ -176,7 +181,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Cancel deployments in OpenShift";
+            return DISPLAY_NAME;
         }
 
         @Override

@@ -36,6 +36,8 @@ import hudson.util.FormValidation;
 
 public class OpenShiftImageStreams extends SCM {
 	
+	protected final static String DISPLAY_NAME = "OpenShift ImageStreams";
+	
 	private String imageStreamName;
 	private String tag;
     private String apiURL;
@@ -80,7 +82,10 @@ public class OpenShiftImageStreams extends SCM {
 		return verbose;
 	}
 
-    protected void pullDefaultsIfNeeded(EnvVars env) {
+    protected void pullDefaultsIfNeeded(EnvVars env, TaskListener listener) {
+    	boolean chatty = Boolean.parseBoolean(verbose);
+    	if (chatty)
+    		listener.getLogger().println("apiURL before " + apiURL);
 		if (apiURL == null || apiURL.length() == 0) {
 			overrides.put("apiURL", apiURL);
 			if (env != null)
@@ -90,11 +95,17 @@ public class OpenShiftImageStreams extends SCM {
 		}
 		if (apiURL != null && !apiURL.startsWith("https://"))
 			apiURL = "https://" + apiURL;
-		
+		if (chatty)
+			listener.getLogger().println(" apiURL after " + apiURL);
+
+		if (chatty)
+			listener.getLogger().println(" namespace before: " + namespace);
 		if (namespace == null || namespace.length() == 0) {
 			overrides.put("namespace", namespace);
 			namespace = env.get("PROJECT_NAME");
 		}
+		if (chatty)
+			listener.getLogger().println(" namespace after: " + namespace);
     }
     
 	private String getCommitId(TaskListener listener) {
@@ -111,8 +122,9 @@ public class OpenShiftImageStreams extends SCM {
 		// we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
 		String commitId = isImpl.getImageId(tag);
 		
-		// always print this
-		listener.getLogger().println("\n\nOpenShiftImageStreams image ID used for Jenkins 'commitId' is " + commitId);
+
+		if (chatty)
+			listener.getLogger().println("\n\nOpenShiftImageStreams image ID used for Jenkins 'commitId' is " + commitId);
 		return commitId;
     	
 	}
@@ -123,12 +135,14 @@ public class OpenShiftImageStreams extends SCM {
 	public void checkout(Run<?, ?> build, Launcher launcher,
 			FilePath workspace, TaskListener listener, File changelogFile,
 			SCMRevisionState baseline) throws IOException, InterruptedException {
-		pullDefaultsIfNeeded(build.getEnvironment(listener));
+		boolean chatty = Boolean.parseBoolean(verbose);
+		pullDefaultsIfNeeded(build.getEnvironment(listener), listener);
 
 		String bldName = null;
 		if (build != null)
 			bldName = build.getDisplayName();
-		listener.getLogger().println("\n\nOpenShiftImageStreams checkout called for " + bldName);
+		if (chatty)
+			listener.getLogger().println("\n\nOpenShiftImageStreams checkout called for " + bldName);
 		// don't need to check out into jenkins workspace ... our bld/slave images/pods deal with that 
 	}
 
@@ -141,18 +155,19 @@ public class OpenShiftImageStreams extends SCM {
 	public SCMRevisionState calcRevisionsFromBuild(Run<?, ?> build,
 			FilePath workspace, Launcher launcher, TaskListener listener)
 			throws IOException, InterruptedException {
-		String bldName = null;
-		if (build != null)
-			bldName = build.getDisplayName();
-		listener.getLogger().println("\n\nOpenShiftImageStreams calcRevisionsFromBuild for " + bldName);
+		pullDefaultsIfNeeded(build.getEnvironment(listener), listener);
+    	listener.getLogger().println(String.format("\n\nPolling \"%s\":  the image stream \"%s\" and tag \"%s\" from the project \"%s\".", DISPLAY_NAME, imageStreamName, tag, namespace));
     	
     	String commitId = lastCommitId;
 			
 		ImageStreamRevisionState currIMSState = null;
-		if (commitId != null)
+		if (commitId != null) {
 			currIMSState = new ImageStreamRevisionState(commitId);
+			listener.getLogger().println(String.format("  Last revision:  [%s]", currIMSState.toString()));
+		} else {
+	    	listener.getLogger().println("  First time through, no revision state available.");
+		}
 		
-		listener.getLogger().println("\n\nOpenShiftImageStreams calcRevisionsFromBuild returning " + currIMSState);
 		
 		return currIMSState;
 	}
@@ -162,15 +177,15 @@ public class OpenShiftImageStreams extends SCM {
 			AbstractProject<?, ?> project, Launcher launcher,
 			FilePath workspace, TaskListener listener, SCMRevisionState baseline)
 			throws IOException, InterruptedException {
-		listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith");
     			
     	String commitId = this.getCommitId(listener);
 		
 		ImageStreamRevisionState currIMSState = null;
 		if (commitId != null)
 			currIMSState = new ImageStreamRevisionState(commitId);
-		
-		listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
+		boolean chatty = Boolean.parseBoolean(verbose);
+		if (chatty)
+			listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
 				" with lastest " + currIMSState);
 		boolean changes = false;
 		if (baseline != null && baseline instanceof ImageStreamRevisionState && currIMSState != null)
@@ -182,14 +197,20 @@ public class OpenShiftImageStreams extends SCM {
 		
 		if (changes) {
 			lastCommitId = commitId;
+			listener.getLogger().println("\n\n A revision change was found this polling cycle.");
+		} else {
+			listener.getLogger().println("\n\n No revision change found this polling cycle.");
 		}
+		
+		if (chatty)
+			listener.getLogger().println(" overrides " + overrides);
 		
 		if (overrides.containsKey("apiURL"))
 			apiURL = overrides.get("apiURL");
 		if (overrides.containsKey("namespace"))
 			namespace = overrides.get("namespace");
 		overrides.clear();
-			
+		
 		return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
     				        		
 	}
@@ -234,7 +255,7 @@ public class OpenShiftImageStreams extends SCM {
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
             if (value.length() == 0)
-                return FormValidation.warning("Unless you specify a value here, the default namespace will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
+                return FormValidation.error("You must specify the name of the project where the image stream resides");
             return FormValidation.ok();
         }
         
@@ -254,7 +275,7 @@ public class OpenShiftImageStreams extends SCM {
         
 		@Override
 		public String getDisplayName() {
-			return "Monitor OpenShift ImageStreams";
+			return DISPLAY_NAME;
 		}
 
 		@Override

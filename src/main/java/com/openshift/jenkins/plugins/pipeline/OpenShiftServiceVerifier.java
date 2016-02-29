@@ -21,12 +21,16 @@ import com.openshift.restclient.model.IService;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.Socket;
 import java.net.URL;
 import java.net.URLConnection;
 
 public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
 
+	protected final static String DISPLAY_NAME = "Verify OpenShift Service";
+	
     protected String svcName = "frontend";
     
     
@@ -46,10 +50,11 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
 
     protected boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftServiceVerifier in perform on namespace " + namespace);
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" for the service \"%s\" from the project \"%s\".", DISPLAY_NAME, svcName, namespace));
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, auth);
+    	String spec = null;
     	
     	if (client != null) {
     		// seed the auth
@@ -59,44 +64,41 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
         	IService svc = client.get(ResourceKind.SERVICE, svcName, namespace);
         	String ip = svc.getPortalIP();
         	int port = svc.getPort();
-        	String spec = "http://" + ip + ":" + port;
-        	URL url = null;
-        	try {
-				url = new URL(spec);
-			} catch (MalformedURLException e) {
-				e.printStackTrace(listener.getLogger());
-				return false;
-			}
-        	int tryCount = 0;
-        	if (chatty)
-        		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
-    		URLConnection conn = null;
-        	while (tryCount < getDescriptor().getRetry()) {
-        		tryCount++;
-        		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
-        		try {
-					conn = url.openConnection();
+        	spec = ip + ":" + port;
+    		InetSocketAddress address = new InetSocketAddress(ip,port);
+    		Socket socket = new Socket();
+    		try {
+            	int tryCount = 0;
+            	if (chatty)
+            		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
+            	listener.getLogger().println(String.format("  Attempting to connect to \"%s\"...", spec));
+            	while (tryCount < getDescriptor().getRetry()) {
+            		tryCount++;
+            		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
+            		try {
+    	        		socket.connect(address, 2500);
+                    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; a connection to \"%s\" was made.", DISPLAY_NAME, spec));
+    	        		return true;
+    				} catch (IOException e) {
+    					if (chatty) e.printStackTrace(listener.getLogger());
+    				}
+            	}
+            	
+    		} finally {
+    			try {
+					socket.close();
 				} catch (IOException e) {
-					if (chatty) e.printStackTrace(listener.getLogger());
+					if (chatty)
+						e.printStackTrace(listener.getLogger());
 				}
-        		if (conn != null)
-        			break;
-        	}
-        	
-        	if (conn != null) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection made");
-        		return true;
-        	}
+    		}
         	
     	} else {
-    		listener.getLogger().println("\n\nOpenShiftServiceVerifier could not get oc client");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 
-    	if (!chatty)
-    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection could not be made, re-run with verbose logging to assist with diagnostics");
-    	else
-    		listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftServiceVerifier successful connection made, review verbose logging above to help determine the problem");
+    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a connection to \"%s\" could not be made.", DISPLAY_NAME, spec));
 
     	return false;
     }
@@ -175,7 +177,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Verify a service is up in OpenShift";
+            return DISPLAY_NAME;
         }
         
         public int getRetry() {

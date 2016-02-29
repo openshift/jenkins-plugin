@@ -26,6 +26,8 @@ import java.io.IOException;
 
 public class OpenShiftDeployer extends OpenShiftBaseStep {
 
+	protected final static String DISPLAY_NAME = "Trigger OpenShift Deployment";
+	
     protected String depCfg = "frontend";
     
     
@@ -48,7 +50,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
 	protected boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeployer in perform for " + depCfg + " on namespace " + namespace);
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, auth);
@@ -64,6 +66,8 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	if (chatty)
         		listener.getLogger().println("\nOpenShiftDeployer wait " + getDescriptor().getWait());
 			int latestVersion =  -1;
+			String rcId = null;
+			String state = null;
         	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
         		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
         		if (dc != null) {
@@ -82,17 +86,18 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         				listener.getLogger().println("\nOpenShiftDeployer latest version now " + latestVersion);
 
     				try {
-    					IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+    					rcId = depCfg + "-" + latestVersion;
+    					IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, rcId, namespace);
     					if (chatty)
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
     					if (rc != null) {
-    						String state = rc.getAnnotation("openshift.io/deployment.phase");
+    						state = rc.getAnnotation("openshift.io/deployment.phase");
     						if (state.equalsIgnoreCase("Complete")) {
     							if (chatty)
     								listener.getLogger().println("\nOpenShiftDeploy phase complete.");
             					deployDone = true;
     						} else if (state.equalsIgnoreCase("Failed")) {
-    							listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeployer got Failed status for ReplicationController " + rc.getName());
+    	        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has completed with status:  [Failed].", DISPLAY_NAME, rcId));
     							return false;
     						} else {
     							if (chatty)
@@ -124,18 +129,18 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	}
         	
         	if (!deployDone) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer did not succeed in time");
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; gave up on deployment \"%s\" with status:  [%s].", DISPLAY_NAME, rcId, state));
         		return false;
         	}
+
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; deployment \"%s\" has completed with status:  [Complete].", DISPLAY_NAME, rcId));
+        	return true;
         	
         	
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer could not connect to the server");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
-
-    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeployer exit successfully");
-    	return true;
 	}
 
     // Overridden for better type safety.
@@ -212,7 +217,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Trigger a deployment in OpenShift";
+            return DISPLAY_NAME;
         }
         
         public long getWait() {

@@ -10,7 +10,10 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.openshift.restclient.IClient;
+import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+import com.openshift.restclient.model.IBuild;
 
 import jenkins.tasks.SimpleBuildStep;
 import hudson.EnvVars;
@@ -138,6 +141,41 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
 		if (namespace == null || namespace.length() == 0) {
 			overrides.put("namespace", namespace);
 			namespace = env.get("PROJECT_NAME");
+		}
+    }
+    
+    protected boolean verifyBuild(long startTime, long wait, IClient client, String bldCfg, String bldId, String namespace, boolean chatty, TaskListener listener, String displayName, boolean checkDeps) {
+		String bldState = null;
+    	while (System.currentTimeMillis() < (startTime + wait)) {
+			IBuild bld = client.get(ResourceKind.BUILD, bldId, namespace);
+			bldState = bld.getStatus();
+			if (chatty)
+				listener.getLogger().println("\nOpenShiftBuilder post bld launch bld state:  " + bldState);
+			if (!bldState.equals("Complete")) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+				}
+			} else {
+				break;
+			}
+		}
+		if (bldState == null || !bldState.equals("Complete")) {
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; build \"%s\" has completed with status:  [%s].", displayName, bldId, bldState));
+			return false;
+		} else {
+			if (checkDeps) {    						
+				if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, wait)) {
+    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; build \"%s\" has completed with status:  [Complete].  All deployments with ImageChange triggers based on this build's output triggered off of the new image.", displayName, bldId));
+					return true;
+				} else {
+    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; build \"%s\" has completed with status:  [Complete]. However, not all deployments with ImageChange triggers based on this build's output triggered off of the new image.", displayName, bldId));
+					return false;
+				}
+			} else {
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; build \"%s\" has completed with status:  [Complete].", displayName, bldId));
+				return true;
+			}
 		}
     }
     

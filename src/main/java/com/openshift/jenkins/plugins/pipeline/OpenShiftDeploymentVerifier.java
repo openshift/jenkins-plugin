@@ -25,6 +25,8 @@ import java.io.IOException;
 
 public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 
+	protected final static String DISPLAY_NAME = "Verify OpenShift Deployment";
+	
     protected String depCfg = "frontend";
     protected String replicaCount = "0";
     protected String verifyReplicaCount = "false";
@@ -59,7 +61,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 			EnvVars env) {
     	boolean chatty = Boolean.parseBoolean(verbose);
     	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftDeploymentVerifier in perform checking for " + depCfg + " wanting to confirm we are at least at replica count " + replicaCount + " on namespace " + namespace);
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, auth);
@@ -94,12 +96,15 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 			if (count > 0)
 				dcWithReplicas = true;
 				
-			if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier checking if deployment out there for " + depCfg);
+        	listener.getLogger().println(String.format("  Verifying deployment state%s...", checkCount ? String.format(" and verifying the current deployment is at \"%s\" replica(s).", replicaCount) : ""));        	
 			
 			// confirm the deployment has kicked in from completed build;
         	// in testing with the jenkins-ci sample, the initial deploy after
         	// a build is kinda slow ... gotta wait more than one minute
 			long currTime = System.currentTimeMillis();
+			String state = null;
+			String depId = null;
+			boolean phaseComplete = false;
 			if (chatty)
 				listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getDescriptor().getWait());
 			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
@@ -116,13 +121,15 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 					listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + latestVersion);
 				
 				if (latestVersion == 0 && !dcWithReplicas) {
-					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier not yet deployed and expecting no replicas");
+    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; no deployments for \"%s\" were found, so a replica count of \"0\" already exists.", DISPLAY_NAME, depCfg));
 					return true;
 				}
 				
+				depId = depCfg + "-" + latestVersion;
+				
 				ReplicationController rc = null;
 				try {
-					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depCfg + "-" + latestVersion, namespace);
+					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
 				} catch (Throwable t) {
 					if (chatty)
 						t.printStackTrace(listener.getLogger());
@@ -131,16 +138,17 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 				if (rc != null) {
 					if (chatty)
 						listener.getLogger().println("\nOpenShiftDeploymentVerifier current rc " + rc.toPrettyString());
-					String state = rc.getAnnotation("openshift.io/deployment.phase");
+					state = rc.getAnnotation("openshift.io/deployment.phase");
 					// first check state
 	        		if (state.equalsIgnoreCase("Failed")) {
-	        			listener.getLogger().println("\n\nBUILD STEP EXIT: OpenShiftDeploymentVerifier deployment " + rc.getName() + " failed");
+        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has a state of:  [Failed].", DISPLAY_NAME, depCfg));
 	        			return false;
 	        		}
 					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
 					
 					// check state, and if needed then check replica count
 					if (state.equalsIgnoreCase("Complete")) {
+						phaseComplete = true;
 						if (!checkCount) {
 							scaledAppropriately = true;
 							break;
@@ -159,26 +167,25 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 
 			}
         			
+			if (!phaseComplete) {
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has the state:  [%s].", DISPLAY_NAME, depId, state));
+				return false;
+			}
         		
-        	if (dcWithReplicas && scaledAppropriately ) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled with appropriate number of replicas and any necessary image changes");
+        	if (scaledAppropriately) {
+    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully%s.", DISPLAY_NAME, dcWithReplicas ? String.format(", where the deployment \"%s\" is at \"%s\" replicas", depId, replicaCount) : ""));
         		return true;
-        	}
-        	
-        	if (!dcWithReplicas) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier scaled appropriately with no replicas");
-        		return true;
-        	}
-        	
+        	} else {
+    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the deployment  \"%s\" did is not at \"%s\" replica(s).", DISPLAY_NAME, depId, replicaCount));
+    	    	return false;
+        	}        	
         		
         		
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier could not get oc client");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 
-    	listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerifier exit unsuccessfully, unexpected conditions occurred");
-    	return false;
 	}
 
     // Overridden for better type safety.
@@ -266,7 +273,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Check Deployment Success in OpenShift";
+            return DISPLAY_NAME;
         }
         
         public long getWait() {

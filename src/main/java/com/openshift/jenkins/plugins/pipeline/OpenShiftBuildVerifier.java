@@ -30,6 +30,8 @@ import java.util.Map;
 
 public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 	
+	protected final static String DISPLAY_NAME = "Verify OpenShift Build";
+	
     protected String bldCfg = "frontend";
     protected String checkForTriggeredDeployments = "false";
     
@@ -57,7 +59,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
-    	listener.getLogger().println("\n\nBUILD STEP:  OpenShiftBuildVerifier in perform for " + bldCfg + " on namespace " + namespace);
+    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
     	
     	// get oc client (sometime REST, sometimes Exec of oc command
     	IClient client = new ClientFactory().create(apiURL, auth);
@@ -67,60 +69,35 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
         	client.setAuthorizationStrategy(bearerToken);
         	
 			String bldState = null;
+			String bldId = null;
 			long currTime = System.currentTimeMillis();
 			if (chatty)
 				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
-			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-				List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
-				Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
-				List<String> ourKeys = new ArrayList<String>();
-				for (IBuild bld : blds) {
-					if (bld.getName().startsWith(bldCfg)) {
-						ourKeys.add(bld.getName());
-						ourBlds.put(bld.getName(), bld);
-					}
-				}
-				
-				if (ourKeys.size() > 0) {
-					Collections.sort(ourKeys);
-					IBuild bld = ourBlds.get(ourKeys.get(ourKeys.size() - 1));
-					if (chatty)
-						listener.getLogger().println("\nOpenShiftBuildVerifier latest bld id " + ourKeys.get(ourKeys.size() - 1));
-					bldState = bld.getStatus();
-				}
-				
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftBuildVerifier post bld launch bld state:  " + bldState);
-				if (bldState == null || !bldState.equals("Complete")) {
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-					}
-				} else {
-					break;
+			List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
+			Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
+			List<String> ourKeys = new ArrayList<String>();
+			for (IBuild bld : blds) {
+				if (bld.getName().startsWith(bldCfg)) {
+					ourKeys.add(bld.getName());
+					ourBlds.put(bld.getName(), bld);
 				}
 			}
 			
-			if (bldState == null || !bldState.equals("Complete")) {
-				listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier build state is " + bldState + ".  If possible interrogate the OpenShift server with the oc command and inspect the server logs");
-				return false;
-			} else {
-				if (checkDeps) {
-					if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, getDescriptor().getWait())) {
-						listener.getLogger().println("\nBUILD STEP EXIT: OpenShiftBuildVerifier exit successfully");
-						return true;
-					} else {
-						listener.getLogger().println("\nBUILD STEP EXIT:  OpenShiftBuildVerifier not all deployments with ImageChange triggers based on the output of this build config triggered with new images");
-						return false;
-					}
-				} else {
-					listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuilderVerifier exit successfully (no deploy check)");
-					return true;
-				}
+			IBuild bld = null;
+			if (ourKeys.size() > 0) {
+				Collections.sort(ourKeys);
+				bldId = ourKeys.get(ourKeys.size() - 1);
+				bld = ourBlds.get(ourKeys.get(ourKeys.size() - 1));
+				if (chatty)
+					listener.getLogger().println("\nOpenShiftBuildVerifier latest bld id " + bldId);
 			}
+			
+			listener.getLogger().println(String.format("  Verifying build \"%s\" and waiting for build completion %s...", bldId, checkDeps ? "followed by a new deployment" : ""));			
+				
+			return this.verifyBuild(System.currentTimeMillis(), getDescriptor().getWait(), client, bldCfg, bldId, namespace, chatty, listener, DISPLAY_NAME, checkDeps);
     				        		
     	} else {
-    		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftBuildVerifier could not get oc client");
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
     	
@@ -213,7 +190,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "Get latest OpenShift build status";
+            return DISPLAY_NAME;
         }
         
         public long getWait() {
