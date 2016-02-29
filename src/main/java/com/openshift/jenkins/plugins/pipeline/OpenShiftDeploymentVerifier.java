@@ -234,33 +234,23 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
          */
         public FormValidation doCheckApiURL(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.warning("Unless you specify a value here, one of the default API endpoints will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
-            return FormValidation.ok();
+        	return ParamVerify.doCheckApiURL(value);
         }
 
         public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("You must set a DeploymentConfig name");
-            return FormValidation.ok();
+        	return ParamVerify.doCheckDepCfg(value);
         }
 
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.warning("Unless you specify a value here, the default namespace will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
-            return FormValidation.ok();
+        	return ParamVerify.doCheckNamespace(value);
         }
+        
         
         public FormValidation doCheckReplicaCount(@QueryParameter String value)
                 throws IOException, ServletException {
-            try {
-            	Integer.decode(value);
-            } catch (NumberFormatException e) {
-            	return FormValidation.warning("If you want to validate the number of replicas, please specify an integer for the replica count");
-            }
-            return FormValidation.ok();
+        	return ParamVerify.doCheckReplicaCount(value);
         }
 
 

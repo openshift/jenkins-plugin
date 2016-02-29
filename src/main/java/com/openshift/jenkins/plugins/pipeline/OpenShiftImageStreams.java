@@ -240,37 +240,29 @@ public class OpenShiftImageStreams extends SCM {
 
         public FormValidation doCheckApiURL(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.warning("Unless you specify a value here, one of the default API endpoints will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
-            return FormValidation.ok();
-        }
-
-        public FormValidation doCheckDepCfg(@QueryParameter String value)
-                throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("You must set a DeploymentConfig name");
-            return FormValidation.ok();
+        	// with some of the paths into the Image Stream SCM, the env vars typically available for the build steps are not available,
+        	// but for now, we fall back on "https://openshift.default.svc.cluster.local" if they do not specify
+            return ParamVerify.doCheckApiURL(value);
         }
 
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("You must specify the name of the project where the image stream resides");
-            return FormValidation.ok();
+        	// with some of the paths into the Image Stream SCM, the env vars typically available for the build steps are not available,
+        	// we we have to force the user to specify the project/namespace
+        	FormValidation fv = ParamVerify.doCheckNamespace(value);
+        	if (fv.kind == FormValidation.Kind.OK)
+        		return fv;
+        	return FormValidation.error("Please specify the name of the project");
         }
         
         public FormValidation doCheckTag(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set the name of the image stream tag you want to poll");
-            return FormValidation.ok();
+            return ParamVerify.doCheckTag(value);
         }
         
         public FormValidation doCheckImageStreamName(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set the name of the image stream you want to poll");
-            return FormValidation.ok();
+            return ParamVerify.doCheckImageStreamName(value);
         }
         
 		@Override

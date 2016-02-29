@@ -149,23 +149,17 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
          */
         public FormValidation doCheckApiURL(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.warning("Unless you specify a value here, one of the default API endpoints will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
-            return FormValidation.ok();
+            return ParamVerify.doCheckApiURL(value);
         }
 
         public FormValidation doCheckSvcName(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set the name of the Service to validate");
-            return FormValidation.ok();
+            return ParamVerify.doCheckSvcName(value);
         }
 
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.warning("Unless you specify a value here, the default namespace will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
-            return FormValidation.ok();
+            return ParamVerify.doCheckNamespace(value);
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
