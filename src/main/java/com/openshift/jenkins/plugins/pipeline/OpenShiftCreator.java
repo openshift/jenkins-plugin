@@ -124,8 +124,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 		return true;
     }
     
-	@Override
-	protected boolean coreLogic(Launcher launcher, TaskListener listener,
+	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with the project \"%s\".", DISPLAY_NAME, namespace));

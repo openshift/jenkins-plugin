@@ -55,8 +55,7 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
 		return verifyReplicaCount;
 	}
 	
-	@Override
-	protected boolean coreLogic(Launcher launcher, TaskListener listener,
+	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
@@ -112,7 +111,6 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
         	}
         	
         	if (rc == null) {
-        		listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftScaler did not find any replication controllers for " + depCfg);
         		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
         		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
         		// we refrain from adding yet 1 more config option

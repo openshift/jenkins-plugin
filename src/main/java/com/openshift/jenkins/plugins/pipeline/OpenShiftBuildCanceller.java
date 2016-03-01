@@ -47,20 +47,10 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
     	return bldCfg;
     }
 	
-	protected boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Result result) {
+	public boolean coreLogic(Launcher launcher, TaskListener listener,
+			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		
-		// in theory, success should mean that the builds completed successfully,
-		// but for unanticipated scenarios, at this time, we'll scan the builds either way to clean up rogue builds
-		if (result != null && result.isWorseThan(Result.SUCCESS)) {
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftBuildCanceller build did not succeed / result is " + result);
-		} else {
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftBuildCanceller build succeeded / result is " + result);			
-		}
-		
+				
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" action for build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
 		
     	// get oc client (sometime REST, sometimes Exec of oc command

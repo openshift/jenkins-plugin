@@ -80,7 +80,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		return checkForTriggeredDeployments;
 	}
 	
-	protected boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
+	public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));

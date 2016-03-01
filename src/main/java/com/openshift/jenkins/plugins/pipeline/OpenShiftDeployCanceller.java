@@ -46,18 +46,9 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 
 	
 	@Override
-	protected boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Result result) {
+	public boolean coreLogic(Launcher launcher, TaskListener listener,
+			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		// in theory, success should mean that the builds completed successfully,
-		// at this time, we'll scan the builds either way to clean up rogue builds
-		if (result != null &&result.isWorseThan(Result.SUCCESS)) {
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftDeployCanceller build did not succeed");
-		} else {
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftDeployCanceller build succeeded / result " + result);			
-		}
 
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" action for deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));		
 		
@@ -83,7 +74,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 			if (rc != null) {
 				String state = rc.getAnnotation("openshift.io/deployment.phase");
         		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete") || state.equalsIgnoreCase("Cancelled")) {
-        	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" is not in-progress; the phase is:  \"%s\".", DISPLAY_NAME, repId, state));
+        	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" is not in-progress; its status is:  [%s].", DISPLAY_NAME, repId, state));
         			return true;
         		}
         		

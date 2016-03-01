@@ -54,8 +54,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 		return checkForTriggeredDeployments;
 	}
 	
-	@Override
-	protected boolean coreLogic(Launcher launcher, TaskListener listener,
+	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);

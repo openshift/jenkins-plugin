@@ -48,7 +48,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
 		return svcName;
 	}
 
-    protected boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
+    public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" for the service \"%s\" from the project \"%s\".", DISPLAY_NAME, svcName, namespace));
     	

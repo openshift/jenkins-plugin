@@ -56,8 +56,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 		return verifyReplicaCount;
 	}
 	
-	@Override
-	protected boolean coreLogic(Launcher launcher, TaskListener listener,
+	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
     	boolean chatty = Boolean.parseBoolean(verbose);
     	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
@@ -168,7 +167,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 			}
         			
 			if (!phaseComplete) {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has the state:  [%s].", DISPLAY_NAME, depId, state));
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has the status:  [%s].", DISPLAY_NAME, depId, state));
 				return false;
 			}
         		

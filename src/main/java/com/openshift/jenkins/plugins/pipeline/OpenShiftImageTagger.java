@@ -61,10 +61,8 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 		return prodStream;
 	}
 
-	@Override
-	protected boolean coreLogic(Launcher launcher, TaskListener listener,
+	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
-		boolean chatty = Boolean.parseBoolean(verbose);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with the source [image stream:tag] \"%s:%s\" and destination [image stream:tag] \"%s:%s\" from the project \"%s\".", DISPLAY_NAME, testStream, testTag, prodStream, prodTag, namespace));
     	
     	// get oc client (sometime REST, sometimes Exec of oc command

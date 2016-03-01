@@ -34,7 +34,7 @@ import hudson.scm.SCMRevisionState;
 import hudson.scm.SCM;
 import hudson.util.FormValidation;
 
-public class OpenShiftImageStreams extends SCM {
+public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 	
 	protected final static String DISPLAY_NAME = "OpenShift ImageStreams";
 	
@@ -82,33 +82,7 @@ public class OpenShiftImageStreams extends SCM {
 		return verbose;
 	}
 
-    protected void pullDefaultsIfNeeded(EnvVars env, TaskListener listener) {
-    	boolean chatty = Boolean.parseBoolean(verbose);
-    	if (chatty)
-    		listener.getLogger().println("apiURL before " + apiURL);
-		if (apiURL == null || apiURL.length() == 0) {
-			overrides.put("apiURL", apiURL);
-			if (env != null)
-				apiURL = env.get("KUBERNETES_SERVICE_HOST");
-			if (apiURL == null || apiURL.length() == 0)
-				apiURL = "https://openshift.default.svc.cluster.local";
-		}
-		if (apiURL != null && !apiURL.startsWith("https://"))
-			apiURL = "https://" + apiURL;
-		if (chatty)
-			listener.getLogger().println(" apiURL after " + apiURL);
-
-		if (chatty)
-			listener.getLogger().println(" namespace before: " + namespace);
-		if (namespace == null || namespace.length() == 0) {
-			overrides.put("namespace", namespace);
-			namespace = env.get("PROJECT_NAME");
-		}
-		if (chatty)
-			listener.getLogger().println(" namespace after: " + namespace);
-    }
-    
-	private String getCommitId(TaskListener listener) {
+	protected String getCommitId(TaskListener listener) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
@@ -129,21 +103,26 @@ public class OpenShiftImageStreams extends SCM {
     	
 	}
 	
-	
+	protected void clearDefaultsIfNeeded() {
+		if (overrides.containsKey("apiURL"))
+			apiURL = overrides.get("apiURL");
+		if (overrides.containsKey("namespace"))
+			namespace = overrides.get("namespace");
+		overrides.clear();
+	}
 
 	@Override
 	public void checkout(Run<?, ?> build, Launcher launcher,
-			FilePath workspace, TaskListener listener, File changelogFile,
-			SCMRevisionState baseline) throws IOException, InterruptedException {
+		FilePath workspace, TaskListener listener, File changelogFile,
+		SCMRevisionState baseline) throws IOException, InterruptedException {
 		boolean chatty = Boolean.parseBoolean(verbose);
-		pullDefaultsIfNeeded(build.getEnvironment(listener), listener);
 
 		String bldName = null;
 		if (build != null)
 			bldName = build.getDisplayName();
 		if (chatty)
 			listener.getLogger().println("\n\nOpenShiftImageStreams checkout called for " + bldName);
-		// don't need to check out into jenkins workspace ... our bld/slave images/pods deal with that 
+		// nothing to actually check out in the classic SCM sense into the jenkins workspace  
 	}
 
 	@Override
@@ -155,21 +134,25 @@ public class OpenShiftImageStreams extends SCM {
 	public SCMRevisionState calcRevisionsFromBuild(Run<?, ?> build,
 			FilePath workspace, Launcher launcher, TaskListener listener)
 			throws IOException, InterruptedException {
-		pullDefaultsIfNeeded(build.getEnvironment(listener), listener);
-    	listener.getLogger().println(String.format("\n\nPolling \"%s\":  the image stream \"%s\" and tag \"%s\" from the project \"%s\".", DISPLAY_NAME, imageStreamName, tag, namespace));
-    	
-    	String commitId = lastCommitId;
+		try {
+			pullDefaultsIfNeeded(build.getEnvironment(listener), overrides, listener);
+	    	listener.getLogger().println(String.format("\n\nThe \"%s\" SCM will return the last revision state stored in Jenkins for the image stream \"%s\" and tag \"%s\" from the project \"%s\".", DISPLAY_NAME, imageStreamName, tag, namespace));
+	    	
+	    	String commitId = lastCommitId;
+				
+			ImageStreamRevisionState currIMSState = null;
+			if (commitId != null) {
+				currIMSState = new ImageStreamRevisionState(commitId);
+				listener.getLogger().println(String.format("  Last revision:  [%s]", currIMSState.toString()));
+			} else {
+		    	listener.getLogger().println("  No revision state has been retrieved and stored yet.");
+			}
 			
-		ImageStreamRevisionState currIMSState = null;
-		if (commitId != null) {
-			currIMSState = new ImageStreamRevisionState(commitId);
-			listener.getLogger().println(String.format("  Last revision:  [%s]", currIMSState.toString()));
-		} else {
-	    	listener.getLogger().println("  First time through, no revision state available.");
+			
+			return currIMSState;
+		} finally {
+			clearDefaultsIfNeeded();
 		}
-		
-		
-		return currIMSState;
 	}
 
 	@Override
@@ -177,41 +160,40 @@ public class OpenShiftImageStreams extends SCM {
 			AbstractProject<?, ?> project, Launcher launcher,
 			FilePath workspace, TaskListener listener, SCMRevisionState baseline)
 			throws IOException, InterruptedException {
-    			
-    	String commitId = this.getCommitId(listener);
-		
-		ImageStreamRevisionState currIMSState = null;
-		if (commitId != null)
-			currIMSState = new ImageStreamRevisionState(commitId);
-		boolean chatty = Boolean.parseBoolean(verbose);
-		if (chatty)
-			listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
-				" with lastest " + currIMSState);
-		boolean changes = false;
-		if (baseline != null && baseline instanceof ImageStreamRevisionState && currIMSState != null)
-			changes = !currIMSState.equals(baseline);
-		
-		if (baseline == null && currIMSState != null) {
-			changes = true;
+		try {
+	    	listener.getLogger().println(String.format("\n\nThe \"%s\" SCM is pulling the lastest revision state from OpenShift for the image stream \"%s\" and tag \"%s\" from the project \"%s\" and storing in Jenkins.", DISPLAY_NAME, imageStreamName, tag, namespace));
+			pullDefaultsIfNeeded(project.getEnvironment(null, listener), overrides, listener);
+	    	String commitId = this.getCommitId(listener);
+			
+			ImageStreamRevisionState currIMSState = null;
+			if (commitId != null)
+				currIMSState = new ImageStreamRevisionState(commitId);
+			boolean chatty = Boolean.parseBoolean(verbose);
+			if (chatty)
+				listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
+					" with lastest " + currIMSState);
+			boolean changes = false;
+			if (baseline != null && baseline instanceof ImageStreamRevisionState && currIMSState != null)
+				changes = !currIMSState.equals(baseline);
+			
+			if (baseline == null && currIMSState != null) {
+				changes = true;
+			}
+			
+			if (changes) {
+				lastCommitId = commitId;
+				listener.getLogger().println("\n\n A revision change was found this polling cycle.");
+			} else {
+				listener.getLogger().println("\n\n No revision change found this polling cycle.");
+			}
+			
+			if (chatty)
+				listener.getLogger().println(" overrides " + overrides);
+			
+			return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
+		} finally {
+			clearDefaultsIfNeeded();
 		}
-		
-		if (changes) {
-			lastCommitId = commitId;
-			listener.getLogger().println("\n\n A revision change was found this polling cycle.");
-		} else {
-			listener.getLogger().println("\n\n No revision change found this polling cycle.");
-		}
-		
-		if (chatty)
-			listener.getLogger().println(" overrides " + overrides);
-		
-		if (overrides.containsKey("apiURL"))
-			apiURL = overrides.get("apiURL");
-		if (overrides.containsKey("namespace"))
-			namespace = overrides.get("namespace");
-		overrides.clear();
-		
-		return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
     				        		
 	}
 
@@ -277,6 +259,38 @@ public class OpenShiftImageStreams extends SCM {
 			return super.configure(req, json);
 		}
     }
+
+
+	@Override
+	public String getBaseClassName() {
+		return OpenShiftImageStreams.class.getName();
+	}
+
+	@Override
+	public void setAuth(Auth auth) {
+		
+	}
+
+	@Override
+	public void setToken(TokenAuthorizationStrategy token) {
+		
+	}
+
+	@Override
+	public void setApiURL(String apiURL) {
+		this.apiURL = apiURL;
+	}
+
+	@Override
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
+	}
+
+	@Override
+	public boolean coreLogic(Launcher launcher, TaskListener listener,
+			EnvVars env) {
+		return false;
+	}
 
 
 
