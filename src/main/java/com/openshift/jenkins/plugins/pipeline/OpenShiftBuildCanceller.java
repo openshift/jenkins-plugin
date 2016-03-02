@@ -53,13 +53,10 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 				
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" action for build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
 		
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	// get oc client 
+    	IClient client = getClient(listener, DISPLAY_NAME);
     	
     	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-			
 			try {
 				List<IBuild> list = client.list(ResourceKind.BUILD, namespace);
 				int count = 0;
@@ -72,9 +69,10 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftBuildCanceller found active build " + buildName);
 						
-						// re-get bld (etc employs optimistic update)
+						// re-get bld (etcd employs optimistic update)
 						bld = client.get(ResourceKind.BUILD, buildName, namespace);
 						
+						// call cancel api
 	    				bld.accept(new CapabilityVisitor<IBuildCancelable, IBuild>() {
 		    				public IBuild visit(IBuildCancelable cancelable) {
 		    					return cancelable.cancel();
@@ -95,7 +93,6 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 				return false;
 			}
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 	}

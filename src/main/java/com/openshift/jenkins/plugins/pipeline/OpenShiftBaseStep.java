@@ -6,6 +6,7 @@ import java.io.Serializable;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import jenkins.tasks.SimpleBuildStep;
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -20,6 +21,7 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
     protected String namespace;
     protected String authToken;
     protected String verbose;
+    // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
     protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
 
@@ -45,6 +47,16 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
 	}
 
 	@Override
+	public Auth getAuth() {
+		return auth;
+	}
+
+	@Override
+	public TokenAuthorizationStrategy getToken() {
+		return bearerToken;
+	}
+
+	@Override
 	public void setToken(TokenAuthorizationStrategy token) {
 		this.bearerToken = token;
 	}
@@ -64,12 +76,14 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
 		return OpenShiftBaseStep.class.getName();
 	}
 
+	// this is the workflow plugin path
 	@Override
 	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
 			TaskListener listener) throws InterruptedException, IOException {
 		this.doIt(run, workspace, launcher, listener);
 	}
 
+	// this is the classic jenkins build step path
 	@Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
 		return this.doIt(build, launcher, listener);

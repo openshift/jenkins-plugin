@@ -112,7 +112,7 @@ Next, the bearer authentication token can be provided by the user via the follow
 
 Otherwise, the plugin will assume you are running off of the OpenShift Jenkins Docker image (http://github.com/openshift/jenkins), and will read in the token from a well known location in the image that allows authorized access to the OpenShift master associated with the running OpenShift Jenkins image.
 
-The CA cert is currently pulled from a well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt").
+The CA cert is currently pulled from a well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt") in the OpenShift Jenkins image.
 
 For "Monitor OpenShift ImageStreams", only specifying the token in the plugin configuration or leveraging the token embedded in the OpenShift Jenkins image is supported.
 

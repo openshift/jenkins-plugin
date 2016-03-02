@@ -13,11 +13,11 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.model.ReplicationController;
-import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
+import com.openshift.restclient.model.IDeploymentConfig;
+import com.openshift.restclient.model.IReplicationController;
 
 import javax.servlet.ServletException;
 
@@ -62,39 +62,16 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
     	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));
     	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	// get oc client 
+    	IClient client = this.getClient(listener, DISPLAY_NAME);
     	
     	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
         	// explicitly set replica count, save that
         	int count = -1;
         	if (checkCount && replicaCount != null && replicaCount.length() > 0)
         		count = Integer.parseInt(replicaCount);
         		
             						
-        	// if the deployment config for this app specifies a desired replica count of 
-        	// of greater than zero, let's also confirm the deployment occurs;
-        	// first, get the deployment config
-    		DeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-    		
-    		if (dc == null) {
-    			listener.getLogger().println("\n\nBUILD STEP EXIT:  OpenShiftDeploymentVerification no valid deployment config found for " + depCfg);
-    			return false;
-    		}
-    		
-        	boolean dcWithReplicas = false;
-        	boolean scaledAppropriately = false;
-        			
-			// if replicaCount not set, get it from config
-			if (checkCount && count == -1)
-				count = dc.getReplicas();
-			
-			if (count > 0)
-				dcWithReplicas = true;
-				
         	listener.getLogger().println(String.format("  Verifying deployment state%s...", checkCount ? String.format(" and verifying the current deployment is at \"%s\" replica(s).", replicaCount) : ""));        	
 			
 			// confirm the deployment has kicked in from completed build;
@@ -103,62 +80,45 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 			long currTime = System.currentTimeMillis();
 			String state = null;
 			String depId = null;
-			boolean phaseComplete = false;
+        	boolean scaledAppropriately = false;
 			if (chatty)
 				listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getDescriptor().getWait());
 			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-				int latestVersion = -1;
-				try {
-					// refresh dc first
-					dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
-					latestVersion = dc.getLatestVersionNumber();
-				} catch (Throwable t) {
-					latestVersion = 0;
-				}
+				// refresh dc first
+				IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
 				
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + latestVersion);
-				
-				if (latestVersion == 0 && !dcWithReplicas) {
-    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; no deployments for \"%s\" were found, so a replica count of \"0\" already exists.", DISPLAY_NAME, depCfg));
-					return true;
-				}
-				
-				depId = depCfg + "-" + latestVersion;
-				
-				ReplicationController rc = null;
-				try {
-					rc = client.get(ResourceKind.REPLICATION_CONTROLLER, depId, namespace);
-				} catch (Throwable t) {
-					if (chatty)
-						t.printStackTrace(listener.getLogger());
-				}
+				if (dc != null) {
+					// if replicaCount not set, get it from config
+					if (checkCount && count == -1)
+						count = dc.getReplicas();
 					
-				if (rc != null) {
 					if (chatty)
-						listener.getLogger().println("\nOpenShiftDeploymentVerifier current rc " + rc.toPrettyString());
-					state = rc.getAnnotation("openshift.io/deployment.phase");
-					// first check state
-	        		if (state.equalsIgnoreCase("Failed")) {
-        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has a state of:  [Failed].", DISPLAY_NAME, depCfg));
-	        			return false;
-	        		}
-					if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
-					
-					// check state, and if needed then check replica count
-					if (state.equalsIgnoreCase("Complete")) {
-						phaseComplete = true;
-						if (!checkCount) {
-							scaledAppropriately = true;
-							break;
-						} else if (rc.getCurrentReplicaCount() >= count) {
-		        			scaledAppropriately = true;
-		        			break;
+						listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + dc.getLatestVersionNumber());
+									
+					IReplicationController rc = getLatestReplicationController(dc, client);
+						
+					if (rc != null) {
+						if (chatty)
+							listener.getLogger().println("\nOpenShiftDeploymentVerifier current rc " + rc);
+						state = this.getReplicationControllerState(rc);
+						depId = rc.getName();
+						// first check state
+		        		if (state.equalsIgnoreCase("Failed")) {
+	        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has a state of:  [Failed].", DISPLAY_NAME, depCfg));
+		        			return false;
 		        		}
+						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
+						
+						scaledAppropriately = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
+						if (scaledAppropriately)
+							break;
+		        		
 					}
-	        		
+				} else {
+			    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; no deployment config named \"%s\" found.", DISPLAY_NAME, depCfg));
+	    			return false;
 				}
-									        										
+													        										
         		try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
@@ -166,22 +126,19 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 
 			}
         			
-			if (!phaseComplete) {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has the status:  [%s].", DISPLAY_NAME, depId, state));
-				return false;
-			}
-        		
         	if (scaledAppropriately) {
-    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully%s.", DISPLAY_NAME, dcWithReplicas ? String.format(", where the deployment \"%s\" is at \"%s\" replicas", depId, replicaCount) : ""));
+    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully%s.", DISPLAY_NAME, count > 0 ? String.format(", where the deployment \"%s\" is at \"%s\" replicas", depId, replicaCount) : ""));
         		return true;
         	} else {
-    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the deployment  \"%s\" did is not at \"%s\" replica(s).", DISPLAY_NAME, depId, replicaCount));
+        		if (checkCount)
+        			listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the deployment  \"%s\" did is not at \"%s\" replica(s).", DISPLAY_NAME, depId, replicaCount));
+        		else
+    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has the status:  [%s].", DISPLAY_NAME, depId, state));
     	    	return false;
         	}        	
         		
         		
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 

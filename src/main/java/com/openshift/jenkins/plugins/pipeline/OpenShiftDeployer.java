@@ -44,58 +44,58 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
 		return depCfg;
 	}
 
+	protected boolean bumpVersion(IDeploymentConfig dc, IClient client, TaskListener listener) {
+		int latestVersion = dc.getLatestVersionNumber() + 1;
+		boolean chatty = Boolean.parseBoolean(verbose);
+		try {
+			dc.setLatestVersionNumber(latestVersion);
+			client.update(dc);
+			if (chatty) 
+				listener.getLogger().println("\nOpenShiftDeployer latest version now " + dc.getLatestVersionNumber());
+
+		} catch (Throwable t) {
+			if (chatty)
+				t.printStackTrace(listener.getLogger());
+			return false;
+		}
+		return true;
+	}
 	
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));
     	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	// get oc client 
+    	IClient client = this.getClient(listener, DISPLAY_NAME);
     	
     	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
-        	
-        	// do the oc deploy ... may need to retry
-        	long currTime = System.currentTimeMillis();
-        	boolean deployDone = false;
         	if (chatty)
         		listener.getLogger().println("\nOpenShiftDeployer wait " + getDescriptor().getWait());
-			int latestVersion =  -1;
-			String rcId = null;
+        	// do the oc deploy with version bump ... may need to retry
+        	long currTime = System.currentTimeMillis();
+        	boolean deployDone = false;
+        	boolean versionBumped = false;
 			String state = null;
-        	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
+			IReplicationController rc = null; 
+			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
         		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
         		if (dc != null) {
-        			if (latestVersion == -1) {
-        				latestVersion = dc.getLatestVersionNumber() +1;
-        				try {
-        					dc.setLatestVersionNumber(latestVersion);
-        					client.update(dc);
-        				} catch (Throwable t) {
-        					if (chatty)
-        						t.printStackTrace(listener.getLogger());
-        				}
+        			if (!versionBumped) {
+        				// allow some retry in case the dc creation request happened before this step ran
+        				versionBumped = bumpVersion(dc, client, listener);
         			}
         			
-        			if (chatty) 
-        				listener.getLogger().println("\nOpenShiftDeployer latest version now " + latestVersion);
-
     				try {
-    					rcId = depCfg + "-" + latestVersion;
-    					IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, rcId, namespace);
+    					rc = this.getLatestReplicationController(dc, client);
     					if (chatty)
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
     					if (rc != null) {
-    						state = rc.getAnnotation("openshift.io/deployment.phase");
+    						state = this.getReplicationControllerState(rc);
     						if (state.equalsIgnoreCase("Complete")) {
-    							if (chatty)
-    								listener.getLogger().println("\nOpenShiftDeploy phase complete.");
             					deployDone = true;
     						} else if (state.equalsIgnoreCase("Failed")) {
-    	        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has completed with status:  [Failed].", DISPLAY_NAME, rcId));
+    	        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has completed with status:  [Failed].", DISPLAY_NAME, rc.getName()));
     							return false;
     						} else {
     							if (chatty)
@@ -127,16 +127,15 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	}
         	
         	if (!deployDone) {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; gave up on deployment \"%s\" with status:  [%s].", DISPLAY_NAME, rcId, state));
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; gave up on deployment \"%s\" with status:  [%s].", DISPLAY_NAME, rc.getName(), state));
         		return false;
         	}
 
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; deployment \"%s\" has completed with status:  [Complete].", DISPLAY_NAME, rcId));
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; deployment \"%s\" has completed with status:  [Complete].", DISPLAY_NAME, rc.getName()));
         	return true;
         	
         	
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 	}

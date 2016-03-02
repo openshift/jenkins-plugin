@@ -52,14 +52,10 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" action for deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));		
 		
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	// get oc client 
+    	IClient client = this.getClient(listener, DISPLAY_NAME);
     	
     	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
-			
     		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
     		
     		if (dc == null) {
@@ -67,14 +63,12 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
     			return false;
     		}
 			
-			int latestVersion = dc.getLatestVersionNumber();
-			String repId = depCfg + "-" + latestVersion;
-			IReplicationController rc = client.get(ResourceKind.REPLICATION_CONTROLLER, repId, namespace);
+			IReplicationController rc = getLatestReplicationController(dc, client);
 				
 			if (rc != null) {
-				String state = rc.getAnnotation("openshift.io/deployment.phase");
+				String state = this.getReplicationControllerState(rc);
         		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete") || state.equalsIgnoreCase("Cancelled")) {
-        	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" is not in-progress; its status is:  [%s].", DISPLAY_NAME, repId, state));
+        	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" is not in-progress; its status is:  [%s].", DISPLAY_NAME, rc.getName(), state));
         			return true;
         		}
         		
@@ -83,15 +77,14 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 				
         		client.update(rc);
         		
-    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" has been cancelled.", DISPLAY_NAME, repId));
+    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" has been cancelled.", DISPLAY_NAME, rc.getName()));
         		return true;
 			} else {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the latest deployment \"%s\" could not be retrieved.", DISPLAY_NAME, repId));
+		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the latest deployment \"%s\" could not be retrieved.", DISPLAY_NAME, rc.getName()));
 				return false;
 			}					
     		
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
 	    	return false;
     	}
 		

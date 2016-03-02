@@ -91,7 +91,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	return jsonyaml;
     }
     
-    private boolean makeRESTCall(boolean chatty, TaskListener listener, String path, Auth auth, UrlConnectionHttpClient urlClient, ModelNode resource) {
+    protected boolean makeRESTCall(boolean chatty, TaskListener listener, String path, ModelNode resource) {
 		String response = null;
 		URL url = null;
     	try {
@@ -109,7 +109,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	}
 		try {
 	    	KubernetesResource kr = new KubernetesResource(resource, client, null);
-			response = urlClient.post(url, 10 * 1000, kr);
+			response = createHttpClient().post(url, 10 * 1000, kr);
 			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST POST response " + response);
 		} catch (SocketTimeoutException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
@@ -124,19 +124,23 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 		return true;
     }
     
+    protected UrlConnectionHttpClient createHttpClient() {
+		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+				null, "application/json", null, auth, null, null);
+		urlClient.setAuthorizationStrategy(bearerToken);
+		return urlClient;
+    }
+    
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with the project \"%s\".", DISPLAY_NAME, namespace));
     	
+    	// construct json/yaml node
     	ModelNode resources = ModelNode.fromJSONString(jsonyaml);
     	    	
     	//cycle through json and POST to appropriate resource
     	String kind = resources.get("kind").asString();
-		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-				null, "application/json", null, auth, null, null);
-		urlClient.setAuthorizationStrategy(bearerToken);
-		
     	boolean success = false;
     	int count = 0;
     	if (kind.equalsIgnoreCase("List")) {
@@ -144,7 +148,8 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     		for (ModelNode node : list) {
     			String path = node.get("kind").asString();
 				listener.getLogger().println(String.format("  Creating a \"%s\"...", path));
-    			success = this.makeRESTCall(chatty, listener, path, auth, urlClient, node);
+				
+    			success = this.makeRESTCall(chatty, listener, path, node);
     			if (!success)
     				break;
     			else
@@ -153,7 +158,8 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	} else {
     		String path = kind;
 			listener.getLogger().println(String.format("  Creating a \"%s\"...", path));
-    		success = this.makeRESTCall(chatty, listener, path, auth, urlClient, resources);
+			
+    		success = this.makeRESTCall(chatty, listener, path, resources);
     		if (success)
     			count = 1;
     	}

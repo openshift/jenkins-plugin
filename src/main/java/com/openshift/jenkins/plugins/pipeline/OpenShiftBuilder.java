@@ -80,23 +80,125 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		return checkForTriggeredDeployments;
 	}
 	
+	protected IBuild startBuild(IBuildConfig bc, IBuild prevBld) {
+		IBuild bld = null;
+		if (bc != null) {
+			if (commitID != null && commitID.length() > 0) {
+				final String cid = commitID;
+    			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+				    public IBuild visit(IBuildTriggerable triggerable) {
+				 		return triggerable.trigger(cid);
+				 	}
+				 }, null);
+			} else {
+    			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+				    public IBuild visit(IBuildTriggerable triggerable) {
+				 		return triggerable.trigger();
+				 	}
+				 }, null);
+			}
+		} else if (prevBld != null) {
+			bld = prevBld.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+				public IBuild visit(IBuildTriggerable triggerable) {
+					return triggerable.trigger();
+				}
+			}, null);
+		}
+		return bld;
+	}
+	
+	protected void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener) {
+		IBuild bld = null;
+		String bldState = null;
+		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
+		// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
+		// complete        						
+		// get log "retrieve" and dump build logs
+//		IPodLogRetrieval logger = pod.getCapability(IPodLogRetrieval.class);
+//		listener.getLogger().println("\n\nOpenShiftBuilder obtained pod logger " + logger);
+		
+//		if (logger != null) {
+			
+		// get internal OS Java REST Client error if access pod logs while bld is in Pending state
+		// instead of Running, Complete, or Failed
+		while (System.currentTimeMillis() < (startTime + getDescriptor().getWait())) {
+			bld = client.get(ResourceKind.BUILD, bldId, namespace);
+			bldState = bld.getStatus();
+			if (Boolean.parseBoolean(verbose))
+				listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
+			if ("Pending".equals(bldState) || "New".equals(bldState)) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+				}
+			} else {
+				break;
+			}
+		}
+//			} else {
+//			listener.getLogger().println("\n\nOpenShiftBuilder logger for pod " + pod.getName() + " not available");
+//			bldState = pod.getStatus();
+//		}
+	}
+	
+	protected void dumpLogs(String bldId, TaskListener listener) {
+		// create stream and copy bytes
+    	URL url = null;
+    	try {
+			url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds/" + bldId + "/log?follow=true");
+		} catch (MalformedURLException e1) {
+			e1.printStackTrace(listener.getLogger());
+		}
+		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
+				null, "application/json", null, auth, null, null);
+		urlClient.setAuthorizationStrategy(bearerToken);
+		String response = null;
+		try {
+			response = urlClient.get(url, (int) getDescriptor().getWait());
+		} catch (SocketTimeoutException e1) {
+			e1.printStackTrace(listener.getLogger());
+		} catch (HttpClientException e1) {
+			e1.printStackTrace(listener.getLogger());
+		}
+		listener.getLogger().println(response);
+		
+		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
+		// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
+		// complete        						
+//		InputStream logs = new BufferedInputStream(logger.getLogs(true));
+//		int b;
+//		try {
+//			// we still process the build stream if followLogs is false, as 
+//			// it is a good indication of build progress (vs. periodically polling);
+//			// we simply do not dump the data to the Jenkins console if set to false
+//			while ((b = logs.read()) != -1) {
+//				if (follow)
+//					listener.getLogger().write(b);
+//			}
+//		} catch (IOException e) {
+//			e.printStackTrace(listener.getLogger());
+//		} finally {
+//			try {
+//				logs.close();
+//			} catch (final IOException e) {
+//				e.printStackTrace(listener.getLogger());
+//			}
+//		}
+	}
+	
 	public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
 		
-    	String bldId = null;
     	boolean follow = Boolean.parseBoolean(showBuildLogs);
     	if (chatty)
     		listener.getLogger().println("\nOpenShiftBuilder logger follow " + follow);
     	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	// get oc client 
+    	IClient client = this.getClient(listener, DISPLAY_NAME);
     	
     	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
 			long startTime = System.currentTimeMillis();
 			boolean skipBC = buildName != null && buildName.length() > 0;
         	IBuildConfig bc = null;
@@ -114,41 +216,18 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         	if (bc != null || prevBld != null) {
     			
         		// Trigger / start build
-    			IBuild bld = null;
-    			if (bc != null) {
-    				if (commitID != null && commitID.length() > 0) {
-    					final String cid = commitID;
-            			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-        				    public IBuild visit(IBuildTriggerable triggerable) {
-        				 		return triggerable.trigger(cid);
-        				 	}
-        				 }, null);
-    				} else {
-            			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-        				    public IBuild visit(IBuildTriggerable triggerable) {
-        				 		return triggerable.trigger();
-        				 	}
-        				 }, null);
-    				}
-    			} else if (prevBld != null) {
-    				bld = prevBld.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-	    				public IBuild visit(IBuildTriggerable triggerable) {
-	    					return triggerable.trigger();
-	    				}
-	    			}, null);
-    			}
+    			IBuild bld = this.startBuild(bc, prevBld);
     			
     			
     			if(bld == null) {
     		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a build could not be started", DISPLAY_NAME));
     				return false;
     			} else {
-    				bldId = bld.getName();
+    				String bldId = bld.getName();
     				listener.getLogger().println(String.format("  Started build \"%s\" and waiting for build completion %s...", bldId, checkDeps ? "followed by a new deployment" : ""));
     				
     				
     				boolean foundPod = false;
-    				String bldState = null;
     				startTime = System.currentTimeMillis();
 					if (chatty)
 						listener.getLogger().println("\nnOpenShiftBuilder  wait time " + getDescriptor().getWait());
@@ -169,85 +248,11 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         						if (chatty)
         							listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
         						
-        						//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
-        						// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
-        						// complete        						
-            					// get log "retrieve" and dump build logs
-//            					IPodLogRetrieval logger = pod.getCapability(IPodLogRetrieval.class);
-//            					listener.getLogger().println("\n\nOpenShiftBuilder obtained pod logger " + logger);
-            					
-//            					if (logger != null) {
+        							waitOnBuild(client, startTime, bldId, listener);
             						
-            						// get internal OS Java REST Client error if access pod logs while bld is in Pending state
-            						// instead of Running, Complete, or Failed
-            						while (System.currentTimeMillis() < (startTime + getDescriptor().getWait())) {
-            							bld = client.get(ResourceKind.BUILD, bldId, namespace);
-            							bldState = bld.getStatus();
-            							if (chatty)
-            								listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
-            							if ("Pending".equals(bldState) || "New".equals(bldState)) {
-            								try {
-    											Thread.sleep(1000);
-    										} catch (InterruptedException e) {
-    										}
-            							} else {
-            								break;
-            							}
-            						}
-            						
-            						
-            						// create stream and copy bytes
-            				    	URL url = null;
-            				    	try {
-            							url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds/" + bldId + "/log?follow=true");
-            						} catch (MalformedURLException e1) {
-            							e1.printStackTrace(listener.getLogger());
-            							return false;
-            						}
-            						UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-            								null, "application/json", null, auth, null, null);
-            						urlClient.setAuthorizationStrategy(bearerToken);
-            						String response = null;
-            						try {
-            							response = urlClient.get(url, (int) getDescriptor().getWait());
-            						} catch (SocketTimeoutException e1) {
-            							e1.printStackTrace(listener.getLogger());
-            							return false;
-            						} catch (HttpClientException e1) {
-            							e1.printStackTrace(listener.getLogger());
-            							return false;
-            						}
             						if (follow)
-            							listener.getLogger().println(response);
-            						
-            						//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
-            						// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
-            						// complete        						
-//            						InputStream logs = new BufferedInputStream(logger.getLogs(true));
-//            						int b;
-//            						try {
-//            							// we still process the build stream if followLogs is false, as 
-//            							// it is a good indication of build progress (vs. periodically polling);
-//            							// we simply do not dump the data to the Jenkins console if set to false
-//        								while ((b = logs.read()) != -1) {
-//        									if (follow)
-//        										listener.getLogger().write(b);
-//        								}
-//        							} catch (IOException e) {
-//        								e.printStackTrace(listener.getLogger());
-//        							} finally {
-//        								try {
-//        									logs.close();
-//        								} catch (final IOException e) {
-//        									e.printStackTrace(listener.getLogger());
-//        								}
-//        							}
-            						
+            							dumpLogs(bldId, listener);
     								
-//            					} else {
-//            						listener.getLogger().println("\n\nOpenShiftBuilder logger for pod " + pod.getName() + " not available");
-//            						bldState = pod.getStatus();
-//            					}
         					}
         					
         					if (foundPod)
@@ -276,7 +281,6 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         		return false;
         	}
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 

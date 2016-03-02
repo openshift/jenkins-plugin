@@ -54,42 +54,41 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 		return checkForTriggeredDeployments;
 	}
 	
+	protected List<String> getBuildIDs(IClient client) {
+		List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
+		List<String> ids = new ArrayList<String>();
+		for (IBuild bld : blds) {
+			if (bld.getName().startsWith(bldCfg)) {
+				ids.add(bld.getName());
+			}
+		}
+		return ids;
+	}
+	
+	protected String getLatestBuildID(List<String> ids) {
+		String bldId = null;
+		if (ids.size() > 0) {
+			Collections.sort(ids);
+			bldId = ids.get(ids.size() - 1);
+		}
+		return bldId;
+	}
+	
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
     	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	// get oc client 
+    	IClient client = this.getClient(listener, DISPLAY_NAME);
     	
     	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
-			String bldState = null;
-			String bldId = null;
-			long currTime = System.currentTimeMillis();
 			if (chatty)
 				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
-			List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
-			Map<String,IBuild> ourBlds = new HashMap<String,IBuild>();
-			List<String> ourKeys = new ArrayList<String>();
-			for (IBuild bld : blds) {
-				if (bld.getName().startsWith(bldCfg)) {
-					ourKeys.add(bld.getName());
-					ourBlds.put(bld.getName(), bld);
-				}
-			}
+			List<String> ids = getBuildIDs(client);
 			
-			IBuild bld = null;
-			if (ourKeys.size() > 0) {
-				Collections.sort(ourKeys);
-				bldId = ourKeys.get(ourKeys.size() - 1);
-				bld = ourBlds.get(ourKeys.get(ourKeys.size() - 1));
-				if (chatty)
-					listener.getLogger().println("\nOpenShiftBuildVerifier latest bld id " + bldId);
-			}
+			String bldId = getLatestBuildID(ids);
 			
 			listener.getLogger().println(String.format("  Verifying build \"%s\" and waiting for build completion %s...", bldId, checkDeps ? "followed by a new deployment" : ""));			
 				

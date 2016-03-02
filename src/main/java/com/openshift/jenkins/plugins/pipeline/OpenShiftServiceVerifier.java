@@ -52,14 +52,11 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
 		boolean chatty = Boolean.parseBoolean(verbose);
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" for the service \"%s\" from the project \"%s\".", DISPLAY_NAME, svcName, namespace));
     	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	// get oc client 
+    	IClient client = this.getClient(listener, DISPLAY_NAME);
     	String spec = null;
     	
     	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
         	// get Service
         	IService svc = client.get(ResourceKind.SERVICE, svcName, namespace);
         	String ip = svc.getPortalIP();

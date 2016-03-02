@@ -65,14 +65,10 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 			EnvVars env) {
     	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with the source [image stream:tag] \"%s:%s\" and destination [image stream:tag] \"%s:%s\" from the project \"%s\".", DISPLAY_NAME, testStream, testTag, prodStream, prodTag, namespace));
     	
-    	// get oc client (sometime REST, sometimes Exec of oc command
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	// get oc client 
+    	IClient client = this.getClient(listener, DISPLAY_NAME);
     	
     	if (client != null) {
-    		// seed the auth
-        	client.setAuthorizationStrategy(bearerToken);
-        	
-			listener.getLogger().println("");
         	//tag image
 			IImageStream is = client.get(ResourceKind.IMAGE_STREAM, testStream, namespace);
 			is.setTag(prodTag, testStream + ":" + testTag);

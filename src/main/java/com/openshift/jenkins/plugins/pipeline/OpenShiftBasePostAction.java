@@ -6,6 +6,7 @@ import java.io.Serializable;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import jenkins.tasks.SimpleBuildStep;
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -64,6 +65,21 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
 	}
     
     
+    @Override
+	public Auth getAuth() {
+		return auth;
+	}
+
+	@Override
+	public TokenAuthorizationStrategy getToken() {
+		return bearerToken;
+	}
+
+	@Override
+	public String getBaseClassName() {
+		return OpenShiftBasePostAction.class.getName();
+	}
+
 	@Override
 	public BuildStepMonitor getRequiredMonitorService() {
 		return BuildStepMonitor.NONE;
@@ -73,20 +89,15 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
 	public boolean needsToRunAfterFinalized() {
 		return true;
 	}
-	
-    
-    
-    @Override
-	public String getBaseClassName() {
-		return OpenShiftBasePostAction.class.getName();
-	}
-
+	  
+    // this is the workflow plugin path
 	@Override
 	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
 			TaskListener listener) throws InterruptedException, IOException {
 		this.doIt(run, workspace, launcher, listener);
 	}
 
+	// this is the classic post build action path
 	@Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
 		return this.doIt(build, launcher, listener);

@@ -45,6 +45,9 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
     private String authToken;
     private String verbose;
     private String lastCommitId = null;
+    // marked transient so don't serialize these next 3 in the workflow plugin flow; constructed on per request basis
+    protected transient TokenAuthorizationStrategy bearerToken;
+    protected transient Auth auth;
     private transient HashMap<String,String> overrides = new HashMap<String,String>();
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
@@ -86,10 +89,10 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
-    	Auth auth = Auth.createInstance(null);
-    	TokenAuthorizationStrategy bearerToken = new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty));		
-    	IClient client = new ClientFactory().create(apiURL, auth);
-    	client.setAuthorizationStrategy(bearerToken);
+    	setAuth(Auth.createInstance(null));
+    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty)));		
+    	// get oc client 
+    	IClient client = this.getClient(listener, DISPLAY_NAME);
     	
     	
 		IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
@@ -268,12 +271,12 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 
 	@Override
 	public void setAuth(Auth auth) {
-		
+		this.auth = auth;
 	}
 
 	@Override
 	public void setToken(TokenAuthorizationStrategy token) {
-		
+		this.bearerToken = token;
 	}
 
 	@Override
@@ -290,6 +293,16 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		return false;
+	}
+
+	@Override
+	public Auth getAuth() {
+		return auth;
+	}
+
+	@Override
+	public TokenAuthorizationStrategy getToken() {
+		return bearerToken;
 	}
 
 

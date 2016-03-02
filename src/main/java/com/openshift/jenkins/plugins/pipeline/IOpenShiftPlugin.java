@@ -14,10 +14,13 @@ import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.model.IBuild;
+import com.openshift.restclient.model.IDeploymentConfig;
+import com.openshift.restclient.model.IReplicationController;
 
 public interface IOpenShiftPlugin {
 	
@@ -27,7 +30,11 @@ public interface IOpenShiftPlugin {
 	
 	String getVerbose();
 	
+	Auth getAuth();
+	
 	void setAuth(Auth auth);
+	
+	TokenAuthorizationStrategy getToken();
 	
 	void setToken(TokenAuthorizationStrategy token);
 	
@@ -39,7 +46,42 @@ public interface IOpenShiftPlugin {
 	
 	void setNamespace(String namespace);
 	    	
-	boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env);     
+	boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env);
+	
+	default IClient getClient(TaskListener listener, String displayName) {
+    	IClient client = new ClientFactory().create(getApiURL(), getAuth());
+    	if (client != null) {
+        	client.setAuthorizationStrategy(getToken());    		
+    	} else {
+	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", displayName, getApiURL()));
+    	}
+    	return client;
+	}
+	
+	default IReplicationController getLatestReplicationController(IDeploymentConfig dc, IClient client) {
+		int latestVersion = dc.getLatestVersionNumber();
+		String repId = dc.getName() + "-" + latestVersion;
+		return client.get(ResourceKind.REPLICATION_CONTROLLER, repId, getNamespace());
+	}
+	
+	//TODO move to openshift-restclient-java IReplicationController
+	default String getReplicationControllerState(IReplicationController rc) {
+		return rc.getAnnotation("openshift.io/deployment.phase");
+	}
+	
+	//TODO move to openshift-restclient-java IReplicationController
+	default boolean isReplicationControllerScaledAppropriately(IReplicationController rc, boolean checkCount, int count) {
+		boolean scaledAppropriately = false;
+		// check state, and if needed then check replica count
+		if (getReplicationControllerState(rc).equalsIgnoreCase("Complete")) {
+			if (!checkCount) {
+				scaledAppropriately = true;
+			} else if (rc.getCurrentReplicaCount() == count) {
+    			scaledAppropriately = true;
+    		}
+		}
+		return scaledAppropriately;
+	}
 
 	default void doIt(Run<?, ?> run, FilePath workspace, Launcher launcher,
 			TaskListener listener) throws InterruptedException, IOException {
