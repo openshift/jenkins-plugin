@@ -39,8 +39,11 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     private static final Map<String, String[]> apiMap;
     static
     {
+    	//POST https://localhost:8443/apis/extensions/v1beta1/namespaces/test/jobs
+    	//POST https://localhost:8443/oapi/v1/namespaces/test/imagestreams
         String api = "/api";
         String oapi = "/oapi";
+        String apis = "/apis";
 
         // OpenShift API endpoints
         apiMap = new HashMap<String, String[]>();
@@ -75,6 +78,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	apiMap.put("Secret", new String[]{api, "secrets"});
     	apiMap.put("ServiceAccount", new String[]{api, "serviceaccounts"});
     	apiMap.put("Service", new String[]{api, "services"});
+    	apiMap.put("Job", new String[]{apis, "jobs"});
     }
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
@@ -94,9 +98,14 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     protected boolean makeRESTCall(boolean chatty, TaskListener listener, String path, ModelNode resource) {
 		String response = null;
 		URL url = null;
+		if (apiMap.get(path) == null) {
+			listener.getLogger().println(String.format("  The API resource \"%s\" is not currently supported by this step.", path));
+			return false;
+		}
+		
     	try {
-    		if (chatty) listener.getLogger().println("\nOpenShiftCreator POST URI " + apiMap.get(path)[0] + "/v1/namespaces/" +namespace + "/" + apiMap.get(path)[1]);
-			url = new URL(apiURL + apiMap.get(path)[0] + "/v1/namespaces/" + namespace + "/" + apiMap.get(path)[1]);
+    		if (chatty) listener.getLogger().println("\nOpenShiftCreator POST URI " + apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" +namespace + "/" + apiMap.get(path)[1]);
+			url = new URL(apiURL + apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" + namespace + "/" + apiMap.get(path)[1]);
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 			return false;
@@ -104,7 +113,6 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	
     	IClient client = new ClientFactory().create(apiURL, auth);
     	if (client == null) {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 		try {
@@ -113,11 +121,11 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST POST response " + response);
 		} catch (SocketTimeoutException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a socket level communication timeout to  \"%s\" occurred.", DISPLAY_NAME, apiURL));
+	    	listener.getLogger().println(String.format(" a socket level communication timeout to  \"%s\" occurred.", DISPLAY_NAME, apiURL));
 			return false;
 		} catch (HttpClientException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a HTTP level communication error to  \"%s\" occurred.", DISPLAY_NAME, apiURL));
+	    	listener.getLogger().println(String.format(" a HTTP level communication error to  \"%s\" occurred.", DISPLAY_NAME, apiURL));
 			return false;
 		}
 		
@@ -141,31 +149,38 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	    	
     	//cycle through json and POST to appropriate resource
     	String kind = resources.get("kind").asString();
-    	boolean success = false;
-    	int count = 0;
+    	int created = 0;
+    	int failed = 0;
     	if (kind.equalsIgnoreCase("List")) {
     		List<ModelNode> list = resources.get("items").asList();
     		for (ModelNode node : list) {
     			String path = node.get("kind").asString();
 				listener.getLogger().println(String.format("  Creating a \"%s\"...", path));
 				
-    			success = this.makeRESTCall(chatty, listener, path, node);
+    			boolean success = this.makeRESTCall(chatty, listener, path, node);
     			if (!success)
-    				break;
+    				failed++;
     			else
-    				count++;
+    				created++;
     		}
     	} else {
     		String path = kind;
 			listener.getLogger().println(String.format("  Creating a \"%s\"...", path));
 			
-    		success = this.makeRESTCall(chatty, listener, path, resources);
+    		boolean success = this.makeRESTCall(chatty, listener, path, resources);
     		if (success)
-    			count = 1;
+    			created = 1;
+    		else
+    			failed = 1;
     	}
 
-    	listener.getLogger().println(String.format("\n\nExiting \"%s\" %ssuccessfully, with %d resource(s) created at \"%s\" under project \"%s\".", DISPLAY_NAME, success ? "" : "un", count, apiURL, namespace));
-		return success;
+    	if (failed > 0) {
+    		listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully, with %d resource(s) created at \"%s\" and %d failed attempt(s) under project \"%s\".", DISPLAY_NAME, created, apiURL, failed, namespace));
+			return false;
+    	} else {
+    		listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully, with %d resource(s) created at \"%s\" under project \"%s\".", DISPLAY_NAME, created, apiURL, namespace));
+    		return true;
+    	}
 	}
     
 
