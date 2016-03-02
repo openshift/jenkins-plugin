@@ -50,7 +50,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" action for deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));		
+    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, depCfg, namespace));		
 		
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME);
@@ -59,7 +59,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
     		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
     		
     		if (dc == null) {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the deployment config \"%s\" could not be retrieved.", DISPLAY_NAME, depCfg));
+		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, depCfg));
     			return false;
     		}
 			
@@ -68,7 +68,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 			if (rc != null) {
 				String state = this.getReplicationControllerState(rc);
         		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete") || state.equalsIgnoreCase("Cancelled")) {
-        	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" is not in-progress; its status is:  [%s].", DISPLAY_NAME, rc.getName(), state));
+        	    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_NOOP, rc.getName(), state));
         			return true;
         		}
         		
@@ -77,10 +77,10 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 				
         		client.update(rc);
         		
-    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; the deployment \"%s\" has been cancelled.", DISPLAY_NAME, rc.getName()));
+    	    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_DIDIT, rc.getName()));
         		return true;
 			} else {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the latest deployment \"%s\" could not be retrieved.", DISPLAY_NAME, rc.getName()));
+		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_CANCEL_BAD_NO_REPCTR, depCfg));
 				return false;
 			}					
     		

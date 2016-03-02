@@ -139,16 +139,16 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 			throws IOException, InterruptedException {
 		try {
 			pullDefaultsIfNeeded(build.getEnvironment(listener), overrides, listener);
-	    	listener.getLogger().println(String.format("\n\nThe \"%s\" SCM will return the last revision state stored in Jenkins for the image stream \"%s\" and tag \"%s\" from the project \"%s\".", DISPLAY_NAME, imageStreamName, tag, namespace));
+	    	listener.getLogger().println(String.format(MessageConstants.SCM_CALC, DISPLAY_NAME, imageStreamName, tag, namespace));
 	    	
 	    	String commitId = lastCommitId;
 				
 			ImageStreamRevisionState currIMSState = null;
 			if (commitId != null) {
 				currIMSState = new ImageStreamRevisionState(commitId);
-				listener.getLogger().println(String.format("  Last revision:  [%s]", currIMSState.toString()));
+				listener.getLogger().println(String.format(MessageConstants.SCM_LAST_REV, currIMSState.toString()));
 			} else {
-		    	listener.getLogger().println("  No revision state has been retrieved and stored yet.");
+		    	listener.getLogger().println(MessageConstants.SCM_NO_REV);
 			}
 			
 			
@@ -164,7 +164,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 			FilePath workspace, TaskListener listener, SCMRevisionState baseline)
 			throws IOException, InterruptedException {
 		try {
-	    	listener.getLogger().println(String.format("\n\nThe \"%s\" SCM is pulling the lastest revision state from OpenShift for the image stream \"%s\" and tag \"%s\" from the project \"%s\" and storing in Jenkins.", DISPLAY_NAME, imageStreamName, tag, namespace));
+	    	listener.getLogger().println(String.format(MessageConstants.SCM_COMP, DISPLAY_NAME, imageStreamName, tag, namespace));
 			pullDefaultsIfNeeded(project.getEnvironment(null, listener), overrides, listener);
 	    	String commitId = this.getCommitId(listener, project.getEnvironment(null, listener));
 			
@@ -185,9 +185,9 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 			
 			if (changes) {
 				lastCommitId = commitId;
-				listener.getLogger().println("\n\n A revision change was found this polling cycle.");
+				listener.getLogger().println(MessageConstants.SCM_CHANGE);
 			} else {
-				listener.getLogger().println("\n\n No revision change found this polling cycle.");
+				listener.getLogger().println(MessageConstants.SCM_NO_CHANGE);
 			}
 			
 			if (chatty)

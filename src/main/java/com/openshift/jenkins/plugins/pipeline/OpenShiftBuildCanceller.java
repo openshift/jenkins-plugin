@@ -51,7 +51,7 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 				
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" action for build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, bldCfg, namespace));
 		
     	// get oc client 
     	IClient client = getClient(listener, DISPLAY_NAME);
@@ -79,13 +79,13 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 		    				}
 		    			}, null);
 	    										
-	    				listener.getLogger().println(String.format("  Cancelled build \"%s\".", buildName));
+	    				listener.getLogger().println(String.format(MessageConstants.CANCELLED_BUILD, buildName));
 	    				count++;
 					
 					}
 				}
 
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully with %d builds cancelled.", DISPLAY_NAME, count));
+		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_CANCEL, DISPLAY_NAME, count));
 				
 				return true;
 			} catch (HttpClientException e1) {

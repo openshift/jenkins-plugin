@@ -60,7 +60,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 			EnvVars env) {
     	boolean chatty = Boolean.parseBoolean(verbose);
     	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, depCfg, namespace));
     	
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME);
@@ -71,8 +71,11 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
         	if (checkCount && replicaCount != null && replicaCount.length() > 0)
         		count = Integer.parseInt(replicaCount);
         		
-            						
-        	listener.getLogger().println(String.format("  Verifying deployment state%s...", checkCount ? String.format(" and verifying the current deployment is at \"%s\" replica(s).", replicaCount) : ""));        	
+
+        	if (!checkCount)
+        		listener.getLogger().println(String.format(MessageConstants.WAITING_ON_DEPLOY, depCfg));
+        	else
+        		listener.getLogger().println(String.format(MessageConstants.WAITING_ON_DEPLOY_PLUS_REPLICAS, depCfg, replicaCount));        	
 			
 			// confirm the deployment has kicked in from completed build;
         	// in testing with the jenkins-ci sample, the initial deploy after
@@ -104,7 +107,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 						depId = rc.getName();
 						// first check state
 		        		if (state.equalsIgnoreCase("Failed")) {
-	        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has a state of:  [Failed].", DISPLAY_NAME, depCfg));
+	        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, depCfg, state));
 		        			return false;
 		        		}
 						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
@@ -115,7 +118,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 		        		
 					}
 				} else {
-			    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; no deployment config named \"%s\" found.", DISPLAY_NAME, depCfg));
+		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, depCfg));
 	    			return false;
 				}
 													        										
@@ -127,13 +130,16 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 			}
         			
         	if (scaledAppropriately) {
-    	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully%s.", DISPLAY_NAME, count > 0 ? String.format(", where the deployment \"%s\" is at \"%s\" replicas", depId, replicaCount) : ""));
+    	    	if (!checkCount)
+    	    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_GOOD_REPLICAS_IGNORED, DISPLAY_NAME, depId));
+    	    	else
+    	    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_VERIFY_GOOD_REPLICAS_GOOD, DISPLAY_NAME, depId, count));
         		return true;
         	} else {
         		if (checkCount)
-        			listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the deployment  \"%s\" did is not at \"%s\" replica(s).", DISPLAY_NAME, depId, replicaCount));
+        			listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_VERIFY_BAD_REPLICAS_BAD, DISPLAY_NAME, depId, replicaCount));
         		else
-    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has the status:  [%s].", DISPLAY_NAME, depId, state));
+    		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, depId, state));
     	    	return false;
         	}        	
         		
