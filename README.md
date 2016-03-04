@@ -4,7 +4,7 @@ they are a series of REST clients that interface with the OpenShift server via t
 They minimally mimic the REST flows of common uses of the `oc` [CLI command](https://docs.openshift.org/latest/cli_reference/basic_cli_operations.html), but in several
 instances additional REST flows have been added to provide validation of the operations being performed.
 
-Their ultimate intent is to provide easy to use building blocks that simplify the construction of the jobs, workflows, and pipelines in Jenkins that operate against an OpenShift deployments.
+Their ultimate intent is to provide easy to use building blocks that simplify the construction of the projects, workflows, and pipelines in Jenkins that operate against an OpenShift deployments.
 
 NOTE:  This plugin requires JDK 1.8, based on its maven dependency openshift-restclient-java.
 
@@ -34,7 +34,7 @@ A series of Jenkins "build step" implementations are provided, which you can sel
    - NOTE: overriding of timeouts is detailed below.
 
 
-7. "Verify OpenShift Build":  performs the equivalent of an 'oc get builds` command invocation for the provided build config key provided; once the list of builds are obtained, the state of the latest build is inspected to see if it has completed successfully within a reasonable time period; it will also employ the same deployment triggering on image change verification done in the "Trigger OpenShift Build" build step; this build step allows for monitoring of builds either generated internally or externally from the Jenkins Job configuration.  NOTE: success or failure of older builds has no bearing; only the state of the latest build is examined.
+7. "Verify OpenShift Build":  performs the equivalent of an 'oc get builds` command invocation for the provided build config key provided; once the list of builds are obtained, the state of the latest build is inspected to see if it has completed successfully within a reasonable time period; it will also employ the same deployment triggering on image change verification done in the "Trigger OpenShift Build" build step; this build step allows for monitoring of builds either generated internally or externally from the Jenkins Project configuration.  NOTE: success or failure of older builds has no bearing; only the state of the latest build is examined.
 
 8. "Create OpenShift Resource(s)":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are specified.
 
@@ -42,15 +42,15 @@ A series of Jenkins "build step" implementations are provided, which you can sel
 
 An implementation of the Jenkins SCM extension point is also provided that takes advantage of Jenkins' built in polling and version management capabilities, but within the context of OpenShift Image Streams (we have taken the liberty of broadening the scope of what is considered "source"):
 
-1. "OpenShift ImageStreams": the aforementioned baked-in polling mechanism provided by Jenkins is leveraged, exposing the common semantics between OpenShift ImageStreams (which are abstractions of Docker repositories) and SCMs; image IDs are maintained and treated like commit IDs for the requisite artifacts (images under the ImageStream instead of programmatic source files); when the image IDs for specific tags provided change (as reflected by updated "commit IDs" reported to Jenkins through the SCM plugin contract), Jenkins will initiate a build for the Job configuration in question; note, there are no "extractions" of any sort which leverage the workspaces provided by Jenkins to the SCMs.  It is expected that the build steps in the associated job configuration will initiate any OpenShift related activities that were dependent on the ImageStream resource being monitored.
+1. "OpenShift ImageStreams": the aforementioned baked-in polling mechanism provided by Jenkins is leveraged, exposing the common semantics between OpenShift ImageStreams (which are abstractions of Docker repositories) and SCMs; image IDs are maintained and treated like commit IDs for the requisite artifacts (images under the ImageStream instead of programmatic source files); when the image IDs for specific tags provided change (as reflected by updated "commit IDs" reported to Jenkins through the SCM plugin contract), Jenkins will initiate a build for the Project configuration in question; note, there are no "extractions" of any sort which leverage the workspaces provided by Jenkins to the SCMs.  It is expected that the build steps in the associated project configuration will initiate any OpenShift related activities that were dependent on the ImageStream resource being monitored.
 
 ## Jenkins "post-build actions"
 
 A few Jenkins "post-build action" implementations are also provided, which you can select from the `Add post-build action` pull down available on any project's configure page:
 
-1. "Cancel OpenShift Builds":  this action is intended to provide cleanup for a Jenkins job which failed because a build is hung (instead of terminating with a failure code); this step will allow you to perform the equivalent of a `oc cancel-build` for any builds found for the provided build config which are not previously terminated (either successfully or unsuccessfully) or cancelled; those builds will be cancelled.
+1. "Cancel OpenShift Builds":  this action is intended to provide cleanup for a Jenkins project which failed because a build is hung (instead of terminating with a failure code); this step will allow you to perform the equivalent of a `oc cancel-build` for any builds found for the provided build config which are not previously terminated (either successfully or unsuccessfully) or cancelled; those builds will be cancelled.
 
-2. "Cancel OpenShift Deployment": this action is intended to cleanup any OpenShift deployments which still in-progress after the Job completes;  this step will allow you to perform the equivalent of a `oc deploy --cancel` for the provided deployment config.
+2. "Cancel OpenShift Deployment": this action is intended to cleanup any OpenShift deployments which still in-progress after the Build completes;  this step will allow you to perform the equivalent of a `oc deploy --cancel` for the provided deployment config.
 
 ## Jenkins Workflow 
 
@@ -91,7 +91,7 @@ Then how a build step could consume the parameter:
 <img width="840" src="EnvVar-2.png"/>
 </p>
 
-And then how you would run the job, specifying a valid value for the parameter:
+And then how you would run the project, specifying a valid value for the parameter:
 <p align="center">
 <img width="840" src="EnvVars-3.png"/>
 </p>
@@ -107,14 +107,19 @@ For the API Endpoint and Project name, any value specified for the specific step
 Next, the bearer authentication token can be provided by the user via the following:
 
 - the field for the token in the specific build step
-- if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Job panel, where the value is the token
+- if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Project panel, where the value is the token
 - if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
 
-Otherwise, the plugin will assume you are running off of the OpenShift Jenkins Docker image (http://github.com/openshift/jenkins), and will read in the token from a well known location in the image that allows authorized access to the OpenShift master associated with the running OpenShift Jenkins image.
+Otherwise, the plugin will assume you are running off of the OpenShift Jenkins Docker image (http://github.com/openshift/jenkins), and will read in the token from a well known location ("/run/secrets/kubernetes.io/serviceaccount/token") in the image that allows authorized access to the OpenShift master associated with the running OpenShift Jenkins image.
 
-The CA cert is currently pulled from a well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt") in the OpenShift Jenkins image.
+For the certificate, when running in the OpenShift Jenkins image, the CA certificate by default is pulled from the well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt") where OpenShift mounts it, and then is stored into the Java KeyStore and X.509 TrustManager for subsequent verification against the OpenShift server on all subsequent interactions.  If you wish to override the certificate used, you can either:
 
-For "Monitor OpenShift ImageStreams", only specifying the token in the plugin configuration or leveraging the token embedded in the OpenShift Jenkins image is supported.
+- For all steps of a given project, set a build parameter (again, of type `Text Parameter`)  named `CA_CERT` to the string needed to construct the certificate, and you can then leave the input field of any applicable steps blank
+- Since `Text Parameter` input fields are not available with the global key/value properties, the plug-in does not support defining certificates via a `CA_CERT` property across Jenkins projects.
+
+If you want to skip TLS verification and allow for untrusted certificates, set the named parameter `SKIP_TLS` to any value. 
+
+For "Monitor OpenShift ImageStreams", note that project level build parameters will not be available with the background polling processing (though they are available when that step runs as part of an explicit project build).
 
 The default timeouts for the various interactions with the OpenShift API endpoint are also configurable for those steps that have to wait on results.  Overriding the timeouts are currently done globally across all instances of a given build step or post-build step.  Go to the "Configure System" panel under "Manage Jenkins" of the Jenkins UI (i.e. http://<host:port>/configure), and then change the "Wait interval" for the item of interest.  Similarly, the OpenShift Service Verification has a retry count for attempts to contact the OpenShift Service successfully.
 

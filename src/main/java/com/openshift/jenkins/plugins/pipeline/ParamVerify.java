@@ -73,6 +73,16 @@ public class ParamVerify {
         return FormValidation.ok();
     }
 
+    public static FormValidation doCheckReplicaCountRequired(@QueryParameter String value)
+            throws IOException, ServletException {
+        try {
+        	Integer.decode(value);
+        } catch (NumberFormatException e) {
+        	return FormValidation.error("You must specify an integer for the replica count");
+        }
+        return FormValidation.ok();
+    }
+
     public static FormValidation doCheckTestTag(@QueryParameter String value)
             throws IOException, ServletException {
         if (value.length() == 0)

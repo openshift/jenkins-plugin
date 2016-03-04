@@ -8,6 +8,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -15,11 +18,13 @@ import java.util.ArrayList;
 
 
 
+import java.util.Arrays;
 import java.util.Map;
 
 import javax.net.ssl.SSLSession;
-
-import org.apache.commons.codec.binary.Base64InputStream;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
 import com.openshift.restclient.ISSLCertificateCallback;
 
@@ -33,58 +38,71 @@ public class Auth implements ISSLCertificateCallback {
 	private static final String AUTH_FILE = "/run/secrets/kubernetes.io/serviceaccount/token";
 	private static final String CERT_FILE = "/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 	public static final String CERT_ARG = " --certificate-authority=/run/secrets/kubernetes.io/serviceaccount/ca.crt ";
-	private static boolean useCert = false;
 	
 	private X509Certificate cert = null;
 	private TaskListener listener = null;
+	private static X509TrustManager x509TrustManager;
 	private Auth(X509Certificate cert, TaskListener listener) {
 		this.cert = cert;
 		this.listener = listener;
 	}
 	
-	public static Auth createInstance(TaskListener listener) {
+	public static Auth createInstance(TaskListener listener, String apiURL, EnvVars env) {
 		Auth auth = null;
 		File f = new File(CERT_FILE);
-		if (f.exists()) {
+		if ((f.exists() || env.get("CA_CERT") != null) && env.get("SKIP_TLS") == null) {
 			if (listener != null)
-				listener.getLogger().println("Auth - cert file exists");
-			useCert = true;
+				listener.getLogger().println("Auth - cert file exists - " + f.exists() + ", CA_CERT - " + env.get("CA_CERT") + "\n skip tls - " + env.get("SKIP_TLS"));
 			try {
-				auth = new Auth(createCert(f), listener);
+				auth = new Auth(createCert(f, env.get("CA_CERT"), listener, apiURL), listener);
 			} catch (Exception e) {
 				if (listener != null)
 					e.printStackTrace(listener.getLogger());
-				if (listener != null)
-					listener.getLogger().println("Auth defaulting to non-TLS / Cert form");
-				auth = new Auth(null, null);
-				useCert = false;
+				auth = new Auth(null, listener);
 			}
 		} else {
-			auth = new Auth(null, null);
+			auth = new Auth(null, listener);
 		}
 		return auth;
 	}
 	
 	@Override
 	public boolean allowCertificate(final X509Certificate[] certificateChain) {
+		// this will be called if the trustManager.checkServerTrusted call fails in openshift-restclient-java;
+		// we are in this path for the "handle untrusted certifcates" or "skip tls verify" path
 		if (this.listener != null) {
 			listener.getLogger().println("Auth - allowCertificate with incoming chain of len  " + certificateChain.length);
 		}
 
 		// means we are a skip tls equivalent run
-		if (this.cert == null)
+		if (this.cert == null) {
+			if (this.listener != null)
+				listener.getLogger().println("Auth - in skip tls mode, returning true");
 			return true;
-
-		//mimic SSLCertificateCallback implementation from jbosstools-openshift repo
-		for (X509Certificate c : certificateChain) {
-			if (this.cert.equals(c)) {
-				if (this.listener != null)
-					this.listener.getLogger().println("Auth - allowCertificate returning true");
-				return true;
-			}
 		}
-		if (this.listener != null)
-			this.listener.getLogger().println("Auth - allowCertificate returning false");
+
+		
+		//TODO however, until we can get the openshift-restclient-java updated to 
+		// allow the import of certs into the IHttpClient's x509 trust manager instance,
+		// its checkServerTrusted call will fail; so are maintaining our own in the mean time;
+		// and yes, the results from testing  woul imply that there is not a singleton pattern within the JVM
+		// when it comes to getting instances of the trust manager
+		try {
+			x509TrustManager.checkServerTrusted(certificateChain, "RSA");
+			if (listener != null)
+				listener.getLogger().println("Auth - trust mgr check server passed");
+			return true;
+		} catch (Throwable t) {
+			if (listener != null)
+				t.printStackTrace(listener.getLogger());
+		}
+		
+		//TODO
+		// the openshift/jboss eclipse plugins dump the cert's contents and prompt the user to 
+		// accept based on inspecting the contents like the browser does; don't 
+		// see a way yet a good way to do something similar within a build step 
+		// (maybe pattern matching but that seems kludgy)
+		
 		return false;
 	}
 	
@@ -95,8 +113,8 @@ public class Auth implements ISSLCertificateCallback {
 		//also lines up with what was observed in k8s jennkins plugin
 		return true;
 	}
-	public static boolean useCert() {
-		return useCert;
+	public boolean useCert() {
+		return cert != null;
 	}
 	
 	private static String pullTokenFromFile(File f, TaskListener listener) {
@@ -300,9 +318,17 @@ public class Auth implements ISSLCertificateCallback {
 		return caCert;
 	}
 	
-    private static InputStream getInputStreamFromDataOrFile(String data, File file) throws FileNotFoundException {
+    private static InputStream getInputStreamFromDataOrFile(String data, File file) throws FileNotFoundException, UnsupportedEncodingException {
+    	// user provided data takes precedence
         if (data != null) {
-            return new Base64InputStream(new ByteArrayInputStream(data.getBytes()));
+        	// these worked in testing with pasting the contents of 
+        	// /run/secrets/kubernetes.io/serviceaccount/ca.crt:
+        	// - ByteArrayInputStream(data.getBytes("US-ASCII"));
+        	// - ByteArrayInputStream(data.getBytes());
+        	// these did not work:
+        	// - ByteArrayInputStream(Base64.getEncoder().encode(data.getBytes()));
+        	// - Base64InputStream(new ByteArrayInputStream(data.getBytes())); ... this one came directly from the k8s plugin
+            return new ByteArrayInputStream(data.getBytes());
         }
         if (file != null) {
             return new FileInputStream(file);
@@ -310,10 +336,42 @@ public class Auth implements ISSLCertificateCallback {
         return null;
     }
 
-    private static X509Certificate createCert(File caCertFile) throws Exception {
-    	InputStream pemInputStream = getInputStreamFromDataOrFile(null, caCertFile);
+    private static X509Certificate createCert(File caCertFile, String certString, TaskListener listener, String apiURL) throws Exception {
+    	if (listener != null && certString != null) {
+    		listener.getLogger().println("Auth - using user inputted cert string");
+    	}
+    	InputStream pemInputStream = getInputStreamFromDataOrFile(certString, caCertFile);
 		CertificateFactory certFactory = CertificateFactory.getInstance("X509");
 		X509Certificate cert = (X509Certificate) certFactory.generateCertificate(pemInputStream);
+		if (cert != null) {
+			try {
+				cert.checkValidity();
+				if (listener != null) {
+					listener.getLogger().println("Auth - x509 created cert is " + cert.toString());
+				}
+		        URI uri = new URI(apiURL);
+				KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+				// need this load to initialize the key store, and allow for the subsequent set certificate entry
+				ks.load(null, null);
+				ks.setCertificateEntry(uri.toASCIIString(), cert);
+				TrustManagerFactory tmfactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+				tmfactory.init(ks);
+				x509TrustManager = null;
+				for (TrustManager trustManager : tmfactory.getTrustManagers()) {
+					if (trustManager instanceof X509TrustManager) {
+						x509TrustManager = (X509TrustManager) trustManager;
+						if (listener != null) {
+							listener.getLogger().println("Auth - x509 trust mgr certs " + Arrays.toString(x509TrustManager.getAcceptedIssuers()));
+						}
+						break;
+					}
+				}
+				
+			} catch (Throwable t) {
+				if (listener != null)
+					t.printStackTrace(listener.getLogger());
+			}
+		}
 		return cert;        
     }
 	

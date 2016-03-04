@@ -85,11 +85,11 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 		return verbose;
 	}
 
-	protected String getCommitId(TaskListener listener) {
+	protected String getCommitId(TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
-    	setAuth(Auth.createInstance(null));
+    	setAuth(Auth.createInstance(null, getApiURL(), env));
     	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty)));		
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME);
@@ -166,7 +166,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 		try {
 	    	listener.getLogger().println(String.format("\n\nThe \"%s\" SCM is pulling the lastest revision state from OpenShift for the image stream \"%s\" and tag \"%s\" from the project \"%s\" and storing in Jenkins.", DISPLAY_NAME, imageStreamName, tag, namespace));
 			pullDefaultsIfNeeded(project.getEnvironment(null, listener), overrides, listener);
-	    	String commitId = this.getCommitId(listener);
+	    	String commitId = this.getCommitId(listener, project.getEnvironment(null, listener));
 			
 			ImageStreamRevisionState currIMSState = null;
 			if (commitId != null)

@@ -205,7 +205,7 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
         
         public FormValidation doCheckReplicaCount(@QueryParameter String value)
                 throws IOException, ServletException {
-        	return ParamVerify.doCheckReplicaCount(value);
+        	return ParamVerify.doCheckReplicaCountRequired(value);
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {

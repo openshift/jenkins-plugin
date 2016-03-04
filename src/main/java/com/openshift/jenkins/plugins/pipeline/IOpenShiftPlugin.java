@@ -82,38 +82,33 @@ public interface IOpenShiftPlugin {
 		}
 		return scaledAppropriately;
 	}
-
-	default void doIt(Run<?, ?> run, FilePath workspace, Launcher launcher,
-			TaskListener listener) throws InterruptedException, IOException {
+	
+	default boolean doItCore(TaskListener listener, EnvVars env, Run<?, ?> run, AbstractBuild<?, ?> build, Launcher launcher) {
 		boolean chatty = Boolean.parseBoolean(getVerbose());
-		setAuth(Auth.createInstance(chatty ? listener : null));
-    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(run, getAuthToken(), listener, chatty)));
-    	EnvVars env = run.getEnvironment(listener);
+		if (run == null && build == null)
+			throw new RuntimeException("Either the run or build parameter must be set");
     	if (chatty)
     		listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + env);
 		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(env, listener, chatty);
 		try {
 			pullDefaultsIfNeeded(env, overrides, listener);
-			coreLogic(launcher, listener, run.getEnvironment(listener));
-		} finally {
-			this.restoreOverridenFields(overrides, listener);
-		}
-	}
-
-    default boolean doIt(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
-		boolean chatty = Boolean.parseBoolean(getVerbose());
-		setAuth(Auth.createInstance(chatty ? listener : null));
-    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build, getAuthToken(), listener, chatty)));
-    	EnvVars env = build.getEnvironment(listener);
-    	if (chatty)
-    		listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + env);
-		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(env, listener, chatty);
-		try {
-			pullDefaultsIfNeeded(env, overrides, listener);
+			setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(), env));
+	    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(), listener, chatty)));
 			return coreLogic(launcher, listener, env);
 		} finally {
 			this.restoreOverridenFields(overrides, listener);			
 		}
+	}
+
+	default void doIt(Run<?, ?> run, FilePath workspace, Launcher launcher,
+			TaskListener listener) throws InterruptedException, IOException {
+    	EnvVars env = run.getEnvironment(listener);
+    	this.doItCore(listener, env, run, null, launcher);
+	}
+
+    default boolean doIt(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
+    	EnvVars env = build.getEnvironment(listener);
+    	return this.doItCore(listener, env, null, build, launcher);
     }
     
     default void pullDefaultsIfNeeded(EnvVars env, HashMap<String,String> overrides, TaskListener listener) {
@@ -134,6 +129,7 @@ public interface IOpenShiftPlugin {
 			overrides.put("namespace", getNamespace());
 			setNamespace(env.get("PROJECT_NAME"));
 		}
+		
     	if (chatty)
     		listener.getLogger().println(" after apiURL " + getApiURL() + " namespace " + getNamespace());
     }
