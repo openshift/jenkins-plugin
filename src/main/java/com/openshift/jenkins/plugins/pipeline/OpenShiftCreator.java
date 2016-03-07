@@ -99,7 +99,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 		String response = null;
 		URL url = null;
 		if (apiMap.get(path) == null) {
-			listener.getLogger().println(String.format("  The API resource \"%s\" is not currently supported by this step.", path));
+			listener.getLogger().println(String.format(MessageConstants.TYPE_NOT_SUPPORTED, path));
 			return false;
 		}
 		
@@ -121,11 +121,11 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST POST response " + response);
 		} catch (SocketTimeoutException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
-	    	listener.getLogger().println(String.format(" a socket level communication timeout to  \"%s\" occurred.", DISPLAY_NAME, apiURL));
+	    	listener.getLogger().println(String.format(MessageConstants.SOCKET_TIMEOUT, DISPLAY_NAME, apiURL));
 			return false;
 		} catch (HttpClientException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
-	    	listener.getLogger().println(String.format(" a HTTP level communication error to  \"%s\" occurred.", DISPLAY_NAME, apiURL));
+	    	listener.getLogger().println(String.format(MessageConstants.HTTP_ERR, e1.getMessage(), DISPLAY_NAME, apiURL));
 			return false;
 		}
 		
@@ -142,7 +142,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with the project \"%s\".", DISPLAY_NAME, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_CREATE_OBJS, namespace));
     	
     	// construct json/yaml node
     	ModelNode resources = ModelNode.fromJSONString(jsonyaml);
@@ -155,30 +155,34 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     		List<ModelNode> list = resources.get("items").asList();
     		for (ModelNode node : list) {
     			String path = node.get("kind").asString();
-				listener.getLogger().println(String.format("  Creating a \"%s\"...", path));
 				
     			boolean success = this.makeRESTCall(chatty, listener, path, node);
-    			if (!success)
+    			if (!success) {
+    				listener.getLogger().println(String.format(MessageConstants.FAILED_OBJ, path));
     				failed++;
-    			else
+    			} else {
+    				listener.getLogger().println(String.format(MessageConstants.CREATED_OBJ, path));
     				created++;
+    			}
     		}
     	} else {
     		String path = kind;
-			listener.getLogger().println(String.format("  Creating a \"%s\"...", path));
 			
     		boolean success = this.makeRESTCall(chatty, listener, path, resources);
-    		if (success)
+    		if (success) {
+				listener.getLogger().println(String.format(MessageConstants.CREATED_OBJ, path));
     			created = 1;
-    		else
+    		} else {
+				listener.getLogger().println(String.format(MessageConstants.FAILED_OBJ, path));
     			failed = 1;
+    		}
     	}
 
     	if (failed > 0) {
-    		listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully, with %d resource(s) created at \"%s\" and %d failed attempt(s) under project \"%s\".", DISPLAY_NAME, created, apiURL, failed, namespace));
+    		listener.getLogger().println(String.format(MessageConstants.EXIT_CREATE_BAD, created, failed));
 			return false;
     	} else {
-    		listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully, with %d resource(s) created at \"%s\" under project \"%s\".", DISPLAY_NAME, created, apiURL, namespace));
+    		listener.getLogger().println(String.format(MessageConstants.EXIT_CREATE_GOOD, created));
     		return true;
     	}
 	}

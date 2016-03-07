@@ -53,7 +53,7 @@ public interface IOpenShiftPlugin {
     	if (client != null) {
         	client.setAuthorizationStrategy(getToken());    		
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", displayName, getApiURL()));
+	    	listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL()));
     	}
     	return client;
 	}
@@ -227,19 +227,19 @@ public interface IOpenShiftPlugin {
 			}
 		}
 		if (bldState == null || !bldState.equals("Complete")) {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; build \"%s\" has completed with status:  [%s].", displayName, bldId, bldState));
+	    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_BAD, displayName, bldId, bldState));
 			return false;
 		} else {
 			if (checkDeps) {    						
 				if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, wait)) {
-    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; build \"%s\" has completed with status:  [Complete].  All deployments with ImageChange triggers based on this build's output triggered off of the new image.", displayName, bldId));
+    		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_GOOD_DEPLOY_GOOD, displayName, bldId));
 					return true;
 				} else {
-    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; build \"%s\" has completed with status:  [Complete]. However, not all deployments with ImageChange triggers based on this build's output triggered off of the new image.", displayName, bldId));
+    		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_GOOD_DEPLOY_BAD, displayName, bldId));
 					return false;
 				}
 			} else {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; build \"%s\" has completed with status:  [Complete].", displayName, bldId));
+		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_GOOD_DEPLOY_IGNORED, displayName, bldId));
 				return true;
 			}
 		}

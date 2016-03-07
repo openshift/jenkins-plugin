@@ -50,7 +50,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
 
     public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" for the service \"%s\" from the project \"%s\".", DISPLAY_NAME, svcName, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_SERVICE_VERIFY, DISPLAY_NAME, svcName, namespace));
     	
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME);
@@ -68,13 +68,13 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
             	int tryCount = 0;
             	if (chatty)
             		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
-            	listener.getLogger().println(String.format("  Attempting to connect to \"%s\"...", spec));
+            	listener.getLogger().println(String.format(MessageConstants.SERVICE_CONNECTING, spec));
             	while (tryCount < getDescriptor().getRetry()) {
             		tryCount++;
             		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
             		try {
     	        		socket.connect(address, 2500);
-                    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; a connection to \"%s\" was made.", DISPLAY_NAME, spec));
+                    	listener.getLogger().println(String.format(MessageConstants.EXIT_SERVICE_VERIFY_GOOD, DISPLAY_NAME, spec));
     	        		return true;
     				} catch (IOException e) {
     					if (chatty) e.printStackTrace(listener.getLogger());
@@ -91,11 +91,10 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
     		}
         	
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 
-    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a connection to \"%s\" could not be made.", DISPLAY_NAME, spec));
+    	listener.getLogger().println(String.format(MessageConstants.EXIT_SERVICE_VERIFY_BAD, DISPLAY_NAME, spec));
 
     	return false;
     }

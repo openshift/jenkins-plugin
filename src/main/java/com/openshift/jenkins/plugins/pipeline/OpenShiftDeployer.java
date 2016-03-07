@@ -64,7 +64,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with deployment config \"%s\" from the project \"%s\".", DISPLAY_NAME, depCfg, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, depCfg, namespace));
     	
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME);
@@ -77,9 +77,10 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	boolean deployDone = false;
         	boolean versionBumped = false;
 			String state = null;
+	    	IDeploymentConfig dc = null;
 			IReplicationController rc = null; 
 			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-        		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+        		dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
         		if (dc != null) {
         			if (!versionBumped) {
         				// allow some retry in case the dc creation request happened before this step ran
@@ -95,7 +96,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
     						if (state.equalsIgnoreCase("Complete")) {
             					deployDone = true;
     						} else if (state.equalsIgnoreCase("Failed")) {
-    	        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; deployment \"%s\" has completed with status:  [Failed].", DISPLAY_NAME, rc.getName()));
+    	        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, rc.getName(), state));
     							return false;
     						} else {
     							if (chatty)
@@ -127,11 +128,14 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	}
         	
         	if (!deployDone) {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; gave up on deployment \"%s\" with status:  [%s].", DISPLAY_NAME, rc.getName(), state));
+		    	if (dc != null)
+		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_TRIGGER_TIMED_OUT, DISPLAY_NAME, rc.getName(), state));
+		    	else
+		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, depCfg));
         		return false;
         	}
 
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully; deployment \"%s\" has completed with status:  [Complete].", DISPLAY_NAME, rc.getName()));
+	    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_GOOD_REPLICAS_IGNORED, DISPLAY_NAME, rc.getName()));
         	return true;
         	
         	

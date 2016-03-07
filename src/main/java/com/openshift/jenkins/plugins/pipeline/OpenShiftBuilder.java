@@ -189,7 +189,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 	public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, bldCfg, namespace));
 		
     	boolean follow = Boolean.parseBoolean(showBuildLogs);
     	if (chatty)
@@ -220,17 +220,20 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     			
     			
     			if(bld == null) {
-    		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a build could not be started", DISPLAY_NAME));
+    		    	listener.getLogger().println(MessageConstants.EXIT_BUILD_NO_BUILD_OBJ);
     				return false;
     			} else {
     				String bldId = bld.getName();
-    				listener.getLogger().println(String.format("  Started build \"%s\" and waiting for build completion %s...", bldId, checkDeps ? "followed by a new deployment" : ""));
+    				if (!checkDeps)
+    					listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD, bldId));
+    				else
+    					listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_PLUS_DEPLOY, bldId));
     				
     				
     				boolean foundPod = false;
     				startTime = System.currentTimeMillis();
 					if (chatty)
-						listener.getLogger().println("\nnOpenShiftBuilder  wait time " + getDescriptor().getWait());
+						listener.getLogger().println("\nOpenShiftBuilder  wait time " + getDescriptor().getWait());
     				
     				// Now find build Pod, attempt to dump the logs to the Jenkins console
     				while (!foundPod && startTime > (System.currentTimeMillis() - getDescriptor().getWait())) {
@@ -267,7 +270,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     				}
     				
     				if (!foundPod) {
-        		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the build pod for build \"%s\" was not found in time.", DISPLAY_NAME, bldId));
+        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_NO_POD_OBJ, bldId));
     					return false;
     				}
     				
@@ -277,7 +280,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         		
         		
         	} else {
-		    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; the build config \"%s\" could not be read.", DISPLAY_NAME, bldCfg));
+		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_NO_BUILD_CONFIG_OBJ, bldCfg));
         		return false;
         	}
     	} else {

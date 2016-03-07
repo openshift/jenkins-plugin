@@ -63,7 +63,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env) {
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with the source [image stream:tag] \"%s:%s\" and destination [image stream:tag] \"%s:%s\" from the project \"%s\".", DISPLAY_NAME, testStream, testTag, prodStream, prodTag, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_TAG, DISPLAY_NAME, testStream, testTag, prodStream, prodTag, namespace));
     	
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME);
@@ -75,10 +75,9 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 			client.update(is);
 			
 			
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" successfully.", DISPLAY_NAME));
+	    	listener.getLogger().println(String.format(MessageConstants.EXIT_OK, DISPLAY_NAME));
 			return true;
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
 

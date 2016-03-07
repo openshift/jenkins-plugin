@@ -78,7 +78,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 			EnvVars env) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
-    	listener.getLogger().println(String.format("\n\nStarting the \"%s\" step with build config \"%s\" from the project \"%s\".", DISPLAY_NAME, bldCfg, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, bldCfg, namespace));
     	
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME);
@@ -90,12 +90,14 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 			
 			String bldId = getLatestBuildID(ids);
 			
-			listener.getLogger().println(String.format("  Verifying build \"%s\" and waiting for build completion %s...", bldId, checkDeps ? "followed by a new deployment" : ""));			
+			if (!checkDeps)
+				listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE, bldId));
+			else
+				listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY, bldId));
 				
 			return this.verifyBuild(System.currentTimeMillis(), getDescriptor().getWait(), client, bldCfg, bldId, namespace, chatty, listener, DISPLAY_NAME, checkDeps);
     				        		
     	} else {
-	    	listener.getLogger().println(String.format("\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.", DISPLAY_NAME, apiURL));
     		return false;
     	}
     	
