@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.openshift.restclient.ClientFactory;
+import com.openshift.restclient.ClientBuilder;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
@@ -76,10 +76,8 @@ public interface IOpenShiftPlugin {
 	boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env, Map<String,String> overrides);
 	
 	default IClient getClient(TaskListener listener, String displayName, Map<String,String> overrides) {
-    	IClient client = new ClientFactory().create(getApiURL(overrides), getAuth());
-    	if (client != null) {
-        	client.setAuthorizationStrategy(getToken());    		
-    	} else {
+		IClient client = new ClientBuilder(getApiURL(overrides)).sslCertificateCallback(getAuth()).resourceFactory(getToken()).sslCertificate(getApiURL(overrides), getAuth().getCert()).build();
+    	if (client == null) {
 	    	listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
     	}
     	return client;

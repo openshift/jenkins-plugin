@@ -9,22 +9,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 
-
-
-
-import java.util.Arrays;
 import java.util.Map;
 
 import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
 
 import com.openshift.restclient.ISSLCertificateCallback;
 
@@ -41,7 +32,6 @@ public class Auth implements ISSLCertificateCallback {
 	
 	private X509Certificate cert = null;
 	private TaskListener listener = null;
-	private static X509TrustManager x509TrustManager;
 	private Auth(X509Certificate cert, TaskListener listener) {
 		this.cert = cert;
 		this.listener = listener;
@@ -82,25 +72,10 @@ public class Auth implements ISSLCertificateCallback {
 		}
 
 		
-		//TODO however, until we can get the openshift-restclient-java updated to 
-		// allow the import of certs into the IHttpClient's x509 trust manager instance,
-		// its checkServerTrusted call will fail; so are maintaining our own in the mean time;
-		// and yes, the results from testing  woul imply that there is not a singleton pattern within the JVM
-		// when it comes to getting instances of the trust manager
-		try {
-			x509TrustManager.checkServerTrusted(certificateChain, "RSA");
-			if (listener != null)
-				listener.getLogger().println("Auth - trust mgr check server passed");
-			return true;
-		} catch (Throwable t) {
-			if (listener != null)
-				t.printStackTrace(listener.getLogger());
-		}
-		
 		//TODO
 		// the openshift/jboss eclipse plugins dump the cert's contents and prompt the user to 
-		// accept based on inspecting the contents like the browser does; don't 
-		// see a way yet a good way to do something similar within a build step 
+		// accept based on inspecting the contents like a browser does; don't 
+		// see yet a good way to do something similar within a build step 
 		// (maybe pattern matching but that seems kludgy)
 		
 		return false;
@@ -115,6 +90,10 @@ public class Auth implements ISSLCertificateCallback {
 	}
 	public boolean useCert() {
 		return cert != null;
+	}
+	
+	public X509Certificate getCert() {
+		return cert;
 	}
 	
 	private static String pullTokenFromFile(File f, TaskListener listener) {
@@ -343,35 +322,6 @@ public class Auth implements ISSLCertificateCallback {
     	InputStream pemInputStream = getInputStreamFromDataOrFile(certString, caCertFile);
 		CertificateFactory certFactory = CertificateFactory.getInstance("X509");
 		X509Certificate cert = (X509Certificate) certFactory.generateCertificate(pemInputStream);
-		if (cert != null) {
-			try {
-				cert.checkValidity();
-				if (listener != null) {
-					listener.getLogger().println("Auth - x509 created cert is " + cert.toString());
-				}
-		        URI uri = new URI(apiURL);
-				KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-				// need this load to initialize the key store, and allow for the subsequent set certificate entry
-				ks.load(null, null);
-				ks.setCertificateEntry(uri.toASCIIString(), cert);
-				TrustManagerFactory tmfactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-				tmfactory.init(ks);
-				x509TrustManager = null;
-				for (TrustManager trustManager : tmfactory.getTrustManagers()) {
-					if (trustManager instanceof X509TrustManager) {
-						x509TrustManager = (X509TrustManager) trustManager;
-						if (listener != null) {
-							listener.getLogger().println("Auth - x509 trust mgr certs " + Arrays.toString(x509TrustManager.getAcceptedIssuers()));
-						}
-						break;
-					}
-				}
-				
-			} catch (Throwable t) {
-				if (listener != null)
-					t.printStackTrace(listener.getLogger());
-			}
-		}
 		return cert;        
     }
 	
