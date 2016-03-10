@@ -6,7 +6,6 @@ import java.io.Serializable;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import jenkins.tasks.SimpleBuildStep;
-import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -18,14 +17,18 @@ import hudson.tasks.Recorder;
 
 public abstract class OpenShiftBasePostAction extends Recorder implements SimpleBuildStep, Serializable, IOpenShiftPlugin {
 
-    protected String apiURL;
-    protected String namespace;
-    protected String authToken;
-    protected String verbose;
+    protected final String apiURL;
+    protected final String namespace;
+    protected final String authToken;
+    protected final String verbose;
     protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
 
-    public OpenShiftBasePostAction() {
+    public OpenShiftBasePostAction(String apiURL, String namespace, String authToken, String verbose) {
+    	this.apiURL = apiURL;
+    	this.namespace = namespace;
+    	this.authToken = authToken;
+    	this.verbose = verbose;
 	}
 
     public String getApiURL() {
@@ -53,17 +56,6 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
 	public void setToken(TokenAuthorizationStrategy token) {
 		this.bearerToken = token;
 	}
-
-	@Override
-	public void setApiURL(String apiURL) {
-		this.apiURL = apiURL;
-	}
-
-	@Override
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
-    
     
     @Override
 	public Auth getAuth() {

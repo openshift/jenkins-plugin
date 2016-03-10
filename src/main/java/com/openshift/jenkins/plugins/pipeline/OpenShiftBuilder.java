@@ -12,8 +12,6 @@ import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
@@ -33,27 +31,25 @@ import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 
 
 public class OpenShiftBuilder extends OpenShiftBaseStep {
 	
 	protected final static String DISPLAY_NAME = "Trigger OpenShift Build";
 	
-    protected String bldCfg = "frontend";
-    protected String commitID = "";
-    protected String buildName = "";
-    protected String showBuildLogs = "false";
-    protected String checkForTriggeredDeployments = "false";
+    protected final String bldCfg;
+    protected final String commitID;
+    protected final String buildName;
+    protected final String showBuildLogs;
+    protected final String checkForTriggeredDeployments;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs, String checkForTriggeredDeployments) {
-        this.apiURL = apiURL;
+    	super(apiURL, namespace, authToken, verbose);
         this.bldCfg = bldCfg;
-        this.namespace = namespace;
-        this.authToken = authToken;
-        this.verbose = verbose;
         this.commitID = commitID;
         this.buildName = buildName;
         this.showBuildLogs = showBuildLogs;
@@ -63,28 +59,58 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 	public String getCommitID() {
 		return commitID;
 	}
+	
+	public String getCommitID(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("commitID"))
+			return overrides.get("commitID");
+		else return getCommitID();
+	}
 
 	public String getBuildName() {
 		return buildName;
+	}
+
+	public String getBuildName(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("buildName"))
+			return overrides.get("buildName");
+		else return getBuildName();
 	}
 
 	public String getShowBuildLogs() {
 		return showBuildLogs;
 	}
 	
+	public String getShowBuildLogs(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("showBuildLogs"))
+			return overrides.get("showBuildLogs");
+		else return getShowBuildLogs();
+	}
+
 	public String getBldCfg() {
 		return bldCfg;
 	}
 	
+	public String getBldCfg(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("bldCfg"))
+			return overrides.get("bldCfg");
+		else return getBldCfg();
+	}
+
 	public String getCheckForTriggeredDeployments() {
 		return checkForTriggeredDeployments;
 	}
 	
-	protected IBuild startBuild(IBuildConfig bc, IBuild prevBld) {
+	public String getCheckForTriggeredDeployments(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("checkForTriggeredDeployments"))
+			return overrides.get("checkForTriggeredDeployments");
+		else return getCheckForTriggeredDeployments();
+	}
+
+	protected IBuild startBuild(IBuildConfig bc, IBuild prevBld, Map<String,String> overrides) {
 		IBuild bld = null;
 		if (bc != null) {
-			if (commitID != null && commitID.length() > 0) {
-				final String cid = commitID;
+			if (getCommitID(overrides) != null && getCommitID(overrides).length() > 0) {
+				final String cid = getCommitID(overrides);
     			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
 				    public IBuild visit(IBuildTriggerable triggerable) {
 				 		return triggerable.trigger(cid);
@@ -107,7 +133,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		return bld;
 	}
 	
-	protected void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener) {
+	protected void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides) {
 		IBuild bld = null;
 		String bldState = null;
 		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
@@ -122,9 +148,9 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		// get internal OS Java REST Client error if access pod logs while bld is in Pending state
 		// instead of Running, Complete, or Failed
 		while (System.currentTimeMillis() < (startTime + getDescriptor().getWait())) {
-			bld = client.get(ResourceKind.BUILD, bldId, namespace);
+			bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
 			bldState = bld.getStatus();
-			if (Boolean.parseBoolean(verbose))
+			if (Boolean.parseBoolean(getVerbose(overrides)))
 				listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
 			if ("Pending".equals(bldState) || "New".equals(bldState)) {
 				try {
@@ -141,11 +167,11 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 //		}
 	}
 	
-	protected void dumpLogs(String bldId, TaskListener listener) {
+	protected void dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides) {
 		// create stream and copy bytes
     	URL url = null;
     	try {
-			url = new URL(apiURL + "/oapi/v1/namespaces/"+namespace+"/builds/" + bldId + "/log?follow=true");
+			url = new URL(getApiURL(overrides) + "/oapi/v1/namespaces/"+getNamespace(overrides)+"/builds/" + bldId + "/log?follow=true");
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 		}
@@ -186,37 +212,37 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 //		}
 	}
 	
-	public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
-		boolean chatty = Boolean.parseBoolean(verbose);
-		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
-    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, bldCfg, namespace));
+	public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env, Map<String,String> overrides) {
+		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+		boolean checkDeps = Boolean.parseBoolean(getCheckForTriggeredDeployments(overrides));
+    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));
 		
-    	boolean follow = Boolean.parseBoolean(showBuildLogs);
+    	boolean follow = Boolean.parseBoolean(getShowBuildLogs(overrides));
     	if (chatty)
     		listener.getLogger().println("\nOpenShiftBuilder logger follow " + follow);
     	
     	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME);
+    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
     	if (client != null) {
 			long startTime = System.currentTimeMillis();
-			boolean skipBC = buildName != null && buildName.length() > 0;
+			boolean skipBC = getBuildName(overrides) != null && getBuildName(overrides).length() > 0;
         	IBuildConfig bc = null;
         	IBuild prevBld = null;
         	if (!skipBC) {
-        		bc = client.get(ResourceKind.BUILD_CONFIG, bldCfg, namespace);
+        		bc = client.get(ResourceKind.BUILD_CONFIG, getBldCfg(overrides), getNamespace(overrides));
         	} else {
-        		prevBld = client.get(ResourceKind.BUILD, buildName, namespace);
+        		prevBld = client.get(ResourceKind.BUILD, getBuildName(overrides), getNamespace(overrides));
         	}
         	
 
         	if (chatty)
-        		listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc + " buildName " + buildName);
+        		listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc + " buildName " + getBuildName(overrides));
         	
         	if (bc != null || prevBld != null) {
     			
         		// Trigger / start build
-    			IBuild bld = this.startBuild(bc, prevBld);
+    			IBuild bld = this.startBuild(bc, prevBld, overrides);
     			
     			
     			if(bld == null) {
@@ -240,7 +266,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     					
     					// fetch current list of pods ... this has proven to not be immediate in finding latest
     					// entries when compared with say running oc from the cmd line
-        				List<IPod> pods = client.list(ResourceKind.POD, namespace);
+        				List<IPod> pods = client.list(ResourceKind.POD, getNamespace(overrides));
         				for (IPod pod : pods) {
         					if (chatty)
         						listener.getLogger().println("\nOpenShiftBuilder found pod " + pod.getName());
@@ -251,10 +277,10 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         						if (chatty)
         							listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
         						
-        							waitOnBuild(client, startTime, bldId, listener);
+        							waitOnBuild(client, startTime, bldId, listener, overrides);
             						
             						if (follow)
-            							dumpLogs(bldId, listener);
+            							dumpLogs(bldId, listener, overrides);
     								
         					}
         					
@@ -274,13 +300,13 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     					return false;
     				}
     				
-    				return this.verifyBuild(startTime, getDescriptor().getWait(), client, bldCfg, bldId, namespace, chatty, listener, DISPLAY_NAME, checkDeps);
+    				return this.verifyBuild(startTime, getDescriptor().getWait(), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps);
     				    				
     			}
         		
         		
         	} else {
-		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_NO_BUILD_CONFIG_OBJ, bldCfg));
+		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_NO_BUILD_CONFIG_OBJ, getBldCfg(overrides)));
         		return false;
         	}
     	} else {

@@ -34,7 +34,7 @@ import java.util.Map;
 public class OpenShiftCreator extends OpenShiftBaseStep {
 	
 	protected final static String DISPLAY_NAME = "Create OpenShift Resource(s)";
-    protected String jsonyaml = "";
+    protected final String jsonyaml;
     
     private static final Map<String, String[]> apiMap;
     static
@@ -84,18 +84,21 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftCreator(String apiURL, String namespace, String authToken, String verbose, String jsonyaml) {
-        this.apiURL = apiURL;
-        this.namespace = namespace;
-        this.authToken = authToken;
-        this.verbose = verbose;
-        this.jsonyaml = jsonyaml;
+    	super(apiURL, namespace, authToken, verbose);
+    	this.jsonyaml = jsonyaml;
     }
 
     public String getJsonyaml() {
     	return jsonyaml;
     }
     
-    protected boolean makeRESTCall(boolean chatty, TaskListener listener, String path, ModelNode resource) {
+    public String getJsonyaml(Map<String,String> overrides) {
+    	if (overrides != null && overrides.containsKey("jsonyaml"))
+    		return overrides.get("jsonyaml");
+    	return getJsonyaml();
+    }
+    
+    protected boolean makeRESTCall(boolean chatty, TaskListener listener, String path, ModelNode resource, Map<String,String> overrides) {
 		String response = null;
 		URL url = null;
 		if (apiMap.get(path) == null) {
@@ -104,14 +107,14 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 		}
 		
     	try {
-    		if (chatty) listener.getLogger().println("\nOpenShiftCreator POST URI " + apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" +namespace + "/" + apiMap.get(path)[1]);
-			url = new URL(apiURL + apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" + namespace + "/" + apiMap.get(path)[1]);
+    		if (chatty) listener.getLogger().println("\nOpenShiftCreator POST URI " + apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" +getNamespace(overrides) + "/" + apiMap.get(path)[1]);
+			url = new URL(getApiURL(overrides) + apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" + getNamespace(overrides) + "/" + apiMap.get(path)[1]);
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 			return false;
 		}
     	
-    	IClient client = new ClientFactory().create(apiURL, auth);
+    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	if (client == null) {
     		return false;
     	}
@@ -121,11 +124,11 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST POST response " + response);
 		} catch (SocketTimeoutException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
-	    	listener.getLogger().println(String.format(MessageConstants.SOCKET_TIMEOUT, DISPLAY_NAME, apiURL));
+	    	listener.getLogger().println(String.format(MessageConstants.SOCKET_TIMEOUT, DISPLAY_NAME, getApiURL(overrides)));
 			return false;
 		} catch (HttpClientException e1) {
 			if (chatty) e1.printStackTrace(listener.getLogger());
-	    	listener.getLogger().println(String.format(MessageConstants.HTTP_ERR, e1.getMessage(), DISPLAY_NAME, apiURL));
+	    	listener.getLogger().println(String.format(MessageConstants.HTTP_ERR, e1.getMessage(), DISPLAY_NAME, getApiURL(overrides)));
 			return false;
 		}
 		
@@ -140,12 +143,12 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     }
     
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env) {
-		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println(String.format(MessageConstants.START_CREATE_OBJS, namespace));
+			EnvVars env, Map<String,String> overrides) {
+		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+    	listener.getLogger().println(String.format(MessageConstants.START_CREATE_OBJS, getNamespace(overrides)));
     	
     	// construct json/yaml node
-    	ModelNode resources = ModelNode.fromJSONString(jsonyaml);
+    	ModelNode resources = ModelNode.fromJSONString(getJsonyaml(overrides));
     	    	
     	//cycle through json and POST to appropriate resource
     	String kind = resources.get("kind").asString();
@@ -156,7 +159,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     		for (ModelNode node : list) {
     			String path = node.get("kind").asString();
 				
-    			boolean success = this.makeRESTCall(chatty, listener, path, node);
+    			boolean success = this.makeRESTCall(chatty, listener, path, node, overrides);
     			if (!success) {
     				listener.getLogger().println(String.format(MessageConstants.FAILED_OBJ, path));
     				failed++;
@@ -168,7 +171,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	} else {
     		String path = kind;
 			
-    		boolean success = this.makeRESTCall(chatty, listener, path, resources);
+    		boolean success = this.makeRESTCall(chatty, listener, path, resources, overrides);
     		if (success) {
 				listener.getLogger().println(String.format(MessageConstants.CREATED_OBJ, path));
     			created = 1;

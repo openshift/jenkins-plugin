@@ -21,26 +21,23 @@ import com.openshift.restclient.model.IImageStream;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.util.StringTokenizer;
+import java.util.Map;
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep {
 
 	protected final static String DISPLAY_NAME = "Tag OpenShift Image";
 	
-    protected String testTag = "latest";
-    protected String prodTag = "prod";
-    protected String testStream = "origin-nodejs-sample";
-    protected String prodStream = "origin-nodejs-sample";
+    protected final String testTag;
+    protected final String prodTag;
+    protected final String testStream;
+    protected final String prodStream;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose, String testStream, String prodStream) {
-        this.apiURL = apiURL;
+    	super(apiURL, namespace, authToken, verbose);
         this.testTag = testTag;
-        this.namespace = namespace;
         this.prodTag = prodTag;
-        this.authToken = authToken;
-        this.verbose = verbose;
         this.prodStream = prodStream;
         this.testStream = testStream;
     }
@@ -49,29 +46,53 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 		return testTag;
 	}
 
+	public String getTestTag(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("testTag"))
+			return overrides.get("testTag");
+		return getTestTag();
+	}
+	
 	public String getProdTag() {
 		return prodTag;
+	}
+	
+	public String getProdTag(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("prodTag"))
+			return overrides.get("prodTag");
+		return getProdTag();
 	}
 	
 	public String getTestStream() {
 		return testStream;
 	}
 
+	public String getTestStream(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("testStream"))
+			return overrides.get("testStream");
+		return getTestStream();
+	}
+	
 	public String getProdStream() {
 		return prodStream;
 	}
 
+	public String getProdStream(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("prodStream"))
+			return overrides.get("prodStream");
+		return getProdStream();
+	}
+	
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env) {
-    	listener.getLogger().println(String.format(MessageConstants.START_TAG, DISPLAY_NAME, testStream, testTag, prodStream, prodTag, namespace));
+			EnvVars env, Map<String,String> overrides) {
+    	listener.getLogger().println(String.format(MessageConstants.START_TAG, DISPLAY_NAME, getTestStream(overrides), getTestTag(overrides), getProdStream(overrides), getProdTag(overrides), getNamespace(overrides)));
     	
     	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME);
+    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
     	if (client != null) {
         	//tag image
-			IImageStream is = client.get(ResourceKind.IMAGE_STREAM, testStream, namespace);
-			is.setTag(prodTag, testStream + ":" + testTag);
+			IImageStream is = client.get(ResourceKind.IMAGE_STREAM, getProdStream(overrides), getNamespace(overrides));
+			is.setTag(getProdTag(overrides), getTestStream(overrides) + ":" + getTestTag(overrides));
 			client.update(is);
 			
 			

@@ -13,9 +13,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.model.DeploymentConfig;
-import com.openshift.internal.restclient.model.ReplicationController;
-import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
@@ -24,24 +21,22 @@ import com.openshift.restclient.model.IReplicationController;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class OpenShiftScaler extends OpenShiftBaseStep {
 
 	protected final static String DISPLAY_NAME = "Scale OpenShift Deployment";
 	
-    protected String depCfg = "frontend";
-    protected String replicaCount = "0";
-    protected String verifyReplicaCount = "false";
+    protected final String depCfg;
+    protected final String replicaCount;
+    protected final String verifyReplicaCount;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftScaler(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose, String verifyReplicaCount) {
-        this.apiURL = apiURL;
+    	super(apiURL, namespace, authToken, verbose);
         this.depCfg = depCfg;
-        this.namespace = namespace;
         this.replicaCount = replicaCount;
-        this.authToken = authToken;
-        this.verbose = verbose;
         this.verifyReplicaCount = verifyReplicaCount;
 }
 
@@ -49,22 +44,40 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
 		return depCfg;
 	}
 
+	public String getDepCfg(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("depCfg"))
+			return overrides.get("depCfg");
+		return getDepCfg();
+	}
+	
 	public String getReplicaCount() {
 		return replicaCount;
+	}
+	
+	public String getReplicaCount(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("replicaCount"))
+			return overrides.get("replicaCount");
+		return getReplicaCount();
 	}
 	
 	public String getVerifyReplicaCount() {
 		return verifyReplicaCount;
 	}
 	
+	public String getVerifyReplicaCount(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("verifyReplicaCount"))
+			return overrides.get("verifyReplicaCount");
+		return getVerifyReplicaCount();
+	}
+	
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env) {
-		boolean chatty = Boolean.parseBoolean(verbose);
-    	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
-    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, depCfg, namespace));
+			EnvVars env, Map<String,String> overrides) {
+		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+    	boolean checkCount = Boolean.parseBoolean(getVerifyReplicaCount(overrides));
+    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
     	
     	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME);
+    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
     	if (client != null) {
         	IReplicationController rc = null;
@@ -76,34 +89,34 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
         		listener.getLogger().println("\nOpenShiftScaler wait " + getDescriptor().getWait());
         	
         	if (!checkCount)
-        		listener.getLogger().println(String.format(MessageConstants.SCALING, replicaCount));
+        		listener.getLogger().println(String.format(MessageConstants.SCALING, getReplicaCount(overrides)));
         	else
-        		listener.getLogger().println(String.format(MessageConstants.SCALING_PLUS_REPLICA_CHECK, replicaCount));        	
+        		listener.getLogger().println(String.format(MessageConstants.SCALING_PLUS_REPLICA_CHECK, getReplicaCount(overrides)));        	
         	
         	// do the oc scale ... may need to retry        	
         	boolean scaleDone = false;
         	while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-        		dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+        		dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
         		if (dc == null) {
-			    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, depCfg));
+			    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
 	    			return false;
         		}
         		
         		if (dc.getLatestVersionNumber() > 0)
-        			rc = this.getLatestReplicationController(dc, client);
+        			rc = this.getLatestReplicationController(dc, client, overrides);
             	if (rc == null) {
             		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
             		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
             		// we refrain from adding yet 1 more config option
-            		if (replicaCount.equals("0")) {
-        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_NOOP, depCfg));
+            		if (getReplicaCount(overrides).equals("0")) {
+        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_NOOP, getDepCfg(overrides)));
             			return true;
             		}
             	} else {
-            		int count = Integer.decode(replicaCount);
+            		int count = Integer.decode(getReplicaCount(overrides));
     	        	rc.setDesiredReplicaCount(count);
     	        	if (chatty)
-    	        		listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + replicaCount + " on " + rc.getName());
+    	        		listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + getReplicaCount(overrides) + " on " + rc.getName());
     	        	try {
     	        		rc = client.update(rc);
     	        		if (chatty)
@@ -129,9 +142,9 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
         	
         	if (!scaleDone) {
         		if (!checkCount) {
-        	    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_BAD, apiURL));        			
+        	    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_BAD, getApiURL(overrides)));        			
         		} else {
-        	    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_TIMED_OUT, rc.getName(), replicaCount));
+        	    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_TIMED_OUT, rc.getName(), getReplicaCount(overrides)));
         		}
         		return false;
         	}
@@ -139,7 +152,7 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
 	    	if (!checkCount)
 	    		listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_GOOD, rc.getName()));
 	    	else
-	    		listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_GOOD_REPLICAS_GOOD, rc.getName(), replicaCount));
+	    		listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_GOOD_REPLICAS_GOOD, rc.getName(), getReplicaCount(overrides)));
         	return true;
         	        	
     	} else {

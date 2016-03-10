@@ -23,7 +23,6 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,33 +31,42 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 	
 	protected final static String DISPLAY_NAME = "Verify OpenShift Build";
 	
-    protected String bldCfg = "frontend";
-    protected String checkForTriggeredDeployments = "false";
+    protected final String bldCfg;
+    protected final String checkForTriggeredDeployments;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String checkForTriggeredDeployments) {
-        this.apiURL = apiURL;
+    	super(apiURL, namespace, authToken, verbose);
         this.bldCfg = bldCfg;
-        this.namespace = namespace;
-        this.authToken = authToken;
-        this.verbose = verbose;
         this.checkForTriggeredDeployments = checkForTriggeredDeployments;
     }
 
 	public String getBldCfg() {
 		return bldCfg;
 	}
-    
+	
+	public String getBldCfg(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("bldCfg"))
+			return overrides.get("bldCfg");
+		else return getBldCfg();
+	}
+
 	public String getCheckForTriggeredDeployments() {
 		return checkForTriggeredDeployments;
 	}
 	
-	protected List<String> getBuildIDs(IClient client) {
-		List<IBuild> blds = client.list(ResourceKind.BUILD, namespace);
+	public String getCheckForTriggeredDeployments(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("checkForTriggeredDeployments"))
+			return overrides.get("checkForTriggeredDeployments");
+		else return getCheckForTriggeredDeployments();
+	}
+
+	protected List<String> getBuildIDs(IClient client, Map<String,String> overrides) {
+		List<IBuild> blds = client.list(ResourceKind.BUILD, getNamespace(overrides));
 		List<String> ids = new ArrayList<String>();
 		for (IBuild bld : blds) {
-			if (bld.getName().startsWith(bldCfg)) {
+			if (bld.getName().startsWith(getBldCfg(overrides))) {
 				ids.add(bld.getName());
 			}
 		}
@@ -75,18 +83,18 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 	}
 	
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env) {
-		boolean chatty = Boolean.parseBoolean(verbose);
+			EnvVars env, Map<String,String> overrides) {
+		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
 		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
-    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, bldCfg, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));
     	
     	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME);
+    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
     	if (client != null) {
 			if (chatty)
 				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
-			List<String> ids = getBuildIDs(client);
+			List<String> ids = getBuildIDs(client, overrides);
 			
 			String bldId = getLatestBuildID(ids);
 			
@@ -95,7 +103,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 			else
 				listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY, bldId));
 				
-			return this.verifyBuild(System.currentTimeMillis(), getDescriptor().getWait(), client, bldCfg, bldId, namespace, chatty, listener, DISPLAY_NAME, checkDeps);
+			return this.verifyBuild(System.currentTimeMillis(), getDescriptor().getWait(), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps);
     				        		
     	} else {
     		return false;

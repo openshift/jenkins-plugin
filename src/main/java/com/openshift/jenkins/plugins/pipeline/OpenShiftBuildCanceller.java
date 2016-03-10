@@ -3,7 +3,6 @@ import hudson.EnvVars;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
-import hudson.model.Result;
 import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;
@@ -26,51 +25,55 @@ import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 	
 	protected final static String DISPLAY_NAME = "Cancel OpenShift Builds";
 	
-    protected String bldCfg;    
+    protected final String bldCfg;    
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftBuildCanceller(String apiURL, String namespace, String authToken, String verbose, String bldCfg) {
-        this.apiURL = apiURL;
-        this.namespace = namespace;
-        this.authToken = authToken;
-        this.verbose = verbose;
+    	super(apiURL, namespace, authToken, verbose);
         this.bldCfg = bldCfg;
     }
 
     public String getBldCfg() {
     	return bldCfg;
     }
+    
+    public String getBldCfg(Map<String,String> overrides) {
+    	if (overrides != null && overrides.containsKey("bldCfg"))
+    		return overrides.get("bldCfg");
+    	return getBldCfg();
+    }
 	
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env) {
+			EnvVars env, Map<String,String> overrides) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 				
-    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, bldCfg, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));
 		
     	// get oc client 
-    	IClient client = getClient(listener, DISPLAY_NAME);
+    	IClient client = getClient(listener, DISPLAY_NAME, overrides);
     	
     	if (client != null) {
 			try {
-				List<IBuild> list = client.list(ResourceKind.BUILD, namespace);
+				List<IBuild> list = client.list(ResourceKind.BUILD, getNamespace(overrides));
 				int count = 0;
 				for (IBuild bld : list) {
 					String phaseStr = bld.getStatus();
 					
 					// if build active, let's cancel it
 					String buildName = bld.getName();
-					if (buildName.startsWith(bldCfg) && !phaseStr.equalsIgnoreCase("Complete") && !phaseStr.equalsIgnoreCase("Failed") && !phaseStr.equalsIgnoreCase("Cancelled")) {
+					if (buildName.startsWith(getBldCfg(overrides)) && !phaseStr.equalsIgnoreCase("Complete") && !phaseStr.equalsIgnoreCase("Failed") && !phaseStr.equalsIgnoreCase("Cancelled")) {
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftBuildCanceller found active build " + buildName);
 						
 						// re-get bld (etcd employs optimistic update)
-						bld = client.get(ResourceKind.BUILD, buildName, namespace);
+						bld = client.get(ResourceKind.BUILD, buildName, getNamespace(overrides));
 						
 						// call cancel api
 	    				bld.accept(new CapabilityVisitor<IBuildCancelable, IBuild>() {

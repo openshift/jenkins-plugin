@@ -13,7 +13,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IService;
@@ -22,43 +21,44 @@ import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 import java.net.Socket;
-import java.net.URL;
-import java.net.URLConnection;
+import java.util.Map;
 
 public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
 
 	protected final static String DISPLAY_NAME = "Verify OpenShift Service";
 	
-    protected String svcName = "frontend";
+    protected final String svcName;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftServiceVerifier(String apiURL, String svcName, String namespace, String authToken, String verbose) {
-        this.apiURL = apiURL;
+    	super(apiURL, namespace, authToken, verbose);
         this.svcName = svcName;
-        this.namespace = namespace;
-        this.authToken = authToken;
-        this.verbose = verbose;
     }
 
 	public String getSvcName() {
 		return svcName;
 	}
+	
+	public String getSvcName(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("svcName"))
+			return overrides.get("svcName");
+		return getSvcName();
+	}
 
-    public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env) {
-		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println(String.format(MessageConstants.START_SERVICE_VERIFY, DISPLAY_NAME, svcName, namespace));
+    public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env, Map<String,String> overrides) {
+		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+    	listener.getLogger().println(String.format(MessageConstants.START_SERVICE_VERIFY, DISPLAY_NAME, getSvcName(overrides), getNamespace(overrides)));
     	
     	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME);
+    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	String spec = null;
     	
     	if (client != null) {
         	// get Service
-        	IService svc = client.get(ResourceKind.SERVICE, svcName, namespace);
+        	IService svc = client.get(ResourceKind.SERVICE, getSvcName(overrides), getNamespace(overrides));
         	String ip = svc.getPortalIP();
         	int port = svc.getPort();
         	spec = ip + ":" + port;

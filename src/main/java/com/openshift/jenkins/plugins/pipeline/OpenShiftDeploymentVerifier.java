@@ -13,7 +13,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.model.ReplicationController;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
@@ -22,25 +21,23 @@ import com.openshift.restclient.model.IReplicationController;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 
 	protected final static String DISPLAY_NAME = "Verify OpenShift Deployment";
 	
-    protected String depCfg = "frontend";
-    protected String replicaCount = "0";
-    protected String verifyReplicaCount = "false";
+    protected final String depCfg;
+    protected final String replicaCount;
+    protected final String verifyReplicaCount;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose, String verifyReplicaCount) {
-        this.apiURL = apiURL;
+    	super(apiURL, namespace, authToken, verbose);
         this.depCfg = depCfg;
-        this.namespace = namespace;
         this.replicaCount = replicaCount;
-        this.authToken = authToken;
-        this.verbose = verbose;
         this.verifyReplicaCount = verifyReplicaCount;
     }
 
@@ -48,34 +45,52 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 		return depCfg;
 	}
 
+	public String getDepCfg(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("depCfg"))
+			return overrides.get("depCfg");
+		return getDepCfg();
+	}
+	
 	public String getReplicaCount() {
 		return replicaCount;
+	}
+	
+	public String getReplicaCount(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("replicaCount"))
+			return overrides.get("replicaCount");
+		return getReplicaCount();
 	}
 	
 	public String getVerifyReplicaCount() {
 		return verifyReplicaCount;
 	}
 	
+	public String getVerifyReplicaCount(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("verifyReplicaCount"))
+			return overrides.get("verifyReplicaCount");
+		return getVerifyReplicaCount();
+	}
+	
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env) {
-    	boolean chatty = Boolean.parseBoolean(verbose);
-    	boolean checkCount = Boolean.parseBoolean(verifyReplicaCount);
-    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, depCfg, namespace));
+			EnvVars env, Map<String,String> overrides) {
+    	boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+    	boolean checkCount = Boolean.parseBoolean(getVerifyReplicaCount(overrides));
+    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
     	
     	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME);
+    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
     	if (client != null) {
         	// explicitly set replica count, save that
         	int count = -1;
-        	if (checkCount && replicaCount != null && replicaCount.length() > 0)
-        		count = Integer.parseInt(replicaCount);
+        	if (checkCount && getReplicaCount(overrides) != null && getReplicaCount(overrides).length() > 0)
+        		count = Integer.parseInt(getReplicaCount(overrides));
         		
 
         	if (!checkCount)
-        		listener.getLogger().println(String.format(MessageConstants.WAITING_ON_DEPLOY, depCfg));
+        		listener.getLogger().println(String.format(MessageConstants.WAITING_ON_DEPLOY, getDepCfg(overrides)));
         	else
-        		listener.getLogger().println(String.format(MessageConstants.WAITING_ON_DEPLOY_PLUS_REPLICAS, depCfg, replicaCount));        	
+        		listener.getLogger().println(String.format(MessageConstants.WAITING_ON_DEPLOY_PLUS_REPLICAS, getDepCfg(overrides), getReplicaCount(overrides)));        	
 			
 			// confirm the deployment has kicked in from completed build;
         	// in testing with the jenkins-ci sample, the initial deploy after
@@ -88,7 +103,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 				listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getDescriptor().getWait());
 			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
 				// refresh dc first
-				IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+				IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
 				
 				if (dc != null) {
 					// if replicaCount not set, get it from config
@@ -98,7 +113,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 					if (chatty)
 						listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + dc.getLatestVersionNumber());
 									
-					IReplicationController rc = getLatestReplicationController(dc, client);
+					IReplicationController rc = getLatestReplicationController(dc, client, overrides);
 						
 					if (rc != null) {
 						if (chatty)
@@ -107,7 +122,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 						depId = rc.getName();
 						// first check state
 		        		if (state.equalsIgnoreCase("Failed")) {
-	        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, depCfg, state));
+	        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, getDepCfg(overrides), state));
 		        			return false;
 		        		}
 						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
@@ -118,7 +133,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 		        		
 					}
 				} else {
-		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, depCfg));
+		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
 	    			return false;
 				}
 													        										
@@ -137,7 +152,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
         		return true;
         	} else {
         		if (checkCount)
-        			listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_VERIFY_BAD_REPLICAS_BAD, DISPLAY_NAME, depId, replicaCount));
+        			listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_VERIFY_BAD_REPLICAS_BAD, DISPLAY_NAME, depId, getReplicaCount(overrides)));
         		else
     		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, depId, state));
     	    	return false;

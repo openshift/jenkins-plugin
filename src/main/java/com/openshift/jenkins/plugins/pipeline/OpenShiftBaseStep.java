@@ -6,7 +6,6 @@ import java.io.Serializable;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import jenkins.tasks.SimpleBuildStep;
-import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -17,13 +16,20 @@ import hudson.tasks.Builder;
 
 public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildStep, Serializable, IOpenShiftPlugin {
 	
-    protected String apiURL;
-    protected String namespace;
-    protected String authToken;
-    protected String verbose;
+    protected final String apiURL;
+    protected final String namespace;
+    protected final String authToken;
+    protected final String verbose;
     // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
     protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
+    
+    protected OpenShiftBaseStep(String apiURL, String namespace, String authToken, String verbose) {
+    	this.apiURL = apiURL;
+    	this.namespace = namespace;
+    	this.authToken = authToken;
+    	this.verbose = verbose;
+    }
 
     public String getApiURL() {
 		return apiURL;
@@ -61,16 +67,6 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
 		this.bearerToken = token;
 	}
 
-	@Override
-	public void setApiURL(String apiURL) {
-		this.apiURL = apiURL;
-	}
-
-	@Override
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
-    
 	@Override
 	public String getBaseClassName() {
 		return OpenShiftBaseStep.class.getName();

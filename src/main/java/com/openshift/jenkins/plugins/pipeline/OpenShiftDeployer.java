@@ -13,7 +13,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.restclient.ClientFactory;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
@@ -22,31 +21,35 @@ import com.openshift.restclient.model.IReplicationController;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class OpenShiftDeployer extends OpenShiftBaseStep {
 
 	protected final static String DISPLAY_NAME = "Trigger OpenShift Deployment";
 	
-    protected String depCfg = "frontend";
+    protected final String depCfg;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose) {
-        this.apiURL = apiURL;
+    	super(apiURL, namespace, authToken, verbose);
         this.depCfg = depCfg;
-        this.namespace = namespace;
-        this.authToken = authToken;
-        this.verbose = verbose;
     }
 
 	public String getDepCfg() {
 		return depCfg;
 	}
 
-	protected boolean bumpVersion(IDeploymentConfig dc, IClient client, TaskListener listener) {
+	public String getDepCfg(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("depCfg"))
+			return overrides.get("depCfg");
+		return getDepCfg();
+	}
+	
+	protected boolean bumpVersion(IDeploymentConfig dc, IClient client, TaskListener listener, Map<String,String> overrides) {
 		int latestVersion = dc.getLatestVersionNumber() + 1;
-		boolean chatty = Boolean.parseBoolean(verbose);
+		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
 		try {
 			dc.setLatestVersionNumber(latestVersion);
 			client.update(dc);
@@ -62,12 +65,12 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
 	}
 	
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env) {
-		boolean chatty = Boolean.parseBoolean(verbose);
-    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, depCfg, namespace));
+			EnvVars env, Map<String,String> overrides) {
+		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
     	
     	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME);
+    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
     	if (client != null) {
         	if (chatty)
@@ -80,15 +83,15 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
 	    	IDeploymentConfig dc = null;
 			IReplicationController rc = null; 
 			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-        		dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, depCfg, namespace);
+        		dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
         		if (dc != null) {
         			if (!versionBumped) {
         				// allow some retry in case the dc creation request happened before this step ran
-        				versionBumped = bumpVersion(dc, client, listener);
+        				versionBumped = bumpVersion(dc, client, listener, overrides);
         			}
         			
     				try {
-    					rc = this.getLatestReplicationController(dc, client);
+    					rc = this.getLatestReplicationController(dc, client, overrides);
     					if (chatty)
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
     					if (rc != null) {
@@ -131,7 +134,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
 		    	if (dc != null)
 		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_TRIGGER_TIMED_OUT, DISPLAY_NAME, rc.getName(), state));
 		    	else
-		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, depCfg));
+		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
         		return false;
         	}
 

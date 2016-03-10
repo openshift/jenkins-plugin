@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import com.openshift.restclient.ClientFactory;
@@ -28,7 +29,19 @@ public interface IOpenShiftPlugin {
 	
 	String getAuthToken();
 	
+	default String getAuthToken(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("authToken"))
+			return overrides.get("authToken");
+		return getAuthToken();
+	}
+	
 	String getVerbose();
+	
+	default String getVerbose(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("verbose"))
+			return overrides.get("verbose");
+		return getVerbose();
+	}
 	
 	Auth getAuth();
 	
@@ -40,28 +53,44 @@ public interface IOpenShiftPlugin {
 	
 	public String getApiURL();
 	
+	default String getApiURL(Map<String,String> overrides) {
+		String val = null;
+		if (overrides != null && overrides.containsKey("apiURL")) {
+			val = overrides.get("apiURL");
+		} else {
+			val = getApiURL();
+		}
+		if (val != null && !val.startsWith("https://"))
+			val = "https://" + val;
+		return val;
+	}
+	
 	public String getNamespace();
 	
-	void setApiURL(String apiURL);
+	default String getNamespace(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("namespace"))
+			return overrides.get("namespace");
+		return getNamespace();
+	}
 	
-	void setNamespace(String namespace);
-	    	
-	boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env);
+	boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env, Map<String,String> overrides);
 	
-	default IClient getClient(TaskListener listener, String displayName) {
-    	IClient client = new ClientFactory().create(getApiURL(), getAuth());
+	default IClient getClient(TaskListener listener, String displayName, Map<String,String> overrides) {
+    	IClient client = new ClientFactory().create(getApiURL(overrides), getAuth());
     	if (client != null) {
         	client.setAuthorizationStrategy(getToken());    		
     	} else {
-	    	listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL()));
+	    	listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
     	}
     	return client;
 	}
 	
-	default IReplicationController getLatestReplicationController(IDeploymentConfig dc, IClient client) {
+	default IReplicationController getLatestReplicationController(IDeploymentConfig dc, IClient client, Map<String,String> overrides) {
 		int latestVersion = dc.getLatestVersionNumber();
+		if (latestVersion == 0)
+			return null;
 		String repId = dc.getName() + "-" + latestVersion;
-		return client.get(ResourceKind.REPLICATION_CONTROLLER, repId, getNamespace());
+		return client.get(ResourceKind.REPLICATION_CONTROLLER, repId, getNamespace(overrides));
 	}
 	
 	//TODO move to openshift-restclient-java IReplicationController
@@ -90,14 +119,10 @@ public interface IOpenShiftPlugin {
     	if (chatty)
     		listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + env);
 		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(env, listener, chatty);
-		try {
-			pullDefaultsIfNeeded(env, overrides, listener);
-			setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(), env));
-	    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(), listener, chatty)));
-			return coreLogic(launcher, listener, env);
-		} finally {
-			this.restoreOverridenFields(overrides, listener);			
-		}
+		pullDefaultsIfNeeded(env, overrides, listener);
+		setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), env));
+    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(overrides), listener, chatty)));
+		return coreLogic(launcher, listener, env, overrides);
 	}
 
 	default void doIt(Run<?, ?> run, FilePath workspace, Launcher launcher,
@@ -114,24 +139,20 @@ public interface IOpenShiftPlugin {
     default void pullDefaultsIfNeeded(EnvVars env, HashMap<String,String> overrides, TaskListener listener) {
     	boolean chatty = Boolean.parseBoolean(getVerbose());
     	if (chatty)
-    		listener.getLogger().println(" before apiURL " + getApiURL() + " namespace " + getNamespace() + " env " + env);
-		if (getApiURL() == null || getApiURL().length() == 0) {
-			overrides.put("apiURL", getApiURL());
-			if (env != null)
-				setApiURL(env.get("KUBERNETES_SERVICE_HOST"));
-			if (getApiURL() == null || getApiURL().length() == 0)
-				setApiURL("https://openshift.default.svc.cluster.local");
+    		listener.getLogger().println(" before pull defaults apiURL " + getApiURL() + " namespace " + getNamespace() + " env " + env);
+		if ((getApiURL() == null || getApiURL().length() == 0) && !overrides.containsKey("apiURL")) {
+			if (env != null && env.containsKey("KUBERNETES_SERVICE_HOST")) {
+				overrides.put("apiURL", env.get("KUBERNETES_SERVICE_HOST"));
+			} else
+				overrides.put("apiURL", "https://openshift.default.svc.cluster.local");
 		}
-		if (getApiURL() != null && !getApiURL().startsWith("https://"))
-			setApiURL("https://" + getApiURL());
 		
-		if (getNamespace() == null || getNamespace().length() == 0) {
-			overrides.put("namespace", getNamespace());
-			setNamespace(env.get("PROJECT_NAME"));
+		if ((getNamespace() == null || getNamespace().length() == 0) && !overrides.containsKey("namespace")) {
+			overrides.put("namespace", env.get("PROJECT_NAME"));
 		}
 		
     	if (chatty)
-    		listener.getLogger().println(" after apiURL " + getApiURL() + " namespace " + getNamespace());
+    		listener.getLogger().println(" after pull defaults " + overrides);
     }
 
 	
@@ -152,8 +173,7 @@ public interface IOpenShiftPlugin {
 			if (chatty)
 				listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
 			if (envval != null && envval.length() > 0) {
-				f.set(this, envval);
-				overridenFields.put(f.getName(), (String)val);
+				overridenFields.put(f.getName(), envval);
 			}
 		}
     	return overridenFields;

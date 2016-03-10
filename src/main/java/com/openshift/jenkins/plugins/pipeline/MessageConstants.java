@@ -80,6 +80,7 @@ public static final String EXIT_DEPLOY_RELATED_PLUGINS_GOOD_REPLICAS_IGNORED = "
 public static final String EXIT_DEPLOY_CANCEL_GOOD_NOOP = "\n\nExiting \"" + OpenShiftDeployCanceller.DISPLAY_NAME + "\" successfully; the deployment \"%s\" is not in-progress; its status is:  [%s].";
 public static final String EXIT_DEPLOY_CANCEL_GOOD_DIDIT = "\n\nExiting \"" + OpenShiftDeployCanceller.DISPLAY_NAME + "\" successfully; the deployment \"%s\" has been cancelled.";
 public static final String EXIT_DEPLOY_CANCEL_BAD_NO_REPCTR = "\n\nExiting \"" + OpenShiftDeployCanceller.DISPLAY_NAME + "\" unsuccessfully; the latest deployment for \"%s\" could not be retrieved.";
+public static final String EXIT_DEPLOY_CANCEL_GOOD_NO_REPCTR = "\n\nExiting \"" + OpenShiftDeployCanceller.DISPLAY_NAME + "\" successfully; there no deployments yet for \"%s\".";
 
 /*
  * These messages are for the "Trigger OpenShift Deployment" jenkins build step implemented by OpenShiftDeployer
