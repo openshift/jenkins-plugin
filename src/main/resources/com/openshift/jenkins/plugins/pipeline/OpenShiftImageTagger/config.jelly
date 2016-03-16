@@ -25,11 +25,17 @@
   <f:entry title="The name of the ImageStream for the new image tag" field="prodStream">
     <f:textbox  />
   </f:entry>
-  <f:entry title="The name of the project the image is stored in" field="namespace">
-    <f:textbox  />
+  <f:entry title="The name of the project for the current image tag" field="namespace">
+    <f:textbox />
   </f:entry>
-  <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
-    <f:textbox  />
+  <f:entry title="The name of the project for the new image tag" field="destinationNamespace">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="The authorization token for interacting with OpenShift (when in the same project as Jenkins)" field="authToken">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="The authorization token for interacting with OpenShift (if the new tag is targeted for a project external to the project hosting Jenkins)" field="destinationAuthToken">
+    <f:textbox />
   </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
     <f:booleanRadio default="false" />

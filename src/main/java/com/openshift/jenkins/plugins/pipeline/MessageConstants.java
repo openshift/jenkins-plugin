@@ -11,8 +11,9 @@ public class MessageConstants {
  * - when a specific input parameter is displayed	
  */
 	
-// shared across all the plugins
+// sharable across all the plugins
 public static final String CANNOT_GET_CLIENT = "\n\nExiting \"%s\" unsuccessfully; a client connection to \"%s\" could not be obtained.";
+public static final String EXIT_OK = "\n\nExiting \"%s\" successfully.";
 
 /*
  * These messages are shared between "Trigger OpenShift Build" jenkins build step implemented by OpenShiftBuilder,
@@ -121,8 +122,9 @@ public static final String SCM_NO_CHANGE = "\n\n No revision change found this p
 /*
  * These messages are for the "Tag OpenShift Image" jenkins build step implemented by OpenShiftImageTagger
  */
-public static final String START_TAG = "\n\nStarting \"%s\" with the source [image stream:tag] \"%s:%s\" and destination [image stream:tag] \"%s:%s\" from the project \"%s\".";
-public static final String EXIT_OK = "\n\nExiting \"%s\" successfully.";
+public static final String START_TAG = "\n\nStarting \"" + OpenShiftImageTagger.DISPLAY_NAME + "\" with the source [image stream:tag] \"%s:%s\" from the project \"%s\" and destination [image stream:tag] \"%s:%s\" from the project \"%s\".";
+public static final String EXIT_TAG_CANNOT_CREATE_DEST_IS = "\n\nExiting \"" + OpenShiftImageTagger.DISPLAY_NAME + "\" unsuccessfully; could not create the image stream \"%s\" in the project \"%s\".";
+public static final String EXIT_TAG_CANNOT_GET_IS = "\n\nExiting \"" + OpenShiftImageTagger.DISPLAY_NAME + "\" unsuccessfully; could not retrieve the image stream \"%s\" from the project \"%s\".";
 
 /*
  * These messages are for the "Verify OpenShift Service" jenkins build step implemented by OpenShiftServiceVerifier

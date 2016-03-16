@@ -25,6 +25,11 @@ A series of Jenkins "build step" implementations are provided, which you can sel
 
 5. "Tag OpenShift Image": performs the equivalent of an `oc tag` command invocation in order to manipulate tags for images in OpenShift ImageStream's.
 
+NOTE:  this operation allows for image tagging between ImageStream's in different OpenShift projects.  However, you need to handle a couple of things with regard to permissions.  Either:
+
+	- Grant permission to the token from the project Jenkins is running in (i.e. the default token discussed below);  for example, if Jenkins is running in the project "test", and you want to tag an ImageStream running in the project "test2", run the command `oc policy add-role-to-user edit system:serviceaccount:test:default -n test2`
+	- Or supply the token for the `default` service account for project "test2" as the destination token in the step's UI, and give that token permission to access project "test" by running the command `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
+
 6. "Verify OpenShift Deployment":  determines whether the expected set of DeploymentConfig's, ReplicationController's, and if desired active replicas are present based on prior use of either the "Scale OpenShift Deployment" (2) or "Trigger OpenShift Deployment" (3) steps; its activities specifically include:
 
    - it first confirms the specified deployment config exists.

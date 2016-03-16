@@ -146,6 +146,10 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
     	listener.getLogger().println(String.format(MessageConstants.START_CREATE_OBJS, getNamespace(overrides)));
     	
+    	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
+    	// so we set up our own trust manager like we used to do in order to verify the server cert
+    	Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
+    	
     	// construct json/yaml node
     	ModelNode resources = ModelNode.fromJSONString(getJsonyaml(overrides));
     	    	
