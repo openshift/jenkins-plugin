@@ -25,11 +25,6 @@ A series of Jenkins "build step" implementations are provided, which you can sel
 
 5. "Tag OpenShift Image": performs the equivalent of an `oc tag` command invocation in order to manipulate tags for images in OpenShift ImageStream's.
 
-NOTE:  this operation allows for image tagging between ImageStream's in different OpenShift projects.  However, you need to handle a couple of things with regard to permissions.  Either:
-
-	- Grant permission to the token from the project Jenkins is running in (i.e. the default token discussed below);  for example, if Jenkins is running in the project "test", and you want to tag an ImageStream running in the project "test2", run the command `oc policy add-role-to-user edit system:serviceaccount:test:default -n test2`
-	- Or supply the token for the `default` service account for project "test2" as the destination token in the step's UI, and give that token permission to access project "test" by running the command `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
-
 6. "Verify OpenShift Deployment":  determines whether the expected set of DeploymentConfig's, ReplicationController's, and if desired active replicas are present based on prior use of either the "Scale OpenShift Deployment" (2) or "Trigger OpenShift Deployment" (3) steps; its activities specifically include:
 
    - it first confirms the specified deployment config exists.
@@ -80,7 +75,39 @@ As a point of reference, here are the Java classes for each of the Jenkins "buil
 
 ## Common aspects across the REST based functions (build steps, SCM, post-build actions)
 
-For all of these, with each required parameter, a default value is provided where it makes sense.  Optional parameters can be left blank.  And each parameter field has help text available via clicking the help icon located just right of the parameter input field.
+### Authorization
+
+In order for this plugin to operate against OpenShift resources, the OpenShift service account that is used will need to have the necessary role and permissions.  In particular, you will need to add the `edit` role to the `default` service account in the project those resources are located in.  
+
+For example, in the case of the `test` project, the specific command will be:  `oc policy add-role-to-user edit system:serviceaccount:test:default`
+
+If that project is also where Jenkins is running out of, and hence you are using the OpenShift Jenkins image (https://github.com/openshift/jenkins), then the bearer authorization token associated with that service account is already made available to the plugin (mounted into the container Jenkins is running in at "/run/secrets/kubernetes.io/serviceaccount/token").
+
+Next, in the case of "Tag OpenShift Image", you could potentially wish to access two projects (the source and destination image streams can be in different projects with `oc tag`).  If so, the service account and associated token need access to both projects.  This can 
+be done in one of two ways:
+
+- Grant permission to the service account token from the project Jenkins is running in (i.e. the default token just described) to the second project; for example, if Jenkins is running in the project `test`, and you want to tag an ImageStream running in the project `test2`, run the command `oc policy add-role-to-user edit system:serviceaccount:test:default -n test2`
+- Or supply the token for the `default` service account for project `test2` as the destination token in the step's UI, and give that token permission to access project `test` by running the command `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
+
+Finally, outside of the default token mounted into the OpenShift Jenkins image container, the token can be provided by the user via the following:
+
+- the field for the token in the specific build step
+- if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Project panel, where the value is the token
+- if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
+
+### Certificates and Encrpytion
+
+For the certificate, when running in the OpenShift Jenkins image, the CA certificate by default is pulled from the well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt") where OpenShift mounts it, and then is stored into the Java KeyStore and X.509 TrustManager for subsequent verification against the OpenShift server on all subsequent interactions.  If you wish to override the certificate used:
+
+- For all steps of a given project, set a build parameter (again, of type `Text Parameter`)  named `CA_CERT` to the string needed to construct the certificate.
+- Since `Text Parameter` input fields are not available with the global key/value properties, the plug-in does not support defining certificates via a `CA_CERT` property across Jenkins projects.
+
+If you want to skip TLS verification and allow for untrusted certificates, set the named parameter `SKIP_TLS` to any value.  Since this can be done with a Jenkins `String Parameter`, you can use this at either the global or project level. 
+
+
+### Providing parameter values
+
+For each of the steps and actions provided, with each required parameter, a default value will be inferred whenever possible if the field is left blank (specifics on this are further down in this section).  Optional parameters can be left blank as well.  And each parameter field has help text available via clicking the help icon located just right of the parameter input field.
 
 Also, when processing any provided values for any of the parameters, the plugin will first see if that value, when used as as key, retrieves a non-null, non-empty value from the Jenkins build environment parameters.  If so, the plugin will substitute that value retrieved from the Jenkins build environment parameters in place of what was provided in the input field.
 
@@ -103,28 +130,13 @@ And then how you would run the project, specifying a valid value for the paramet
 
 An examination of the configuration fields for each type of the build steps will quickly discover that there are some common configuration parameters across the build steps.  These common parameters included:
 - the URL of the OpenShift API Endpoint
-- the name of the OpenShift project (or namespace in Kubernetes terminology)
+- the name of the OpenShift project
 - whether to turn on verbose logging (off by default)
 - the bearer authentication token
 
-For the API Endpoint and Project name, any value specified for the specific step takes precedence.  That value can be either the actual value needed to connect, or as articulated above, a Jenkins build environment parameter.  But if no value is set, then OpenShift Pipeline plugin will inspect the environment variable available to the OpenShift Jenkins image (where the name of the variable for the endpoint is `KUBERNETES_SERVICE_HOST` and for the project is `PROJECT_NAME`).  In the case of the API Endpoint, if a non-null, non-empty value is still not obtained after checking the environment variable, the plugin will try to communicate with "https://openshift.default.svc.cluster.local".  Note that with the "OpenShift ImageStreams" SCM plug-in, these environment variables will not be available when running in the background polling mode.
+For the API Endpoint and Project name, any value specified for the specific step takes precedence.  That value can be either the actual value needed to connect, or as articulated above, a Jenkins build environment parameter.  But if no value is set, then OpenShift Pipeline plugin will inspect the environment variable available to the OpenShift Jenkins image (where the name of the variable for the endpoint is `KUBERNETES_SERVICE_HOST` and for the project is `PROJECT_NAME`).  In the case of the API Endpoint, if a non-null, non-empty value is still not obtained after checking the environment variable, the plugin will try to communicate with "https://openshift.default.svc.cluster.local".  Note that with the "OpenShift ImageStreams" SCM plug-in, these environment variables will not be available when running in the background polling mode (though they are available when that step runs as part of an explicit project build).
 
-Next, the bearer authentication token can be provided by the user via the following:
-
-- the field for the token in the specific build step
-- if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Project panel, where the value is the token
-- if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
-
-Otherwise, the plugin will assume you are running off of the OpenShift Jenkins Docker image (http://github.com/openshift/jenkins), and will read in the token from a well known location ("/run/secrets/kubernetes.io/serviceaccount/token") in the image that allows authorized access to the OpenShift master associated with the running OpenShift Jenkins image.
-
-For the certificate, when running in the OpenShift Jenkins image, the CA certificate by default is pulled from the well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt") where OpenShift mounts it, and then is stored into the Java KeyStore and X.509 TrustManager for subsequent verification against the OpenShift server on all subsequent interactions.  If you wish to override the certificate used, you can either:
-
-- For all steps of a given project, set a build parameter (again, of type `Text Parameter`)  named `CA_CERT` to the string needed to construct the certificate, and you can then leave the input field of any applicable steps blank
-- Since `Text Parameter` input fields are not available with the global key/value properties, the plug-in does not support defining certificates via a `CA_CERT` property across Jenkins projects.
-
-If you want to skip TLS verification and allow for untrusted certificates, set the named parameter `SKIP_TLS` to any value. 
-
-For "Monitor OpenShift ImageStreams", note that project level build parameters will not be available with the background polling processing (though they are available when that step runs as part of an explicit project build).
+### Communication Timeouts 
 
 The default timeouts for the various interactions with the OpenShift API endpoint are also configurable for those steps that have to wait on results.  Overriding the timeouts are currently done globally across all instances of a given build step or post-build step.  Go to the "Configure System" panel under "Manage Jenkins" of the Jenkins UI (i.e. http://<host:port>/configure), and then change the "Wait interval" for the item of interest.  Similarly, the OpenShift Service Verification has a retry count for attempts to contact the OpenShift Service successfully.
 
