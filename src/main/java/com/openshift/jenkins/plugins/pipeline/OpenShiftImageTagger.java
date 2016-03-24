@@ -198,22 +198,9 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
         	}
         	
         	// tag image
-//        	destIS.addTag(getProdTag(overrides), "ImageStreamImage", srcImageID);
-        	// cannot use destIS.addTag because it does not let you change projects/namespaces
-			ModelNode node = ((ImageStream)destIS).getNode();
-			ModelNode spec = node.get("spec");
-			ModelNode tags = spec.get("tags");
-			ModelNode tag = new ModelNode();
-			tag.get("name").set(getProdTag(overrides));
-			ModelNode from = new ModelNode();
-			from.get("kind").set("ImageStreamImage");
-			from.get("name").set(srcImageID);
-			from.get("namespace").set(getNamespace(overrides));
-			tag.get("from").set(from);
-			tags.add(tag);
+        	destIS.addTag(getProdTag(overrides), "ImageStreamImage", srcImageID, getNamespace(overrides));
 			if (chatty)
-				listener.getLogger().println("\n updated image stream json " + node.toJSONString(false));
-        	
+				listener.getLogger().println("\n updated image stream json " + ((ImageStream)destIS).getNode().toJSONString(false));
 			client.update(destIS);
 			
 			
