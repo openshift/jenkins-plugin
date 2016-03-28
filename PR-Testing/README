@@ -1,0 +1,6 @@
+These files are leveraged by the pull-requests-openshift-pipeline-plugin job at https://ci.openshift.redhat.com/jenkins.
+A test image based off of the jenkins image at https://github.com/openshift/jenkins will be build with the dockerfile
+here and a built version of this PR stored in the PR-Testing/jpi file as "openshift-pipeline.jpi".
+The pull request job will then run the extended tests for the plugin located at https://github.com/openshift/origin.
+The pull request job will store the commit ID for the PR in the "commitID" file, which is read by the extended test
+and used to reference the test image.
