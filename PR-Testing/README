@@ -1,6 +1,10 @@
 These files are leveraged by the pull-requests-openshift-pipeline-plugin job at https://ci.openshift.redhat.com/jenkins.
-A test image based off of the jenkins image at https://github.com/openshift/jenkins will be build with the dockerfile
+A test image based off of the jenkins image at https://github.com/openshift/jenkins will be built with the Dockerfile
 here and a built version of this PR stored in the PR-Testing/jpi file as "openshift-pipeline.jpi".
-The pull request job will then run the extended tests for the plugin located at https://github.com/openshift/origin.
-The pull request job will store the commit ID for the PR in the "commitID" file, which is read by the extended test
+The pull request job will then run the extended tests for the plugin located at https://github.com/openshift/origin/test/extended/jenkins/plugin.go
+via https://github.com/openshift/origin/test/extended/core.sh --ginkgo.focus="openshift pipeline plugin".
+The pull request job will store the commit ID for the PR in the "commitID" file in this directory, which is read by the extended test
 and used to reference the test image.
+
+The extended test framework from openshift/origin will launch a OpenShift master and registry, and deploy the test image and run
+a predefined job that leverages the newly built plugin installed into the test image.
