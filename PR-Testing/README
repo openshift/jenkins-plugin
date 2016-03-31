@@ -1,6 +1,14 @@
-These files are leveraged by the pull-requests-openshift-pipeline-plugin job at https://ci.openshift.redhat.com/jenkins.
-A test image based off of the jenkins image at https://github.com/openshift/jenkins will be build with the dockerfile
-here and a built version of this PR stored in the PR-Testing/jpi file as "openshift-pipeline.jpi".
-The pull request job will then run the extended tests for the plugin located at https://github.com/openshift/origin.
-The pull request job will store the commit ID for the PR in the "commitID" file, which is read by the extended test
-and used to reference the test image.
+These files are leveraged by the test-openshift-pipeline-plugin job at https://ci.openshift.redhat.com/jenkins.
+A test image based off of the jenkins image at https://github.com/openshift/jenkins will be built with the dockerfile
+here and any openshift-pipeline.hpi file stored in the PR-Testing/jpi file as "openshift-pipeline.jpi".  In the case of
+the test-openshift-pipeline-plugin job, it will be the hpi file from your PR.  But you can also test any local changes
+you have to the plugin in the same way.
+
+The `docker build` command used, if run from the same directory as this README, and if an "openshift-pipeline.jpi" file
+exists in the "jpi" subdirectory, is:  docker build -f ./Dockerfile-jenkins-test-new-plugin -t openshift/jenkins-plugin-snapshot-test:latest .
+
+The next step is to  then run the extended tests for the plugin located at https://github.com/openshift/origin.
+From the top level directory of a clone of that repository, this command is run:  test/extended/core.sh --ginkgo.focus='openshift pipeline plugin' -ginkgo.v"
+
+That extended test typically verifies the functionality of the openshift-pipeline plugin installed into OpenShift's official jenkins image (see https://github.com/openshift/jenkins),
+but it will look for the local existence of the openshift/jenkins-plugin-snapshot-test:latest image, and if present, deploy and test against that image instead.

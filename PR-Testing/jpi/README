@@ -1,1 +1,2 @@
-The resulting openshift-pipelin.hpi from a PR at https://github.com/openshift/jenkins-plugin is copied here to be processed by a Docker build.
+Any openshift-pipelin.hpi to be tested is copied here as `openshift-pipeline.jpi` and then incorporated into a jenkins image built via a `docker build` using the Dockerfile in the parent directory to this directory.
+The resulting image can then be used for testing.
