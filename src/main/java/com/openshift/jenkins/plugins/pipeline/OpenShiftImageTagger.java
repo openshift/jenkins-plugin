@@ -134,6 +134,18 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 		
 		super.pullDefaultsIfNeeded(env, overrides, listener);
 	}
+	
+	public String deriveImageID(String testTag, IImageStream srcIS) {
+    	String srcImageID = srcIS.getImageId(testTag);
+    	if (srcImageID != null && srcImageID.length() > 0) {
+    		// translating an ImageStreamTag to an ImageStreamImage
+        	srcImageID = srcIS.getName() + "@" + (srcImageID.startsWith("sha256:") ? srcImageID.substring(7) : srcImageID);
+    	} else{
+    		// if the supplied parameter did not return a valid value as a tag, treat it as a ImageStreamImage
+    		srcImageID = srcIS.getName() + "@" + (testTag.startsWith("sha256:") ? testTag.substring(7) : testTag);
+    	}
+    	return srcImageID;
+	}
 
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
 			EnvVars env, Map<String,String> overrides) {
@@ -151,7 +163,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     			listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_CANNOT_GET_IS, getTestStream(overrides), getNamespace(overrides)));
     			return false;
     		}
-        	String srcImageID = getTestStream(overrides) + "@" + srcIS.getImageId(getTestTag(overrides)).substring(7); // starting at 7 lops off "sha256:"
+        	String srcImageID = deriveImageID(getTestTag(overrides), srcIS);
         	
         	if (chatty)
         		listener.getLogger().println("\n srcImageID " + srcImageID);
