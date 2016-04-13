@@ -13,6 +13,7 @@ import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
+import org.yaml.snakeyaml.Yaml;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
@@ -21,14 +22,10 @@ import com.openshift.restclient.IClient;
 
 import javax.servlet.ServletException;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -215,7 +212,24 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
 		importJsonOfApiTypes(chatty, listener, overrides, api, fetchApiJsonFromApiServer(chatty, listener, overrides, api));
     	
     	// construct json/yaml node
-    	ModelNode resources = ModelNode.fromJSONString(getJsonyaml(overrides));
+    	ModelNode resources = null;
+    	try {
+    		resources = ModelNode.fromJSONString(getJsonyaml(overrides));
+    	} catch (Exception e) {
+    	    Yaml yaml= new Yaml();
+    	    Map<String,Object> map = (Map<String, Object>) yaml.load(getJsonyaml(overrides));
+    	    JSONObject jsonObj = JSONObject.fromObject(map);
+    	    try {
+    	    	resources = ModelNode.fromJSONString(jsonObj.toString());
+    	    } catch (Throwable t) {
+    	    	if (chatty)
+    	    		t.printStackTrace(listener.getLogger());
+    	    }
+    	}
+    	
+    	if (resources == null) {
+    		return false;
+    	}
     	    	
     	//cycle through json and POST to appropriate resource
     	String kind = resources.get("kind").asString();

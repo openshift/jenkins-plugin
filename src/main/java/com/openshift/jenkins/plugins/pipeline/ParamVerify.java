@@ -3,11 +3,15 @@ package com.openshift.jenkins.plugins.pipeline;
 import hudson.util.FormValidation;
 
 import java.io.IOException;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 
+import net.sf.json.JSONObject;
+
 import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.QueryParameter;
+import org.yaml.snakeyaml.Yaml;
 
 public class ParamVerify {
 
@@ -51,7 +55,14 @@ public class ParamVerify {
         try {
         	ModelNode.fromJSONString(value);
         } catch (Throwable t) {
-        	return FormValidation.error("The input specified encountered the following parsing error:  " + t.getMessage());
+    	    try {
+        	    Yaml yaml= new Yaml();
+        	    Map<String,Object> map = (Map<String, Object>) yaml.load(value);
+        	    JSONObject jsonObj = JSONObject.fromObject(map);
+    	    	ModelNode.fromJSONString(jsonObj.toString());
+    	    } catch (Throwable t2) {
+                return FormValidation.error("Valid JSON or YAML must be specified");
+    	    }
         }
         return FormValidation.ok();
     }
