@@ -21,10 +21,14 @@ import com.openshift.restclient.IClient;
 
 import javax.servlet.ServletException;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,16 +37,19 @@ import java.util.Map;
 public class OpenShiftCreator extends OpenShiftBaseStep {
 	
 	protected final static String DISPLAY_NAME = "Create OpenShift Resource(s)";
+	//POST https://localhost:8443/apis/extensions/v1beta1/namespaces/test/jobs
+	//POST https://localhost:8443/oapi/v1/namespaces/test/imagestreams
+    protected final static String api = "/api";
+    protected final static String oapi = "/oapi";
+    protected final static String apis = "/apis";
     protected final String jsonyaml;
     
     private static final Map<String, String[]> apiMap;
     static
     {
-    	//POST https://localhost:8443/apis/extensions/v1beta1/namespaces/test/jobs
-    	//POST https://localhost:8443/oapi/v1/namespaces/test/imagestreams
-        String api = "/api";
-        String oapi = "/oapi";
-        String apis = "/apis";
+    	// a starter set of API endpoints, which will be updated via calls
+    	// to fetchApiJsonFromGithub(boolean, TaskListener, Map<String, String>, String)
+    	// and importJsonOfApiTypes(boolean, TaskListener, Map<String, String>, String, String)
 
         // OpenShift API endpoints
         apiMap = new HashMap<String, String[]>();
@@ -97,6 +104,61 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	return getJsonyaml();
     }
     
+    protected String fetchApiJsonFromApiServer(boolean chatty, TaskListener listener, 
+    		Map<String,String> overrides, String apiDomain) {
+    	URL url = null;
+    	try {
+			//url = new URL("https://raw.githubusercontent.com/openshift/origin/master/api/swagger-spec" + apiDomain + "-v1.json");
+    		url = new URL(this.getApiURL(overrides) + "/swaggerapi/" + apiDomain + "/v1");
+		} catch (MalformedURLException e) {
+			e.printStackTrace(listener.getLogger());
+			return null;
+		}
+    	try {
+    		return createHttpClient().get(url, 10 * 1000);
+		} catch (IOException e1) {
+			if (chatty)
+				e1.printStackTrace(listener.getLogger());
+			return null;
+		}
+    }
+    
+    protected void importJsonOfApiTypes(boolean chatty, TaskListener listener, 
+    		Map<String,String> overrides, String apiDomain, String json) {
+    	if (json == null)
+    		return;
+    	ModelNode oapis = ModelNode.fromJSONString(json);
+    	ModelNode apis = oapis.get("apis");
+    	List<ModelNode> apiList = apis.asList();
+    	for (ModelNode api : apiList) {
+    		String path = api.get("path").asString();
+    		ModelNode operations = api.get("operations");
+    		List<ModelNode> operationList = operations.asList();
+    		for (ModelNode operation : operationList) {
+    			String type = operation.get("type").asString();
+    			String method = operation.get("method").asString();
+    			if (type.startsWith("v1.") && method.equalsIgnoreCase("POST")) {
+    				String coreType = type.substring(3);
+    				if (!apiMap.containsKey(coreType)) {
+        				String typeStrForURL = null;
+        				String[] pathPieces = path.split("/");
+        				for (String pathPiece : pathPieces) {
+        					if (pathPiece.equalsIgnoreCase(coreType + "s")) {
+        						typeStrForURL = pathPiece;
+        						break;
+        					}
+        				}
+        				if (typeStrForURL != null) {
+        					if (chatty) listener.getLogger().println("\nOpenShiftCreator: adding from API server swagger endpoint new type " + coreType + " with url str " + typeStrForURL + " to domain " + apiDomain);
+        					apiMap.put(coreType, new String[]{apiDomain, typeStrForURL});
+        				}
+    				}
+    			}
+    		}
+    	}
+    	
+    }
+    
     protected boolean makeRESTCall(boolean chatty, TaskListener listener, String path, ModelNode resource, Map<String,String> overrides) {
 		String response = null;
 		URL url = null;
@@ -149,6 +211,8 @@ public class OpenShiftCreator extends OpenShiftBaseStep {
     	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
     	// so we set up our own trust manager like we used to do in order to verify the server cert
     	Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
+		importJsonOfApiTypes(chatty, listener, overrides, oapi, fetchApiJsonFromApiServer(chatty, listener, overrides, oapi));
+		importJsonOfApiTypes(chatty, listener, overrides, api, fetchApiJsonFromApiServer(chatty, listener, overrides, api));
     	
     	// construct json/yaml node
     	ModelNode resources = ModelNode.fromJSONString(getJsonyaml(overrides));
