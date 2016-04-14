@@ -167,12 +167,16 @@ public interface IOpenShiftPlugin {
 				continue;
 			if (!(val instanceof String))
 				continue;
-			String envval = env.get(val);
-			if (chatty)
-				listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
+			// strip leading $ if present
+			String str = (String)val;
+			if (str.startsWith("$"))
+				str = str.substring(1, str.length());
+			String envval = env.get(str);
 			if (envval != null && envval.length() > 0) {
 				overridenFields.put(f.getName(), envval);
 			}
+			if (chatty)
+				listener.getLogger().println("inspectBuildEnvAndOverrideFields for field " + key + " got val from build env " + envval);
 		}
     	return overridenFields;
     }
