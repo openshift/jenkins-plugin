@@ -31,6 +31,9 @@
   <f:entry title="Specify the name of a build which should be re-run" field="buildName">
     <f:textbox  />
   </f:entry>
+  <f:entry title="Build wait time" field="waitTime">
+    <f:textbox  />
+  </f:entry>
   <f:entry title="Pipe the build logs from OpenShift to the Jenkins console" field="showBuildLogs">
     <f:booleanRadio default="false" />
   </f:entry>

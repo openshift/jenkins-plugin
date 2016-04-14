@@ -48,6 +48,18 @@ public class ParamVerify {
         return FormValidation.ok();
     }
 
+    public static FormValidation doCheckCheckForWaitTime(@QueryParameter String value)
+            throws IOException, ServletException {
+        if (value.length() == 0)
+            return FormValidation.ok();
+        try {
+        	Long.parseLong(value);
+        } catch (Throwable t) {
+        	return FormValidation.error(t.getMessage());
+        }
+        return FormValidation.ok();
+    }
+
     public static FormValidation doCheckJsonyaml(@QueryParameter String value)
             throws IOException, ServletException {
         if (value.length() == 0)

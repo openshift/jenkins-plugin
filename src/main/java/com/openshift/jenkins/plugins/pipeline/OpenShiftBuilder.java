@@ -42,17 +42,19 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     protected final String buildName;
     protected final String showBuildLogs;
     protected final String checkForTriggeredDeployments;
+    protected final String waitTime;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs, String checkForTriggeredDeployments) {
+    public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs, String checkForTriggeredDeployments, String waitTime) {
     	super(apiURL, namespace, authToken, verbose);
         this.bldCfg = bldCfg;
         this.commitID = commitID;
         this.buildName = buildName;
         this.showBuildLogs = showBuildLogs;
         this.checkForTriggeredDeployments = checkForTriggeredDeployments;
+        this.waitTime = waitTime;
     }
 
 	public String getCommitID() {
@@ -104,7 +106,17 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 			return overrides.get("checkForTriggeredDeployments");
 		else return getCheckForTriggeredDeployments();
 	}
-
+	
+	public String getWaitTime() {
+		return waitTime;
+	}
+	
+	public String getWaitTime(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("waitTime"))
+			return overrides.get("waitTime");
+		else return getWaitTime();
+	}
+	
 	protected IBuild startBuild(IBuildConfig bc, IBuild prevBld, Map<String,String> overrides) {
 		IBuild bld = null;
 		if (bc != null) {
@@ -132,7 +144,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		return bld;
 	}
 	
-	protected void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides) {
+	protected void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides, long wait) {
 		IBuild bld = null;
 		String bldState = null;
 		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
@@ -146,7 +158,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 			
 		// get internal OS Java REST Client error if access pod logs while bld is in Pending state
 		// instead of Running, Complete, or Failed
-		while (System.currentTimeMillis() < (startTime + getDescriptor().getWait())) {
+		while (System.currentTimeMillis() < (startTime + wait)) {
 			bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
 			bldState = bld.getStatus();
 			if (Boolean.parseBoolean(getVerbose(overrides)))
@@ -166,7 +178,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 //		}
 	}
 	
-	protected void dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides) {
+	protected void dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides, long wait) {
 		// create stream and copy bytes
     	URL url = null;
     	try {
@@ -179,7 +191,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		urlClient.setAuthorizationStrategy(bearerToken);
 		String response = null;
 		try {
-			response = urlClient.get(url, (int) getDescriptor().getWait());
+			response = urlClient.get(url, (int) wait);
 		} catch (SocketTimeoutException e1) {
 			e1.printStackTrace(listener.getLogger());
 		} catch (HttpClientException e1) {
@@ -258,10 +270,15 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     				boolean foundPod = false;
     				startTime = System.currentTimeMillis();
 					if (chatty)
-						listener.getLogger().println("\nOpenShiftBuilder  wait time " + getDescriptor().getWait());
+						listener.getLogger().println("\nOpenShiftBuilder global wait time " + getDescriptor().getWait() + " and step specific " + getWaitTime(overrides));
+					
+					long wait = getDescriptor().getWait();
+					if (getWaitTime(overrides).length() > 0) {
+						wait = Long.parseLong(getWaitTime(overrides));
+					}
     				
     				// Now find build Pod, attempt to dump the logs to the Jenkins console
-    				while (!foundPod && startTime > (System.currentTimeMillis() - getDescriptor().getWait())) {
+    				while (!foundPod && startTime > (System.currentTimeMillis() - wait)) {
     					
     					// fetch current list of pods ... this has proven to not be immediate in finding latest
     					// entries when compared with say running oc from the cmd line
@@ -276,10 +293,10 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         						if (chatty)
         							listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
         						
-        							waitOnBuild(client, startTime, bldId, listener, overrides);
+        							waitOnBuild(client, startTime, bldId, listener, overrides, wait);
             						
             						if (follow)
-            							dumpLogs(bldId, listener, overrides);
+            							dumpLogs(bldId, listener, overrides, wait / 100);
     								
         					}
         					
@@ -299,7 +316,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     					return false;
     				}
     				
-    				return this.verifyBuild(startTime, getDescriptor().getWait(), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps);
+    				return this.verifyBuild(startTime, wait, client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps);
     				    				
     			}
         		
@@ -378,6 +395,11 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         public FormValidation doCheckCheckForTriggeredDeployments(@QueryParameter String value)
                 throws IOException, ServletException {
         	return ParamVerify.doCheckCheckForTriggeredDeployments(value);
+        }
+        
+        public FormValidation doCheckWaitTime(@QueryParameter String value)
+                throws IOException, ServletException {
+        	return ParamVerify.doCheckCheckForWaitTime(value);
         }
         
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
