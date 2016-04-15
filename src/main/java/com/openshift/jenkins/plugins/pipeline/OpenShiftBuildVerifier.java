@@ -41,7 +41,14 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
         this.checkForTriggeredDeployments = checkForTriggeredDeployments;
     }
 
+    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
+    // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
+    // of insuring nulls are not returned for field getters
+
 	public String getBldCfg() {
+		if (bldCfg == null)
+			return "";
 		return bldCfg;
 	}
 	
@@ -52,6 +59,8 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 	}
 
 	public String getCheckForTriggeredDeployments() {
+		if (checkForTriggeredDeployments == null)
+			return "";
 		return checkForTriggeredDeployments;
 	}
 	

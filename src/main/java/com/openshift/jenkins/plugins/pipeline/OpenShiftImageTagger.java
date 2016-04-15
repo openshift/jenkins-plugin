@@ -60,7 +60,14 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
         this.destinationNamespace = destinationNamespace;
     }
 
+    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
+    // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
+    // of insuring nulls are not returned for field getters
+
 	public String getTestTag() {
+		if (testTag == null)
+			return "";
 		return testTag;
 	}
 
@@ -71,6 +78,8 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 	}
 	
 	public String getProdTag() {
+		if (prodTag == null)
+			return "";
 		return prodTag;
 	}
 	
@@ -81,6 +90,8 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 	}
 	
 	public String getTestStream() {
+		if (testStream == null)
+			return "";
 		return testStream;
 	}
 
@@ -91,6 +102,8 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 	}
 	
 	public String getProdStream() {
+		if (prodStream == null)
+			return "";
 		return prodStream;
 	}
 
@@ -101,6 +114,8 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 	}
 	
 	public String getDestinationNamespace() {
+		if (destinationNamespace == null)
+			return "";
 		return this.destinationNamespace;
 	}
 	
@@ -111,6 +126,8 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 	}
 	
 	public String getDestinationAuthToken() {
+		if (destinationAuthToken == null)
+			return "";
 		return this.destinationAuthToken;
 	}
 	

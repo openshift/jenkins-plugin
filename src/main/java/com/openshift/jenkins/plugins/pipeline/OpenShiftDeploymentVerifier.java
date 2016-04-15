@@ -41,7 +41,14 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
         this.verifyReplicaCount = verifyReplicaCount;
     }
 
+    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
+    // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
+    // of insuring nulls are not returned for field getters
+
 	public String getDepCfg() {
+		if (depCfg == null)
+			return "";
 		return depCfg;
 	}
 
@@ -52,6 +59,8 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 	}
 	
 	public String getReplicaCount() {
+		if (replicaCount == null)
+			return "";
 		return replicaCount;
 	}
 	
@@ -62,6 +71,8 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 	}
 	
 	public String getVerifyReplicaCount() {
+		if (verifyReplicaCount == null)
+			return "";
 		return verifyReplicaCount;
 	}
 	

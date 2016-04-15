@@ -57,7 +57,14 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         this.waitTime = waitTime;
     }
 
+    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
+    // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
+    // of insuring nulls are not returned for field getters
+
 	public String getCommitID() {
+		if (commitID == null)
+			return "";
 		return commitID;
 	}
 	
@@ -68,6 +75,8 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 	}
 
 	public String getBuildName() {
+		if (buildName == null)
+			return "";
 		return buildName;
 	}
 
@@ -78,6 +87,8 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 	}
 
 	public String getShowBuildLogs() {
+		if (showBuildLogs == null)
+			return "";
 		return showBuildLogs;
 	}
 	
@@ -88,6 +99,8 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 	}
 
 	public String getBldCfg() {
+		if (bldCfg == null)
+			return "";
 		return bldCfg;
 	}
 	
@@ -98,6 +111,8 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 	}
 
 	public String getCheckForTriggeredDeployments() {
+		if (checkForTriggeredDeployments == null)
+			return "";
 		return checkForTriggeredDeployments;
 	}
 	
@@ -108,6 +123,8 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 	}
 	
 	public String getWaitTime() {
+		if (waitTime == null)
+			return "";
 		return waitTime;
 	}
 	
