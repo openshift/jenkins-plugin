@@ -60,6 +60,17 @@ public static final String EXIT_CREATE_GOOD = "\n\nExiting \"" + OpenShiftCreato
 public static final String TYPE_NOT_SUPPORTED = "  The API resource \"%s\" is not currently supported by this step.";
 
 /*
+ * These messages are for the "Delete OpenShift Resource(s)" jenkins build steps implemented by OpenShiftDeleterList*
+ */
+public static final String START_DELETE_OBJS = "\n\nStarting \"%s\" with the project \"%s\".";
+public static final String DELETED_OBJ = "  Deleted a \"%s\" with key \"%s\"";
+public static final String FAILED_DELETE_OBJ = "  Failed to delete a \"%s\" with key \"%s\"";
+public static final String EXIT_DELETE_BAD = "\n\nExiting \"%s\" unsuccessfully, with %d resource(s) deleted and %d failed attempt(s).";
+public static final String EXIT_DELETE_GOOD = "\n\nExiting \"%s\" successfully, with %d resource(s) deleted.";
+public static final String EXIT_DELETE_KEY_TYPE_MISMATCH = "\n\nExiting \"" + OpenShiftDeleterList.DISPLAY_NAME + "\" unsuccessfully, because %d types(s) were specified but %d keys(s) were specified.";
+public static final String EXIT_DELETE_KEY_VALUE_MISMATCH = "\n\nExiting \"" + OpenShiftDeleterLabels.DISPLAY_NAME + "\" unsuccessfully, because %d values(s) were specified but %d keys(s) were specified.";
+
+/*
  * These messages are shared between "Cancel OpenShift Deployment", "Scale OpenShift Deployment", "Verify OpenShift Deployment", and 
  * "Trigger OpenShift Deployment", implemented respectively by OpenShiftDeployCanceller, OpenShiftScaler, OpenShiftDeploymentVerifier, and OpenShiftDeployer
  * 

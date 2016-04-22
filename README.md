@@ -38,6 +38,8 @@ A series of Jenkins "build step" implementations are provided, which you can sel
 
 8. "Create OpenShift Resource(s)":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are specified.
 
+9. "Delete OpenShift Resource(s)...":  performs the equivalent of an `oc delete` command invocation; there are 3 versions of this build step; one takes in provided JSON or YAML text, and if it conforms to OpenShift schema, deletes whichever OpenShift resources are specified; the next form takes in comma delimited lists of types and keys, and deletes the corresponding entries; the last form takes in a comma separated list of types, along with comma separated lists of keys and values that might appear as labels on the API resources, and then for each of the types, deletes any objects that have labels that match the key/value pair(s) specified. 
+
 ## Jenkins "Source Code Management (SCM)"
 
 An implementation of the Jenkins SCM extension point is also provided that takes advantage of Jenkins' built in polling and version management capabilities, but within the context of OpenShift Image Streams (we have taken the liberty of broadening the scope of what is considered "source"):
@@ -72,6 +74,8 @@ As a point of reference, here are the Java classes for each of the Jenkins "buil
 7.  "Verify OpenShift Build":  com.openshift.jenkins.plugins.pipeline.OpenShiftBuildVerifier
 
 8.  "Create OpenShift Resource(s)":  com.openshift.jenkins.plugins.pipeline.OpenShiftCreator
+
+9.  "Delete OpenShift Resource(s)...":   com.openshift.jenkins.plugins.pipeline.OpenShiftDeleterJsonYaml, com.openshift.jenkins.plugins.pipeline.OpenShiftDeleterList, com.openshift.jenkins.plugins.pipeline.OpenShiftDeleterLabels
 
 ## Common aspects across the REST based functions (build steps, SCM, post-build actions)
 

@@ -156,4 +156,17 @@ public class ParamVerify {
         return FormValidation.ok();
     }
     
+    public static FormValidation doCheckType(@QueryParameter String value) 
+    		throws IOException, ServletException {
+    	if (value.length() == 0)
+    		return FormValidation.error("Please set the name of the API object type you want to delete");
+    	return FormValidation.ok();
+    }
+    
+    public static FormValidation doCheckKey(@QueryParameter String value) 
+    		throws IOException, ServletException {
+    	if (value.length() == 0)
+    		return FormValidation.error("Please set the name of the key of the API object you want to delete");
+    	return FormValidation.ok();
+    }
 }
