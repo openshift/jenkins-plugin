@@ -45,12 +45,13 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     protected final String prodStream;
     protected final String destinationNamespace;
     protected final String destinationAuthToken;
+    protected final String alias;
     // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
     protected transient TokenAuthorizationStrategy destinationBearerToken;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose, String testStream, String prodStream, String destinationNamespace, String destinationAuthToken) {
+    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose, String testStream, String prodStream, String destinationNamespace, String destinationAuthToken, String alias) {
     	super(apiURL, namespace, authToken, verbose);
         this.testTag = testTag;
         this.prodTag = prodTag;
@@ -58,6 +59,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
         this.testStream = testStream;
         this.destinationAuthToken = destinationAuthToken;
         this.destinationNamespace = destinationNamespace;
+        this.alias = alias;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -65,6 +67,18 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
+	public String getAlias() {
+		if (alias == null)
+			return "";
+		return alias;
+	}
+
+	public String getAlias(Map<String,String> overrides) {
+		if (overrides != null && overrides.containsKey("alias"))
+			return overrides.get("alias");
+		return getAlias();
+	}
+	
 	public String getTestTag() {
 		if (testTag == null)
 			return "";
@@ -168,6 +182,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 			EnvVars env, Map<String,String> overrides) {
     	listener.getLogger().println(String.format(MessageConstants.START_TAG, getTestStream(overrides), getTestTag(overrides), getNamespace(overrides), getProdStream(overrides), getProdTag(overrides), getDestinationNamespace(overrides)));
     	boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+    	boolean useTag = Boolean.parseBoolean(getAlias(overrides));
     	
     	// get oc clients 
     	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
@@ -180,10 +195,15 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     			listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_CANNOT_GET_IS, getTestStream(overrides), getNamespace(overrides)));
     			return false;
     		}
-        	String srcImageID = deriveImageID(getTestTag(overrides), srcIS);
+        	String srcImageID = getTestTag(overrides);
+        	String tagType = "ImageStreamTag";
+        	if (!useTag) {
+        		srcImageID = deriveImageID(getTestTag(overrides), srcIS);
+        		tagType = "ImageStreamImage";
+        	}
         	
         	if (chatty)
-        		listener.getLogger().println("\n srcImageID " + srcImageID);
+        		listener.getLogger().println("\n srcImageID " + srcImageID + " and tag type " + tagType + " and alias " + useTag);
         	
         	//get dest image stream
 			IImageStream destIS = null;
@@ -227,7 +247,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
         	}
         	
         	// tag image
-        	destIS.addTag(getProdTag(overrides), "ImageStreamImage", srcImageID, getNamespace(overrides));
+        	destIS.addTag(getProdTag(overrides), tagType, srcImageID, getNamespace(overrides));
 			if (chatty)
 				listener.getLogger().println("\n updated image stream json " + ((ImageStream)destIS).getNode().toJSONString(false));
 			client.update(destIS);
