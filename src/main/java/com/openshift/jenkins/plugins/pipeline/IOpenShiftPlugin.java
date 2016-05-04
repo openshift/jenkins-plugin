@@ -83,12 +83,19 @@ public interface IOpenShiftPlugin {
     	return client;
 	}
 	
-	default IReplicationController getLatestReplicationController(IDeploymentConfig dc, IClient client, Map<String,String> overrides) {
+	default IReplicationController getLatestReplicationController(IDeploymentConfig dc, IClient client, Map<String,String> overrides, TaskListener listener) {
 		int latestVersion = dc.getLatestVersionNumber();
 		if (latestVersion == 0)
 			return null;
 		String repId = dc.getName() + "-" + latestVersion;
-		return client.get(ResourceKind.REPLICATION_CONTROLLER, repId, getNamespace(overrides));
+		IReplicationController rc = null;
+		try {
+			rc = client.get(ResourceKind.REPLICATION_CONTROLLER, repId, getNamespace(overrides));
+		} catch (Throwable t) {
+			if (listener != null)
+				t.printStackTrace(listener.getLogger());
+		}
+		return rc;
 	}
 	
 	//TODO move to openshift-restclient-java IReplicationController

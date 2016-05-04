@@ -69,33 +69,36 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
         	String ip = svc.getPortalIP();
         	int port = svc.getPort();
         	spec = ip + ":" + port;
-    		InetSocketAddress address = new InetSocketAddress(ip,port);
-    		Socket socket = new Socket();
-    		try {
-            	int tryCount = 0;
-            	if (chatty)
-            		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
-            	listener.getLogger().println(String.format(MessageConstants.SERVICE_CONNECTING, spec));
-            	while (tryCount < getDescriptor().getRetry()) {
-            		tryCount++;
-            		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
-            		try {
-    	        		socket.connect(address, 2500);
-                    	listener.getLogger().println(String.format(MessageConstants.EXIT_SERVICE_VERIFY_GOOD, DISPLAY_NAME, spec));
-    	        		return true;
-    				} catch (IOException e) {
-    					if (chatty) e.printStackTrace(listener.getLogger());
-    				}
-            	}
-            	
-    		} finally {
-    			try {
-					socket.close();
+        	int tryCount = 0;
+        	if (chatty)
+        		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
+        	listener.getLogger().println(String.format(MessageConstants.SERVICE_CONNECTING, spec));
+        	while (tryCount < getDescriptor().getRetry()) {
+        		tryCount++;
+        		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
+        		InetSocketAddress address = new InetSocketAddress(ip,port);
+        		Socket socket = null;
+        		try {
+        			socket = new Socket();
+	        		socket.connect(address, 2500);
+                	listener.getLogger().println(String.format(MessageConstants.EXIT_SERVICE_VERIFY_GOOD, DISPLAY_NAME, spec));
+	        		return true;
 				} catch (IOException e) {
-					if (chatty)
-						e.printStackTrace(listener.getLogger());
+					if (chatty) e.printStackTrace(listener.getLogger());
+					try {
+						Thread.sleep(2500);
+					} catch (InterruptedException e1) {
+					}
+				} finally {
+					try {
+						socket.close();
+					} catch (IOException e) {
+						if (chatty)
+							e.printStackTrace(listener.getLogger());
+					}
 				}
-    		}
+        	}
+            	
         	
     	} else {
     		return false;

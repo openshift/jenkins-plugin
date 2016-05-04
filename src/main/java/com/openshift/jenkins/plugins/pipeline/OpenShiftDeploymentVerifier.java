@@ -124,7 +124,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep {
 					if (chatty)
 						listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + dc.getLatestVersionNumber());
 									
-					IReplicationController rc = getLatestReplicationController(dc, client, overrides);
+					IReplicationController rc = getLatestReplicationController(dc, client, overrides, chatty ? listener : null);
 						
 					if (rc != null) {
 						if (chatty)

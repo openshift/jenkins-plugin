@@ -70,7 +70,8 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
     			return false;
     		}
 			
-			IReplicationController rc = getLatestReplicationController(dc, client, overrides);
+    		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+			IReplicationController rc = getLatestReplicationController(dc, client, overrides, chatty ? listener : null);
 				
 			if (rc != null) {
 				String state = this.getReplicationControllerState(rc);

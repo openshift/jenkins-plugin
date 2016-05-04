@@ -98,7 +98,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         			}
         			
     				try {
-    					rc = this.getLatestReplicationController(dc, client, overrides);
+    					rc = this.getLatestReplicationController(dc, client, overrides, chatty ? listener : null);
     					if (chatty)
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
     					if (rc != null) {
