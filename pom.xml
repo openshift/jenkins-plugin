@@ -42,10 +42,6 @@
       <url>http://repo.jenkins-ci.org/public/</url>
     </repository>
     <repository>
-      <id>maven.repository.redhat.com</id>
-      <url>http://maven.repository.redhat.com/techpreview/all/</url>
-    </repository>
-    <repository>
       <id>repo1.maven.org</id>
       <url>https://repo1.maven.org/maven2/</url>
     </repository>
@@ -70,7 +66,7 @@
 	<dependency>
 	    <groupId>com.openshift</groupId>
 	    <artifactId>openshift-restclient-java</artifactId>
-	    <version>4.0.0-SNAPSHOT</version>
+	    <version>4.0.3.Final</version>
 	</dependency>
     
   <dependency>
