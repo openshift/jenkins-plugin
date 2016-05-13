@@ -161,9 +161,10 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		return bld;
 	}
 	
-	protected void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides, long wait) {
+	protected String waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean follow, boolean chatty) {
 		IBuild bld = null;
 		String bldState = null;
+		String logs = "";
 		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
 		// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
 		// complete        						
@@ -180,6 +181,16 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 			bldState = bld.getStatus();
 			if (Boolean.parseBoolean(getVerbose(overrides)))
 				listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
+			
+			if (follow) {
+				String tmp = this.dumpLogs(bldId, listener, overrides, wait / 10, chatty);
+				if (chatty)
+					listener.getLogger().println("\n current logs :  " + tmp);
+				if (tmp != null && tmp.length() > logs.length()) {
+					logs = tmp;
+				}
+			}
+							
 			if ("Pending".equals(bldState) || "New".equals(bldState)) {
 				try {
 					Thread.sleep(1000);
@@ -189,13 +200,18 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 				break;
 			}
 		}
+		
+		return logs;
 //			} else {
 //			listener.getLogger().println("\n\nOpenShiftBuilder logger for pod " + pod.getName() + " not available");
 //			bldState = pod.getStatus();
 //		}
 	}
 	
-	protected void dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides, long wait) {
+	protected String dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean chatty) {
+    	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
+    	// so we set up our own trust manager like we used to do in order to verify the server cert
+    	Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
 		// create stream and copy bytes
     	URL url = null;
     	try {
@@ -203,6 +219,10 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 		}
+    	
+    	if (chatty)
+    		listener.getLogger().println(" dump logs URL " + url.toString());
+    	
 		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
 				null, "application/json", null, auth, null, null);
 		urlClient.setAuthorizationStrategy(bearerToken);
@@ -210,11 +230,13 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		try {
 			response = urlClient.get(url, (int) wait);
 		} catch (SocketTimeoutException e1) {
-			e1.printStackTrace(listener.getLogger());
+			if (chatty)
+				e1.printStackTrace(listener.getLogger());
 		} catch (HttpClientException e1) {
-			e1.printStackTrace(listener.getLogger());
+			if (chatty)
+				e1.printStackTrace(listener.getLogger());
 		}
-		listener.getLogger().println(response);
+		return response;
 		
 		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
 		// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
@@ -293,6 +315,9 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 					if (getWaitTime(overrides).length() > 0) {
 						wait = Long.parseLong(getWaitTime(overrides));
 					}
+					
+					if (chatty)
+						listener.getLogger().println("\n OpenShiftBuilder looking for build " + bldId);
     				
     				// Now find build Pod, attempt to dump the logs to the Jenkins console
     				while (!foundPod && startTime > (System.currentTimeMillis() - wait)) {
@@ -310,10 +335,10 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         						if (chatty)
         							listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
         						
-        							waitOnBuild(client, startTime, bldId, listener, overrides, wait);
+        							String logs = waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty);
             						
             						if (follow)
-            							dumpLogs(bldId, listener, overrides, wait / 100);
+            							listener.getLogger().println("\nBuild logs:  \n" + logs);
     								
         					}
         					
