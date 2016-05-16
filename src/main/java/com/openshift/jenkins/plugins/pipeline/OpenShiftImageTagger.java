@@ -215,7 +215,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 				destinationNS = getDestinationNamespace(overrides);
 			}
 			
-        	if (getNamespace(overrides).equals(destinationNS)) {
+        	if (getNamespace(overrides).equals(destinationNS) && getTestStream(overrides).equals(getProdStream(overrides))) {
         		destIS = srcIS;
         	} else {
     			try {
