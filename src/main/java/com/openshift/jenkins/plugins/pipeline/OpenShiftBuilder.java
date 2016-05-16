@@ -191,7 +191,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 				}
 			}
 							
-			if ("Pending".equals(bldState) || "New".equals(bldState)) {
+			if ("Pending".equals(bldState) || "New".equals(bldState) || "Running".equals(bldState)) {
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {

@@ -246,7 +246,7 @@ public interface IOpenShiftPlugin {
 			bldState = bld.getStatus();
 			if (chatty)
 				listener.getLogger().println("\nOpenShiftBuilder post bld launch bld state:  " + bldState);
-			if (!bldState.equals("Complete")) {
+			if (!bldState.equals("Complete") && !bldState.equals("Failed") && !bldState.equals("Error") && !bldState.equals("Cancelled")) {
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
