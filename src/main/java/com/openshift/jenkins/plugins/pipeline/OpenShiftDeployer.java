@@ -139,7 +139,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         	
         	if (!deployDone) {
 		    	if (dc != null)
-		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_TRIGGER_TIMED_OUT, DISPLAY_NAME, rc.getName(), state));
+		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_TRIGGER_TIMED_OUT, DISPLAY_NAME, (rc != null ? rc.getName() : "<deployment not found>"), state));
 		    	else
 		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
         		return false;

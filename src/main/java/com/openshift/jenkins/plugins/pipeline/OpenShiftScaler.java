@@ -155,7 +155,7 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
         		if (!checkCount) {
         	    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_BAD, getApiURL(overrides)));        			
         		} else {
-        	    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_TIMED_OUT, rc.getName(), getReplicaCount(overrides)));
+        	    	listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_TIMED_OUT, (rc != null ? rc.getName() : "<deployment not found>"), getReplicaCount(overrides)));
         		}
         		return false;
         	}
