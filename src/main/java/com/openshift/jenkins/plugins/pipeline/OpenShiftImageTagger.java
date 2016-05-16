@@ -3,24 +3,19 @@ import hudson.EnvVars;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
-import hudson.model.BuildListener;
 import hudson.model.TaskListener;
-import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
 import org.jboss.dmr.ModelNode;
+import org.jboss.dmr.ModelType;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.http.HttpClientException;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
 import com.openshift.internal.restclient.model.ImageStream;
-import com.openshift.internal.restclient.model.KubernetesResource;
-import com.openshift.restclient.ClientBuilder;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
@@ -29,10 +24,10 @@ import com.openshift.restclient.model.IImageStream;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep {
@@ -169,13 +164,53 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
 	public String deriveImageID(String testTag, IImageStream srcIS) {
     	String srcImageID = srcIS.getImageId(testTag);
     	if (srcImageID != null && srcImageID.length() > 0) {
-    		// translating an ImageStreamTag to an ImageStreamImage
+    		// testTag an valid ImageStreamTag, so translating to an ImageStreamImage
         	srcImageID = srcIS.getName() + "@" + (srcImageID.startsWith("sha256:") ? srcImageID.substring(7) : srcImageID);
-    	} else{
-    		// if the supplied parameter did not return a valid value as a tag, treat it as a ImageStreamImage
-    		srcImageID = srcIS.getName() + "@" + (testTag.startsWith("sha256:") ? testTag.substring(7) : testTag);
+        	return srcImageID;
+    	} else {
+    		// not a valid ImageStreamTag, see if a valid ImageStreamImage
+    		//TODO port to ImageStream.java in openshift-restclient-java
+    		ModelNode imageStream = ((ImageStream)srcIS).getNode();
+    		ModelNode status = imageStream.get("status");
+    		ModelNode tags = status.get("tags");
+    		if (tags.getType() != ModelType.LIST)
+    			return null;
+    		List<ModelNode> tagWrappers = tags.asList();
+    		for (ModelNode tagWrapper : tagWrappers) {
+    			ModelNode tag = tagWrapper.get("tag");
+    			ModelNode items = tagWrapper.get("items");
+    			for (ModelNode itemWrapper : items.asList()) {
+    				ModelNode image = itemWrapper.get("image");
+    				if (image != null && (image.asString().equals(testTag) ||
+    									  image.asString().substring(7).equals(testTag))) {
+    					return srcIS.getName() + "@" + (testTag.startsWith("sha256:") ? testTag.substring(7) : testTag);
+    				}
+    			}
+    		}
     	}
-    	return srcImageID;
+    	return null;
+	}
+	
+	public String deriveImageTag(String imageID, IImageStream srcIS) {
+		//TODO port to ImageStream.java in openshift-restclient-java
+		ModelNode imageStream = ((ImageStream)srcIS).getNode();
+		ModelNode status = imageStream.get("status");
+		ModelNode tags = status.get("tags");
+		if (tags.getType() != ModelType.LIST)
+			return null;
+		List<ModelNode> tagWrappers = tags.asList();
+		for (ModelNode tagWrapper : tagWrappers) {
+			ModelNode tag = tagWrapper.get("tag");
+			ModelNode items = tagWrapper.get("items");
+			for (ModelNode itemWrapper : items.asList()) {
+				ModelNode image = itemWrapper.get("image");
+				if (image != null && (image.asString().equals(imageID) ||
+									  image.asString().substring(7).equals(imageID))) {
+					return tag.asString();
+				}
+			}
+		}
+		return null;
 	}
 
 	public boolean coreLogic(Launcher launcher, TaskListener listener,
@@ -196,14 +231,38 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     			return false;
     		}
         	String srcImageID = getTestTag(overrides);
+    		
+        	if (chatty)
+        		listener.getLogger().println("\n srcImageID befor translation: " + srcImageID + " and alias " + useTag);
+        	
         	String tagType = "ImageStreamTag";
         	if (!useTag) {
-        		srcImageID = deriveImageID(getTestTag(overrides), srcIS);
         		tagType = "ImageStreamImage";
+        		srcImageID = deriveImageID(getTestTag(overrides), srcIS);
+        	} else {
+        		Collection<String> tags = srcIS.getTagNames();
+        		boolean found = false;
+        		Iterator<String> iter = tags.iterator();
+        		while (iter.hasNext()) {
+        			String tag = iter.next();
+        			if (srcImageID.equals(tag)) {
+        				found = true;
+        				break;
+        			}
+        		}
+        		if (!found) {
+        			// see if this is a valid image id for a known tag
+        			srcImageID = deriveImageTag(srcImageID, srcIS);
+        		}
+        	}
+        	
+        	if (srcImageID == null) {
+        		listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_NOT_FOUND, getTestTag(overrides), getTestStream(overrides)));
+        		return false;
         	}
         	
         	if (chatty)
-        		listener.getLogger().println("\n srcImageID " + srcImageID + " and tag type " + tagType + " and alias " + useTag);
+        		listener.getLogger().println("\n srcImageID after translation " + srcImageID + " and tag type " + tagType);
         	
         	//get dest image stream
 			IImageStream destIS = null;
