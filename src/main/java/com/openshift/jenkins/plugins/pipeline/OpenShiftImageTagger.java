@@ -230,29 +230,30 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     			listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_CANNOT_GET_IS, getTestStream(overrides), getNamespace(overrides)));
     			return false;
     		}
-        	String srcImageID = getTestTag(overrides);
     		
         	if (chatty)
-        		listener.getLogger().println("\n srcImageID befor translation: " + srcImageID + " and alias " + useTag);
+        		listener.getLogger().println("\n tag before verification: " + getTestTag(overrides) + " and alias " + useTag);
         	
+        	String srcImageID = null;
         	String tagType = "ImageStreamTag";
         	if (!useTag) {
         		tagType = "ImageStreamImage";
         		srcImageID = deriveImageID(getTestTag(overrides), srcIS);
         	} else {
         		Collection<String> tags = srcIS.getTagNames();
-        		boolean found = false;
         		Iterator<String> iter = tags.iterator();
         		while (iter.hasNext()) {
         			String tag = iter.next();
-        			if (srcImageID.equals(tag)) {
-        				found = true;
+        			if (getTestTag(overrides).equals(tag)) {
+        				srcImageID = getTestStream(overrides) + ":" + tag;
         				break;
         			}
         		}
-        		if (!found) {
+        		if (srcImageID == null) {
         			// see if this is a valid image id for a known tag
-        			srcImageID = deriveImageTag(srcImageID, srcIS);
+        			String tag = deriveImageTag(getTestTag(overrides), srcIS);
+        			if (tag != null)
+        				srcImageID = getTestStream(overrides) + ":" + tag;
         		}
         	}
         	
