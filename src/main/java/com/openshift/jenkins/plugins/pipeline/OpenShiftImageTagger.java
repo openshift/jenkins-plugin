@@ -279,12 +279,20 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
         		destIS = srcIS;
         	} else {
     			try {
+    				// if a dest auth token was set we need to get a base client that uses it, essentially like we just did above 
+    				// for the OpenShiftCreator
+    				if (this.getDestinationAuthToken(overrides) != null && this.getDestinationAuthToken(overrides).length() > 0) {
+    					this.setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), env));
+    					this.setToken(destinationBearerToken);
+    					client = this.getClient(listener, DISPLAY_NAME, overrides);
+    				}
     				destIS = client.get(ResourceKind.IMAGE_STREAM, getProdStream(overrides), destinationNS);
     			} catch (com.openshift.restclient.OpenShiftException e) {
     				String createJson = "{\"kind\": \"ImageStream\",\"apiVersion\": \"v1\",\"metadata\": {\"name\": \"" +
     				getProdStream(overrides) + "\",\"creationTimestamp\": null},\"spec\": {},\"status\": {\"dockerImageRepository\": \"\"}}";
     				
     				Map<String,String> newOverrides = new HashMap<String,String>(overrides);
+    				// we don't want this step's source namespace to be the creator's namespace, but rather this step's destination namespace, so clear out the override and then reuse all other overrides
     				newOverrides.remove("namespace");
     				OpenShiftCreator isCreator = new OpenShiftCreator(getApiURL(newOverrides), destinationNS, destinationBearerToken.getToken(), getVerbose(newOverrides), createJson);
     				isCreator.setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(newOverrides), env));
@@ -297,6 +305,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep {
     					listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_CANNOT_CREATE_DEST_IS, getProdStream(overrides), destinationNS));
     					return false;
     				}
+    				
     				destIS = client.get(ResourceKind.IMAGE_STREAM, getProdStream(overrides), destinationNS);
     			}
         	}

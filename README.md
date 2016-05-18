@@ -91,7 +91,7 @@ Next, in the case of "Tag OpenShift Image", you could potentially wish to access
 be done in one of two ways:
 
 - Grant permission to the service account token from the project Jenkins is running in (i.e. the default token just described) to the second project; for example, if Jenkins is running in the project `test`, and you want to tag an ImageStream running in the project `test2`, run the command `oc policy add-role-to-user edit system:serviceaccount:test:default -n test2`
-- Or supply the token for the `default` service account for project `test2` as the destination token in the step's UI, and give that token permission to access project `test` by running the command `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
+- Or supply the token for the `default` service account for project `test2` as the destination token in the step's UI (i.e. the "The authorization token for interacting with OpenShift (if the new tag is targeted for a project external to the project hosting Jenkins)" field), and give that token permission to access project `test` by running the command `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
 
 Finally, outside of the default token mounted into the OpenShift Jenkins image container, the token can be provided by the user via the following:
 
