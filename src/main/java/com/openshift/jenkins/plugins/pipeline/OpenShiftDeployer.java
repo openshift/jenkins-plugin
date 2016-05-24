@@ -1,33 +1,28 @@
 package com.openshift.jenkins.plugins.pipeline;
+
 import java.io.IOException;
 import java.util.Map;
 
 import javax.servlet.ServletException;
 
+import net.sf.json.JSONObject;
+
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.model.IDeploymentConfig;
-import com.openshift.restclient.model.IReplicationController;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeployer;
 
-import hudson.EnvVars;
 import hudson.Extension;
-import hudson.Launcher;
 import hudson.model.AbstractProject;
-import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
-import net.sf.json.JSONObject;
 
-public class OpenShiftDeployer extends OpenShiftBaseStep {
-
-	protected final static String DISPLAY_NAME = "Trigger OpenShift Deployment";
+public class OpenShiftDeployer extends OpenShiftBaseStep implements IOpenShiftDeployer {
 	
-    protected final String depCfg;
+    protected final String depCfg;    
+    protected String waitTime;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
@@ -43,118 +38,20 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
     // of insuring nulls are not returned for field getters
 
 	public String getDepCfg() {
-		if (depCfg == null)
-			return "";
 		return depCfg;
 	}
 
-	public String getDepCfg(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("depCfg"))
-			return overrides.get("depCfg");
-		return getDepCfg();
+	public String getWaitTime() {
+		return waitTime;
 	}
 	
-	protected boolean bumpVersion(IDeploymentConfig dc, IClient client, TaskListener listener, Map<String,String> overrides) {
-		int latestVersion = dc.getLatestVersionNumber() + 1;
-		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-		try {
-			dc.setLatestVersionNumber(latestVersion);
-			client.update(dc);
-			if (chatty) 
-				listener.getLogger().println("\nOpenShiftDeployer latest version now " + dc.getLatestVersionNumber());
-
-		} catch (Throwable t) {
-			if (chatty)
-				t.printStackTrace(listener.getLogger());
-			return false;
-		}
-		return true;
+	public String getWaitTime(Map<String, String> overrides) {
+		String val = getOverride(getWaitTime(), overrides);
+		if (val.length() > 0)
+			return val;
+		return Long.toString(getDescriptor().getWait());
 	}
 	
-	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Map<String,String> overrides) {
-		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
-    	
-    	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-    	
-    	if (client != null) {
-        	if (chatty)
-        		listener.getLogger().println("\nOpenShiftDeployer wait " + getDescriptor().getWait());
-        	// do the oc deploy with version bump ... may need to retry
-        	long currTime = System.currentTimeMillis();
-        	boolean deployDone = false;
-        	boolean versionBumped = false;
-			String state = null;
-	    	IDeploymentConfig dc = null;
-			IReplicationController rc = null; 
-			while (System.currentTimeMillis() < (currTime + getDescriptor().getWait())) {
-        		dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
-        		if (dc != null) {
-        			if (!versionBumped) {
-        				// allow some retry in case the dc creation request happened before this step ran
-        				versionBumped = bumpVersion(dc, client, listener, overrides);
-        			}
-        			
-    				try {
-    					rc = Deployment.getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
-    					if (chatty)
-    						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
-    					if (rc != null) {
-    	    				AnnotationUtils.AnnotateResource(client, listener, chatty, env, rc); 
-    						state = this.getReplicationControllerState(rc);
-    						if (state.equalsIgnoreCase("Complete")) {
-            					deployDone = true;
-    						} else if (state.equalsIgnoreCase("Failed")) {
-    	        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, rc.getName(), state));
-    							return false;
-    						} else {
-    							if (chatty)
-    								listener.getLogger().println("\nOpenShiftDeploy current phase " + state);
-    						}
-    					} else {
-    						if (chatty)
-    							listener.getLogger().println("\nOpenShiftDeploy no rc for latest version yet");
-    					}
-    				} catch (Throwable t) {
-    					if (chatty)
-    						t.printStackTrace(listener.getLogger());
-    				}
-    				
-					
-					if (deployDone) {
-						break;
-					} else {
-						if (chatty)
-	        				listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc deploy again");
-						try {
-							Thread.sleep(10000);
-						} catch (InterruptedException e) {
-						}
-					}
-        				
-        			
-        		}
-        	}
-        	
-        	if (!deployDone) {
-		    	if (dc != null)
-		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_TRIGGER_TIMED_OUT, DISPLAY_NAME, (rc != null ? rc.getName() : "<deployment not found>"), state));
-		    	else
-		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
-        		return false;
-        	}
-
-	    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_GOOD_REPLICAS_IGNORED, DISPLAY_NAME, rc.getName()));
-        	return true;
-        	
-        	
-    	} else {
-    		return false;
-    	}
-	}
-
     // Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.

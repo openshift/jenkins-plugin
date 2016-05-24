@@ -3,6 +3,7 @@ package com.openshift.jenkins.plugins.pipeline;
 import java.io.IOException;
 import java.io.Serializable;
 
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import jenkins.tasks.SimpleBuildStep;
@@ -37,26 +38,18 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
     // of insuring nulls are not returned for field getters
 
     public String getApiURL() {
-    	if (apiURL == null)
-    		return "";
 		return apiURL;
 	}
-
+    
 	public String getNamespace() {
-		if (namespace == null)
-			return "";
 		return namespace;
 	}
 	
 	public String getAuthToken() {
-		if (authToken == null)
-			return "";
 		return authToken;
 	}
 	
     public String getVerbose() {
-    	if (verbose == null)
-    		return "";
 		return verbose;
 	}
     

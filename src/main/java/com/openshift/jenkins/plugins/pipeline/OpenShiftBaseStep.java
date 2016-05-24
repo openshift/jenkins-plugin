@@ -3,6 +3,7 @@ package com.openshift.jenkins.plugins.pipeline;
 import java.io.IOException;
 import java.io.Serializable;
 
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import jenkins.tasks.SimpleBuildStep;
@@ -10,8 +11,8 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
-import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.model.Run;
 import hudson.tasks.Builder;
 
 public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildStep, Serializable, IOpenShiftPlugin {
@@ -37,26 +38,18 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
     // of insuring nulls are not returned for field getters
 
     public String getApiURL() {
-    	if (apiURL == null)
-    		return "";
 		return apiURL;
 	}
-
+    
 	public String getNamespace() {
-		if (namespace == null)
-			return "";
 		return namespace;
 	}
 	
 	public String getAuthToken() {
-		if (authToken == null)
-			return "";
 		return authToken;
 	}
 	
     public String getVerbose() {
-    	if (verbose == null)
-    		return "";
 		return verbose;
 	}
     
@@ -69,7 +62,7 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
 	public Auth getAuth() {
 		return auth;
 	}
-
+	
 	@Override
 	public TokenAuthorizationStrategy getToken() {
 		return bearerToken;

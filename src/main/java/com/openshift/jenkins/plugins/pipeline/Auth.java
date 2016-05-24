@@ -43,7 +43,7 @@ public class Auth implements ISSLCertificateCallback {
 		this.listener = listener;
 	}
 	
-	public static Auth createInstance(TaskListener listener, String apiURL, EnvVars env) {
+	public static Auth createInstance(TaskListener listener, String apiURL, Map<String, String> env) {
 		Auth auth = null;
 		File f = new File(CERT_FILE);
 		if ((f.exists() || env.get("CA_CERT") != null) && env.get("SKIP_TLS") == null) {
@@ -182,7 +182,7 @@ public class Auth implements ISSLCertificateCallback {
 		return authToken;
 	}
 	
-	public static String deriveBearerToken(String at, TaskListener listener, boolean verbose, Map<String,String> vars, EnvVars env) {
+	public static String deriveBearerToken(String at, TaskListener listener, boolean verbose, Map<String,String> vars, Map<String, String> env) {
 		// the scm path may call this without a listener
 		if (listener == null)
 			verbose = false;

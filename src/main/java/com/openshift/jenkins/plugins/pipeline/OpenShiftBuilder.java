@@ -1,9 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
-import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletException;
@@ -12,30 +8,17 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.openshift.internal.restclient.http.HttpClientException;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.capability.CapabilityVisitor;
-import com.openshift.restclient.capability.resources.IBuildTriggerable;
-import com.openshift.restclient.model.IBuild;
-import com.openshift.restclient.model.IBuildConfig;
-import com.openshift.restclient.model.IPod;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuilder;
 
-import hudson.EnvVars;
 import hudson.Extension;
-import hudson.Launcher;
 import hudson.model.AbstractProject;
-import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import net.sf.json.JSONObject;
 
 
-public class OpenShiftBuilder extends OpenShiftBaseStep {
-	
-	protected final static String DISPLAY_NAME = "Trigger OpenShift Build";
+public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBuilder {
 	
     protected final String bldCfg;
     protected final String commitID;
@@ -63,318 +46,36 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     // of insuring nulls are not returned for field getters
 
 	public String getCommitID() {
-		if (commitID == null)
-			return "";
 		return commitID;
 	}
 	
-	public String getCommitID(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("commitID"))
-			return overrides.get("commitID");
-		else return getCommitID();
-	}
-
 	public String getBuildName() {
-		if (buildName == null)
-			return "";
 		return buildName;
 	}
 
-	public String getBuildName(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("buildName"))
-			return overrides.get("buildName");
-		else return getBuildName();
-	}
-
 	public String getShowBuildLogs() {
-		if (showBuildLogs == null)
-			return "";
 		return showBuildLogs;
 	}
 	
-	public String getShowBuildLogs(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("showBuildLogs"))
-			return overrides.get("showBuildLogs");
-		else return getShowBuildLogs();
-	}
-
 	public String getBldCfg() {
-		if (bldCfg == null)
-			return "";
 		return bldCfg;
 	}
 	
-	public String getBldCfg(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("bldCfg"))
-			return overrides.get("bldCfg");
-		else return getBldCfg();
-	}
-
 	public String getCheckForTriggeredDeployments() {
-		if (checkForTriggeredDeployments == null)
-			return "";
 		return checkForTriggeredDeployments;
 	}
 	
-	public String getCheckForTriggeredDeployments(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("checkForTriggeredDeployments"))
-			return overrides.get("checkForTriggeredDeployments");
-		else return getCheckForTriggeredDeployments();
-	}
-	
 	public String getWaitTime() {
-		if (waitTime == null)
-			return "";
 		return waitTime;
 	}
 	
 	public String getWaitTime(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("waitTime"))
-			return overrides.get("waitTime");
-		else return getWaitTime();
+		String val = getOverride(getWaitTime(), overrides);
+		if (val.length() > 0)
+			return val;
+		return Long.toString(getDescriptor().getWait());
 	}
 	
-	protected IBuild startBuild(IBuildConfig bc, IBuild prevBld, Map<String,String> overrides, EnvVars env) {
-		IBuild bld = null;
-		if (bc != null) {
-			if (getCommitID(overrides) != null && getCommitID(overrides).length() > 0) {
-				final String cid = getCommitID(overrides);
-    			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-				    public IBuild visit(IBuildTriggerable triggerable) {
-				 		return triggerable.trigger(cid);
-				 	}
-				 }, null);
-			} else {
-    			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-				    public IBuild visit(IBuildTriggerable triggerable) {
-				 		return triggerable.trigger();
-				 	}
-				 }, null);
-			}
-		} else if (prevBld != null) {
-			bld = prevBld.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-				public IBuild visit(IBuildTriggerable triggerable) {
-					return triggerable.trigger();
-				}
-			}, null);
-		}
-		return bld;
-	}
-	
-	protected String waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean follow, boolean chatty) {
-		IBuild bld = null;
-		String bldState = null;
-		String logs = "";
-		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
-		// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
-		// complete        						
-		// get log "retrieve" and dump build logs
-//		IPodLogRetrieval logger = pod.getCapability(IPodLogRetrieval.class);
-//		listener.getLogger().println("\n\nOpenShiftBuilder obtained pod logger " + logger);
-		
-//		if (logger != null) {
-			
-		// get internal OS Java REST Client error if access pod logs while bld is in Pending state
-		// instead of Running, Complete, or Failed
-		while (System.currentTimeMillis() < (startTime + wait)) {
-			bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
-			bldState = bld.getStatus();
-			if (Boolean.parseBoolean(getVerbose(overrides)))
-				listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
-			
-			if (follow) {
-				String tmp = this.dumpLogs(bldId, listener, overrides, wait / 10, chatty);
-				if (chatty)
-					listener.getLogger().println("\n current logs :  " + tmp);
-				if (tmp != null && tmp.length() > logs.length()) {
-					logs = tmp;
-				}
-			}
-							
-			if ("Pending".equals(bldState) || "New".equals(bldState) || "Running".equals(bldState)) {
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-				}
-			} else {
-				break;
-			}
-		}
-		
-		return logs;
-//			} else {
-//			listener.getLogger().println("\n\nOpenShiftBuilder logger for pod " + pod.getName() + " not available");
-//			bldState = pod.getStatus();
-//		}
-	}
-	
-	protected String dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean chatty) {
-    	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
-    	// so we set up our own trust manager like we used to do in order to verify the server cert
-    	Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
-		// create stream and copy bytes
-    	URL url = null;
-    	try {
-			url = new URL(getApiURL(overrides) + "/oapi/v1/namespaces/"+getNamespace(overrides)+"/builds/" + bldId + "/log?follow=true");
-		} catch (MalformedURLException e1) {
-			e1.printStackTrace(listener.getLogger());
-		}
-    	
-    	if (chatty)
-    		listener.getLogger().println(" dump logs URL " + url.toString());
-    	
-		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-				null, "application/json", null, auth, null, null);
-		urlClient.setAuthorizationStrategy(bearerToken);
-		String response = null;
-		try {
-			response = urlClient.get(url, (int) wait);
-		} catch (SocketTimeoutException e1) {
-			if (chatty)
-				e1.printStackTrace(listener.getLogger());
-		} catch (HttpClientException e1) {
-			if (chatty)
-				e1.printStackTrace(listener.getLogger());
-		}
-		return response;
-		
-		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
-		// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
-		// complete        						
-//		InputStream logs = new BufferedInputStream(logger.getLogs(true));
-//		int b;
-//		try {
-//			// we still process the build stream if followLogs is false, as 
-//			// it is a good indication of build progress (vs. periodically polling);
-//			// we simply do not dump the data to the Jenkins console if set to false
-//			while ((b = logs.read()) != -1) {
-//				if (follow)
-//					listener.getLogger().write(b);
-//			}
-//		} catch (IOException e) {
-//			e.printStackTrace(listener.getLogger());
-//		} finally {
-//			try {
-//				logs.close();
-//			} catch (final IOException e) {
-//				e.printStackTrace(listener.getLogger());
-//			}
-//		}
-	}
-	
-	public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env, Map<String,String> overrides) {
-		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-		boolean checkDeps = Boolean.parseBoolean(getCheckForTriggeredDeployments(overrides));
-    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));
-		
-    	boolean follow = Boolean.parseBoolean(getShowBuildLogs(overrides));
-    	if (chatty)
-    		listener.getLogger().println("\nOpenShiftBuilder logger follow " + follow);
-    	
-    	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-    	
-    	if (client != null) {
-			long startTime = System.currentTimeMillis();
-			boolean skipBC = getBuildName(overrides) != null && getBuildName(overrides).length() > 0;
-        	IBuildConfig bc = null;
-        	IBuild prevBld = null;
-        	if (!skipBC) {
-        		bc = client.get(ResourceKind.BUILD_CONFIG, getBldCfg(overrides), getNamespace(overrides));
-        	} else {
-        		prevBld = client.get(ResourceKind.BUILD, getBuildName(overrides), getNamespace(overrides));
-        	}
-        	
-
-        	if (chatty)
-        		listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc + " buildName " + getBuildName(overrides));
-        	
-        	if (bc != null || prevBld != null) {
-    			
-        		// Trigger / start build
-    			IBuild bld = this.startBuild(bc, prevBld, overrides, env);
-    			
-    			
-    			if(bld == null) {
-    		    	listener.getLogger().println(MessageConstants.EXIT_BUILD_NO_BUILD_OBJ);
-    				return false;
-    			} else {
-    				AnnotationUtils.AnnotateResource(client, listener, chatty, env, bld); 
-
-    				String bldId = bld.getName();
-    				if (!checkDeps)
-    					listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD, bldId));
-    				else
-    					listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_PLUS_DEPLOY, bldId));    				
-    				
-    				boolean foundPod = false;
-    				startTime = System.currentTimeMillis();
-					if (chatty)
-						listener.getLogger().println("\nOpenShiftBuilder global wait time " + getDescriptor().getWait() + " and step specific " + getWaitTime(overrides));
-					
-					long wait = getDescriptor().getWait();
-					if (getWaitTime(overrides).length() > 0) {
-						wait = Long.parseLong(getWaitTime(overrides));
-					}
-					
-					if (chatty)
-						listener.getLogger().println("\n OpenShiftBuilder looking for build " + bldId);
-    				
-    				// Now find build Pod, attempt to dump the logs to the Jenkins console
-    				while (!foundPod && startTime > (System.currentTimeMillis() - wait)) {
-    					
-    					// fetch current list of pods ... this has proven to not be immediate in finding latest
-    					// entries when compared with say running oc from the cmd line
-        				List<IPod> pods = client.list(ResourceKind.POD, getNamespace(overrides));
-        				for (IPod pod : pods) {
-        					if (chatty)
-        						listener.getLogger().println("\nOpenShiftBuilder found pod " + pod.getName());
-     
-        					// build pod starts with build id
-        					if(pod.getName().startsWith(bldId)) {
-        						foundPod = true;
-        						if (chatty)
-        							listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
-        						
-        							String logs = waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty);
-            						
-            						if (follow)
-            							listener.getLogger().println("\nBuild logs:  \n" + logs);
-    								
-        					}
-        					
-        					if (foundPod)
-        						break;
-        				}
-        				
-        				try {
-							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-						}
-        				
-    				}
-    				
-    				if (!foundPod) {
-        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_NO_POD_OBJ, bldId));
-    					return false;
-    				}
-    				
-    				return this.verifyBuild(startTime, wait, client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, true, env);
-    				    				
-    			}
-        		
-        		
-        	} else {
-		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_NO_BUILD_CONFIG_OBJ, getBldCfg(overrides)));
-        		return false;
-        	}
-    	} else {
-    		return false;
-    	}
-
-	}
-
-
 	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.

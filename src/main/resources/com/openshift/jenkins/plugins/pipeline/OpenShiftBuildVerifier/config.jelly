@@ -13,7 +13,7 @@
   <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
     <f:textbox  />
   </f:entry>
-  <f:entry title="The name of the BuildConfig to trigger" field="bldCfg">
+  <f:entry title="The name of the BuildConfig to verify" field="bldCfg">
     <f:textbox  />
   </f:entry>
   <f:entry title="The name of the project the BuildConfig is stored in" field="namespace">

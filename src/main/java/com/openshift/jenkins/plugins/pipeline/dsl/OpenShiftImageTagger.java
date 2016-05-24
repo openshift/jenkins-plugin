@@ -1,0 +1,199 @@
+package com.openshift.jenkins.plugins.pipeline.dsl;
+import hudson.Extension;
+import hudson.model.Action;
+import hudson.model.BuildListener;
+import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
+import hudson.tasks.BuildStepMonitor;
+
+import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+
+import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftImageTagger;
+import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.logging.Logger;
+
+
+public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShiftImageTagger {
+	
+	// started the process with this class of moving from testTag/Stream to srcTag/Stream and from prodTag/Stream to destTag/Stream
+    protected final String srcTag;
+    protected final String destTag;
+    protected final String srcStream;
+    protected final String destStream;
+    protected String destinationNamespace;
+    protected String destinationAuthToken;
+    protected String alias;
+    // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
+    protected transient TokenAuthorizationStrategy destinationBearerToken;
+    
+    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+    @DataBoundConstructor
+    public OpenShiftImageTagger(String srcStream, String srcTag, String destStream, String destTag) {
+        this.srcStream = srcStream;
+        this.srcTag = srcTag;
+        this.destStream = destStream;
+        this.destTag = destTag;
+    }
+
+    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
+    // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
+    // of insuring nulls are not returned for field getters
+
+	public String getAlias() {
+		return alias;
+	}
+
+	@DataBoundSetter public void setAlias(String alias) {
+		this.alias = alias;
+	}
+	
+	@Deprecated
+	public String getTestTag() {
+		return srcTag;
+	}
+	
+	public String getSrcTag() {
+		return srcTag;
+	}
+
+	@Deprecated
+	public String getProdTag() {
+		return destTag;
+	}
+	
+	public String getDestTag() {
+		return destTag;
+	}
+	
+	@Deprecated
+	public String getTestStream() {
+		return srcStream;
+	}
+	
+	public String getSrcStream() {
+		return srcStream;
+	}
+
+	@Deprecated
+	public String getProdStream() {
+		return destStream;
+	}
+	
+	public String getDestStream() {
+		return destStream;
+	}
+
+	public String getDestinationNamespace() {
+		return this.destinationNamespace;
+	}
+	
+	@DataBoundSetter public void setDestinationNamespace(String destinationNamespace) {
+		this.destinationNamespace = destinationNamespace;
+	}
+	
+	public String getDestinationAuthToken() {
+		return this.destinationAuthToken;
+	}
+	
+	@DataBoundSetter public void setDestinationAuthToken(String destinationAuthToken) {
+		this.destinationAuthToken = destinationAuthToken;
+	}
+	
+	public TokenAuthorizationStrategy getDestinationToken() {
+		return destinationBearerToken;
+	}
+	
+	public void setDestinationToken(TokenAuthorizationStrategy token) {
+		destinationBearerToken = token;
+	}
+	
+	
+	
+    private static final Logger LOGGER = Logger.getLogger(OpenShiftImageTagger.class.getName());
+
+
+	@Extension
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+
+        public DescriptorImpl() {
+            super(OpenShiftImageTaggerExecution.class);
+        }
+
+        @Override
+        public String getFunctionName() {
+            return "openShiftTag";
+        }
+
+        @Override
+        public String getDisplayName() {
+            return DISPLAY_NAME;
+        }
+
+        @Override
+        public Step newInstance(Map<String, Object> arguments) throws Exception {
+            if (!arguments.containsKey("sourceStream") ||
+            	!arguments.containsKey("destinationStream") ||
+            	!arguments.containsKey("sourceTag") ||
+            	!arguments.containsKey("destinationTag"))
+            	throw new IllegalArgumentException("need to specify sourceStream, sourceTag, destinationStream, destinationTag");
+            
+            OpenShiftImageTagger step = 
+            		new OpenShiftImageTagger(arguments.get("sourceStream").toString(),
+            												arguments.get("sourceTag").toString(),
+            												arguments.get("destinationStream").toString(),
+            												arguments.get("destinationTag").toString());
+            if(arguments.containsKey("alias")) {
+                Object alias = arguments.get("alias");
+                if (alias != null) {
+                    step.setAlias(alias.toString());
+                }
+            }
+            if (arguments.containsKey("destinationNamespace")) {
+                Object destinationNamespace = arguments.get("destinationNamespace");
+                if (destinationNamespace != null) {
+                    step.setDestinationNamespace(destinationNamespace.toString());
+                }
+            }
+            if (arguments.containsKey("destinationAuthToken")) {
+                Object destinationAuthToken = arguments.get("destinationAuthToken");
+                if (destinationAuthToken != null) {
+                    step.setDestinationAuthToken(destinationAuthToken.toString());
+                }
+            }
+            
+            ParamVerify.updateDSLBaseStep(arguments, step);
+            return step;
+        }
+    }
+
+	@Override
+	public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
+		return true;
+	}
+
+	@Override
+	public Action getProjectAction(AbstractProject<?, ?> project) {
+		return null;
+	}
+
+	@Override
+	public Collection<? extends Action> getProjectActions(
+			AbstractProject<?, ?> project) {
+		return null;
+	}
+
+	@Override
+	public BuildStepMonitor getRequiredMonitorService() {
+		return null;
+	}    
+    
+}
+
