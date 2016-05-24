@@ -1,5 +1,6 @@
 package com.openshift.jenkins.plugins.pipeline;
 
+import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -133,7 +134,9 @@ public interface IOpenShiftPlugin {
 	default void doIt(Run<?, ?> run, FilePath workspace, Launcher launcher,
 			TaskListener listener) throws InterruptedException, IOException {
     	EnvVars env = run.getEnvironment(listener);
-    	this.doItCore(listener, env, run, null, launcher);
+    	boolean successful = this.doItCore(listener, env, run, null, launcher);
+    	if (!successful)
+    		throw new AbortException("The OpenShift Build Step " +  getBaseClassName() + " was unsuccessful");
 	}
 
     default boolean doIt(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
