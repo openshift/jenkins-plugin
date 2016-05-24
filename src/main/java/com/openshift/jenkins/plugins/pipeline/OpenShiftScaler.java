@@ -114,7 +114,7 @@ public class OpenShiftScaler extends OpenShiftBaseStep {
         		}
         		
         		if (dc.getLatestVersionNumber() > 0)
-        			rc = this.getLatestReplicationController(dc, client, overrides, chatty ? listener : null);
+        			rc = Deployment.getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
             	if (rc == null) {
             		//TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
             		// measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.

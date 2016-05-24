@@ -111,7 +111,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
 			else
 				listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY, bldId));
 				
-			return this.verifyBuild(System.currentTimeMillis(), getDescriptor().getWait(), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps);
+			return this.verifyBuild(System.currentTimeMillis(), getDescriptor().getWait(), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, env);
     				        		
     	} else {
     		return false;

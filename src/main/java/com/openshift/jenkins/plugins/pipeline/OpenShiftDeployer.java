@@ -1,27 +1,27 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.EnvVars;
-import hudson.Launcher;
-import hudson.Extension;
-import hudson.util.FormValidation;
-import hudson.model.TaskListener;
-import hudson.model.AbstractProject;
-import hudson.tasks.Builder;
-import hudson.tasks.BuildStepDescriptor;
-import net.sf.json.JSONObject;
+import java.io.IOException;
+import java.util.Map;
+
+import javax.servlet.ServletException;
 
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
 
-import javax.servlet.ServletException;
-
-import java.io.IOException;
-import java.util.Map;
+import hudson.EnvVars;
+import hudson.Extension;
+import hudson.Launcher;
+import hudson.model.AbstractProject;
+import hudson.model.TaskListener;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Builder;
+import hudson.util.FormValidation;
+import net.sf.json.JSONObject;
 
 public class OpenShiftDeployer extends OpenShiftBaseStep {
 
@@ -98,10 +98,11 @@ public class OpenShiftDeployer extends OpenShiftBaseStep {
         			}
         			
     				try {
-    					rc = this.getLatestReplicationController(dc, client, overrides, chatty ? listener : null);
+    					rc = Deployment.getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
     					if (chatty)
     						listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
     					if (rc != null) {
+    	    				AnnotationUtils.AnnotateResource(client, listener, chatty, env, rc); 
     						state = this.getReplicationControllerState(rc);
     						if (state.equalsIgnoreCase("Complete")) {
             					deployDone = true;

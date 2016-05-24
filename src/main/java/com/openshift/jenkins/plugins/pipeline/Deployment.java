@@ -1,7 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline;
 
-import hudson.model.TaskListener;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,6 +11,9 @@ import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
+
+import hudson.EnvVars;
+import hudson.model.TaskListener;
 
 public class Deployment {
 
@@ -72,7 +73,7 @@ public class Deployment {
 		// get the dc again from the rc vs. passing the dc in as a form of cross reference verification
 		String dcJson = prevRC.getAnnotation("openshift.io/encoded-deployment-config");
 		if (dcJson == null || dcJson.length() == 0) {
-			listener.getLogger().println("\n\n assoicated DeploymentConfig for previous ReplicationController missing");
+			listener.getLogger().println("\n\n associated DeploymentConfig for previous ReplicationController missing");
 			return false;
 		}
 		ModelNode dcNode = ModelNode.fromJSONString(dcJson);
@@ -94,7 +95,7 @@ public class Deployment {
 		}
 	}
 	
-	public static boolean didAllImagesChangeIfNeeded(String buildConfig, TaskListener listener, boolean chatty, IClient client, String namespace, long wait) {
+	public static boolean didAllImagesChangeIfNeeded(String buildConfig, TaskListener listener, boolean chatty, IClient client, String namespace, long wait, boolean annotateRC, EnvVars env) {
 		if (chatty)
 			listener.getLogger().println("\n checking if the build config " + buildConfig + " got the image changes it needed");
 		IBuildConfig bc = client.get(ResourceKind.BUILD_CONFIG, buildConfig, namespace);
@@ -148,6 +149,11 @@ public class Deployment {
 			
 			if (didImageChangeFromPreviousVersion(client, dc.getLatestVersionNumber(), 
 					chatty, listener, dc.getName(), namespace, latestImageHexID, imageTag)) {
+
+				if(annotateRC) {
+					IReplicationController rc = getLatestReplicationController(dc, namespace, client, chatty ? listener : null);
+    				AnnotationUtils.AnnotateResource(client, listener, chatty, env, rc); 
+				}
 				if (chatty)
 					listener.getLogger().println("\n dc " + dc.getName() + " did trigger based on image change as expected");
 			} else {
@@ -160,40 +166,19 @@ public class Deployment {
 		return true;
 	}
 
-	public static boolean didImageChangeIfNeeded(IReplicationController rc, TaskListener listener, boolean chatty, int latestVersion,
-			String depCfg, IClient client, String namespace) {
-		String latestImageHexID = null;
-		
-		// 1) pull the dc from the rc annotation
-		// we are explicitly constructing the DC from the RC JSON as a form of cross verification
-		// (vs. doing another IClient lookup)
-		String dcJson = rc.getAnnotation("openshift.io/encoded-deployment-config");
-		if (dcJson == null || dcJson.length() == 0) {
-			listener.getLogger().println("\n\n assoicated DeploymentConfig for ReplicationController missing");
-			return false;
+	public static IReplicationController getLatestReplicationController(IDeploymentConfig dc, String namespace, IClient client, TaskListener listener) {
+		int latestVersion = dc.getLatestVersionNumber();
+		if (latestVersion == 0)
+			return null;
+		String repId = dc.getName() + "-" + latestVersion;
+		IReplicationController rc = null;
+		try {
+			rc = client.get(ResourceKind.REPLICATION_CONTROLLER, repId, namespace);
+		} catch (Throwable t) {
+			if (listener != null)
+				t.printStackTrace(listener.getLogger());
 		}
-		ModelNode dcNode = ModelNode.fromJSONString(dcJson);
-		DeploymentConfig dc = new DeploymentConfig(dcNode, client, null);
-		
-		if (chatty)
-			listener.getLogger().println("\n  dep cfg from rep ctrl json " + dcNode.toJSONString(true));
-		
-		// 2) See if the deployment resulted from an image change 
-		if (!dc.haveTriggersFired()) {
-			listener.getLogger().println("\n\n could not find a cause for the deployment");
-			return false;
-		}
-		
-		String imageTag = dc.getImageNameAndTagForTriggeredDeployment();//null;
-		
-		if (imageTag == null) {
-			if (chatty)
-				listener.getLogger().println("\n deployment did not stem from an image change");
-			return true;
-		}
-		
-		// 3) now get hexadecimal image id for latest RC
-	    return didImageChangeFromPreviousVersion(client, latestVersion, chatty, listener, depCfg, namespace, latestImageHexID, imageTag);
+		return rc;
 	}
-	
+
 }
