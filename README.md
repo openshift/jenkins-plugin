@@ -99,7 +99,7 @@ Finally, outside of the default token mounted into the OpenShift Jenkins image c
 - if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Project panel, where the value is the token
 - if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
 
-### Certificates and Encrpytion
+### Certificates and Encryption
 
 For the certificate, when running in the OpenShift Jenkins image, the CA certificate by default is pulled from the well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt") where OpenShift mounts it, and then is stored into the Java KeyStore and X.509 TrustManager for subsequent verification against the OpenShift server on all subsequent interactions.  If you wish to override the certificate used:
 
