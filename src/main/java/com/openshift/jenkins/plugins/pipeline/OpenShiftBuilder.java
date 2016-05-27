@@ -1,17 +1,16 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.EnvVars;
-import hudson.Launcher;
-import hudson.Extension;
-import hudson.util.FormValidation;
-import hudson.model.TaskListener;
-import hudson.model.AbstractProject;
-import hudson.tasks.Builder;
-import hudson.tasks.BuildStepDescriptor;
-import net.sf.json.JSONObject;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
+import java.net.URL;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.ServletException;
 
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
@@ -23,14 +22,15 @@ import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IPod;
 
-import javax.servlet.ServletException;
-
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
-import java.util.List;
-import java.util.Map;
+import hudson.EnvVars;
+import hudson.Extension;
+import hudson.Launcher;
+import hudson.model.AbstractProject;
+import hudson.model.TaskListener;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Builder;
+import hudson.util.FormValidation;
+import net.sf.json.JSONObject;
 
 
 public class OpenShiftBuilder extends OpenShiftBaseStep {
@@ -134,7 +134,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
 		else return getWaitTime();
 	}
 	
-	protected IBuild startBuild(IBuildConfig bc, IBuild prevBld, Map<String,String> overrides) {
+	protected IBuild startBuild(IBuildConfig bc, IBuild prevBld, Map<String,String> overrides, EnvVars env) {
 		IBuild bld = null;
 		if (bc != null) {
 			if (getCommitID(overrides) != null && getCommitID(overrides).length() > 0) {
@@ -292,19 +292,20 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
         	if (bc != null || prevBld != null) {
     			
         		// Trigger / start build
-    			IBuild bld = this.startBuild(bc, prevBld, overrides);
+    			IBuild bld = this.startBuild(bc, prevBld, overrides, env);
     			
     			
     			if(bld == null) {
     		    	listener.getLogger().println(MessageConstants.EXIT_BUILD_NO_BUILD_OBJ);
     				return false;
     			} else {
+    				AnnotationUtils.AnnotateResource(client, listener, chatty, env, bld); 
+
     				String bldId = bld.getName();
     				if (!checkDeps)
     					listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD, bldId));
     				else
-    					listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_PLUS_DEPLOY, bldId));
-    				
+    					listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_PLUS_DEPLOY, bldId));    				
     				
     				boolean foundPod = false;
     				startTime = System.currentTimeMillis();
@@ -358,7 +359,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep {
     					return false;
     				}
     				
-    				return this.verifyBuild(startTime, wait, client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps);
+    				return this.verifyBuild(startTime, wait, client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, true, env);
     				    				
     			}
         		

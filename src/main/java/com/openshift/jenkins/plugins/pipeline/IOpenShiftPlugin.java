@@ -84,21 +84,6 @@ public interface IOpenShiftPlugin {
     	return client;
 	}
 	
-	default IReplicationController getLatestReplicationController(IDeploymentConfig dc, IClient client, Map<String,String> overrides, TaskListener listener) {
-		int latestVersion = dc.getLatestVersionNumber();
-		if (latestVersion == 0)
-			return null;
-		String repId = dc.getName() + "-" + latestVersion;
-		IReplicationController rc = null;
-		try {
-			rc = client.get(ResourceKind.REPLICATION_CONTROLLER, repId, getNamespace(overrides));
-		} catch (Throwable t) {
-			if (listener != null)
-				t.printStackTrace(listener.getLogger());
-		}
-		return rc;
-	}
-	
 	//TODO move to openshift-restclient-java IReplicationController
 	default String getReplicationControllerState(IReplicationController rc) {
 		return rc.getAnnotation("openshift.io/deployment.phase");
@@ -242,7 +227,7 @@ public interface IOpenShiftPlugin {
 		}
 	}
 	
-    default boolean verifyBuild(long startTime, long wait, IClient client, String bldCfg, String bldId, String namespace, boolean chatty, TaskListener listener, String displayName, boolean checkDeps) {
+    default boolean verifyBuild(long startTime, long wait, IClient client, String bldCfg, String bldId, String namespace, boolean chatty, TaskListener listener, String displayName, boolean checkDeps, boolean annotateRC, EnvVars env) {
 		String bldState = null;
     	while (System.currentTimeMillis() < (startTime + wait)) {
 			IBuild bld = client.get(ResourceKind.BUILD, bldId, namespace);
@@ -262,8 +247,10 @@ public interface IOpenShiftPlugin {
 	    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_BAD, displayName, bldId, bldState));
 			return false;
 		} else {
+			// calling this will annotate any RC that was created as a result of this build, with the jenkins job info.
+			boolean triggerSuccess=Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, wait, annotateRC, env);
 			if (checkDeps) {    						
-				if (Deployment.didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, wait)) {
+				if (triggerSuccess) {
     		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_GOOD_DEPLOY_GOOD, displayName, bldId));
 					return true;
 				} else {
@@ -271,7 +258,7 @@ public interface IOpenShiftPlugin {
 					return false;
 				}
 			} else {
-		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_GOOD_DEPLOY_IGNORED, displayName, bldId));
+				listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_GOOD_DEPLOY_IGNORED, displayName, bldId));
 				return true;
 			}
 		}
