@@ -2,7 +2,6 @@ package com.openshift.jenkins.plugins.pipeline;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.ServletException;
@@ -14,12 +13,12 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.model.IImageStream;
 
-import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -66,52 +65,48 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
     // of insuring nulls are not returned for field getters
 
 	public String getApiURL() {
-		if (apiURL == null)
-			return "";
 		return apiURL;
 	}
 
 	public String getNamespace() {
-		if (namespace == null)
-			return "";
 		return namespace;
 	}
 
 	public String getAuthToken() {
-		if (authToken == null)
-			return "";
 		return authToken;
 	}
 
 	public String getImageStreamName() {
-		if (imageStreamName == null)
-			return "";
 		return imageStreamName;
 	}
-
+	
 	public String getTag() {
-		if (tag == null)
-			return "";
 		return tag;
 	}
-
+	
 	public String getVerbose() {
-		if (verbose == null)
-			return "";
 		return verbose;
 	}
 
-	protected String getCommitId(TaskListener listener, EnvVars env, HashMap<String,String> overrides) {
+	public String getImageStreamName(Map<String, String> overrides) {
+		return getOverride(getImageStreamName(), overrides);
+	}
+
+	public String getTag(Map<String, String>overrides) {
+		return getOverride(getTag(), overrides);
+	}
+
+	protected String getCommitId(TaskListener listener, Map<String,String> overrides) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
-    	setAuth(Auth.createInstance(null, getApiURL(overrides), env));
+    	setAuth(Auth.createInstance(null, getApiURL(overrides), overrides));
     	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty)));		
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
     	
-		IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStreamName, namespace);
+		IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, getImageStreamName(overrides), namespace);
 		// we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
 		String commitId = isImpl.getImageId(tag);
 		
@@ -145,9 +140,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 	public SCMRevisionState calcRevisionsFromBuild(Run<?, ?> build,
 			FilePath workspace, Launcher launcher, TaskListener listener)
 			throws IOException, InterruptedException {
-		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(build.getEnvironment(listener), listener, Boolean.parseBoolean(getVerbose(null)));
-		pullDefaultsIfNeeded(build.getEnvironment(listener), overrides, listener);
-    	listener.getLogger().println(String.format(MessageConstants.SCM_CALC, DISPLAY_NAME, imageStreamName, tag, namespace));
+    	listener.getLogger().println(String.format(MessageConstants.SCM_CALC, DISPLAY_NAME, getImageStreamName(build.getEnvironment(listener)), tag, namespace));
     	
     	String commitId = lastCommitId;
 			
@@ -168,10 +161,8 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 			AbstractProject<?, ?> project, Launcher launcher,
 			FilePath workspace, TaskListener listener, SCMRevisionState baseline)
 			throws IOException, InterruptedException {
-    	listener.getLogger().println(String.format(MessageConstants.SCM_COMP, DISPLAY_NAME, imageStreamName, tag, namespace));
-		HashMap<String,String> overrides = inspectBuildEnvAndOverrideFields(project.getEnvironment(null,listener), listener, Boolean.parseBoolean(getVerbose(null)));
-		pullDefaultsIfNeeded(project.getEnvironment(null,listener), overrides, listener);
-    	String commitId = this.getCommitId(listener, project.getEnvironment(null, listener), overrides);
+    	listener.getLogger().println(String.format(MessageConstants.SCM_COMP, DISPLAY_NAME, getImageStreamName(project.getEnvironment(null, listener)), tag, namespace));
+    	String commitId = this.getCommitId(listener, project.getEnvironment(null,listener));
 		
 		ImageStreamRevisionState currIMSState = null;
 		if (commitId != null)
@@ -194,9 +185,6 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 		} else {
 			listener.getLogger().println(MessageConstants.SCM_NO_CHANGE);
 		}
-		
-		if (chatty)
-			listener.getLogger().println(" overrides " + overrides);
 		
 		return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
     				        		
@@ -282,8 +270,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 	}
 
 	@Override
-	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Map<String,String> overrides) {
+	public boolean coreLogic(Launcher launcher, TaskListener listener, Map<String,String> overrides) {
 		return false;
 	}
 

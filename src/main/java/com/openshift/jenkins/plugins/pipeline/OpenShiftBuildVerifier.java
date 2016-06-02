@@ -1,9 +1,6 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.EnvVars;
-import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
-import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
@@ -13,25 +10,19 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.model.IBuild;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuildVerifier;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 
-public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
-	
-	protected final static String DISPLAY_NAME = "Verify OpenShift Build";
+public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenShiftBuildVerifier {
 	
     protected final String bldCfg;
     protected final String checkForTriggeredDeployments;
+    protected String waitTime; //TODO include in constructor / config.jelly
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
@@ -47,78 +38,24 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep {
     // of insuring nulls are not returned for field getters
 
 	public String getBldCfg() {
-		if (bldCfg == null)
-			return "";
 		return bldCfg;
 	}
 	
-	public String getBldCfg(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("bldCfg"))
-			return overrides.get("bldCfg");
-		else return getBldCfg();
-	}
-
 	public String getCheckForTriggeredDeployments() {
-		if (checkForTriggeredDeployments == null)
-			return "";
 		return checkForTriggeredDeployments;
 	}
 	
-	public String getCheckForTriggeredDeployments(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("checkForTriggeredDeployments"))
-			return overrides.get("checkForTriggeredDeployments");
-		else return getCheckForTriggeredDeployments();
-	}
-
-	protected List<String> getBuildIDs(IClient client, Map<String,String> overrides) {
-		List<IBuild> blds = client.list(ResourceKind.BUILD, getNamespace(overrides));
-		List<String> ids = new ArrayList<String>();
-		for (IBuild bld : blds) {
-			if (bld.getName().startsWith(getBldCfg(overrides))) {
-				ids.add(bld.getName());
-			}
-		}
-		return ids;
+	public String getWaitTime() {
+		return waitTime;
 	}
 	
-	protected String getLatestBuildID(List<String> ids) {
-		String bldId = null;
-		if (ids.size() > 0) {
-			Collections.sort(ids);
-			bldId = ids.get(ids.size() - 1);
-		}
-		return bldId;
+	public String getWaitTime(Map<String,String> overrides) {
+		String val = getOverride(getWaitTime(), overrides);
+		if (val.length() > 0)
+			return val;
+		return Long.toString(getDescriptor().getWait());
 	}
 	
-	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Map<String,String> overrides) {
-		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-		boolean checkDeps = Boolean.parseBoolean(checkForTriggeredDeployments);
-    	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));
-    	
-    	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-    	
-    	if (client != null) {
-			if (chatty)
-				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getDescriptor().getWait());
-			List<String> ids = getBuildIDs(client, overrides);
-			
-			String bldId = getLatestBuildID(ids);
-			
-			if (!checkDeps)
-				listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE, bldId));
-			else
-				listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY, bldId));
-				
-			return this.verifyBuild(System.currentTimeMillis(), getDescriptor().getWait(), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, env);
-    				        		
-    	} else {
-    		return false;
-    	}
-    	
-	}
-    
 	
 	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,

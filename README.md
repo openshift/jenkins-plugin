@@ -54,9 +54,149 @@ A few Jenkins "post-build action" implementations are also provided, which you c
 
 2. "Cancel OpenShift Deployment": this action is intended to cleanup any OpenShift deployments which still in-progress after the Build completes;  this step will allow you to perform the equivalent of a `oc deploy --cancel` for the provided deployment config.
 
-## Jenkins Workflow 
+## Jenkins Pipeline (formerly Workflow) Plugin
 
-Each of the Jenkins "build steps" can also be used as steps in a Jenkins Workflow plugin Groovy script, as they implement `jenkins.tasks.SimpleBuildStep` and `java.io.Serializable`.  From your Groovy script, instantiate the associated Java object, and then leverage the workflow plugin `step` keyword to call out to the object with the necessary workflow contexts.  [Here](https://github.com/jenkinsci/workflow-plugin/blob/master/TUTORIAL.md) is a useful reference on constructing Jenkins Workflow Groovy scripts.
+### DSL
+
+Starting with version 1.0.14 of the OpenShift Pipeline Plugin, the "build steps" are now accessible via the Jenkins Pipeline Plugin Step API for creating DSL extensions for the Pipeline Plugin.
+This Pipeline DSL is the replacement for the Java object instantiation within the Pipeline Groovy scripts noted below.
+
+For each of the DSLs, you can still instantiate the various steps and assign to a variable, however you no longer need to pass it to the `step` method (execution will commence immediately after the step is created).  That would like the following example:
+
+`def builder = openShiftBuild buildConfig: 'frontend'`
+
+NOTE:  the Pipeline Plugin "Snippet Generator" creates Groovy of this form.
+
+You can, however, also create the step without assigning it to a variable, and allow the automatic execution to commence.  That would like like the following example:
+
+`openShiftBuild(buildConfig: 'frontend')`
+
+Here is the complete DSL reference for the OpenShift Pipeline Plugin.
+
+0.  Optional parameters that apply to all the DSL steps:
+
+a) "apiURL":  URL of the OpenShift api endpoint.  If nothing is specified, the plugin will inspect the KUBERNETES_SERVICE_HOST environment variable. If that variable is not set, the plugin will attempt to connect to "https://openshift.default.svc.cluster.local".
+
+b) "namespace":  The name of the project the BuildConfig is stored in.  If nothing is specified, the plugin will inspect the PROJECT_NAME environment variable.
+
+c) "authToken":  The authorization token for interacting with OpenShift.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
+
+d) "verbose":  Allow for verbose logging during this build step plug-in.  Set to `true` to generate the additional logging.
+
+1.  "Trigger OpenShift Build":  The step name is "openShiftBuild".  Mandatory parameters are:
+
+a) "buildConfig":  The name of the BuildConfig to trigger
+
+Optional parameters are:
+
+a) "buildName":  The name of a previous build which should be re-run.  Equivalent to specifying the `--from-build` option when invoking the OpenShift `oc start-build` command.
+
+b) "commitID":  The commit hash the build should be run from.  Equivalent to specifying the `--commit` option when invoking the OpenShift `oc start-build` command.
+
+c) "showBuildLogs":  Pipe the build logs from OpenShift to the Jenkins console.  
+
+d) "checkForTriggeredDeployments":  Verify whether any deployments triggered by this build's output fired.  
+
+e) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5 minutes.
+
+2. "Trigger OpenShift Deployment":  The step name is "openShiftDeploy".  Mandatory parameters are:
+
+a)  "deploymentConfig":  The name of the DeploymentConfig to trigger.
+
+Optional parameters are:
+
+a)  "waitTime":  Time in milliseconds to wait for deployment completion.  Default is 1 minute.
+
+3. "Create OpenShift Resource(s)":  The step name is "openShiftCreateResources".  Mandatory parameters is either:
+
+a) "json": The JSON representation of the OpenShift resources
+
+b) "yaml": The YAML representation of the OpenShift resources
+
+4. "Delete OpenShift Resource(s) from JSON/YAML":  The step name is "openShiftDeleteResourceByJsonYaml".  Mandatory parameters is either:
+
+a) "json": The JSON representation of the OpenShift resources
+
+b) "yaml": The YAML representation of the OpenShift resources
+
+5.  "Delete OpenShift Resource(s) using Labels":  The step name is "openShiftDeleteResourceByLabels".  Mandatory parameters are:
+
+a)  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
+
+b)  "keys":  The key(s) of labels on the OpenShift resource(s) to delete.  Provide a comma-separated list.
+
+c)  "values":  The value(s) of labels on the OpenShift resource(s) to delete.  Provide a comma-separated list.
+
+6.  "Delete OpenShift Resource(s) by Key":  The step name is "openShiftDeleteResourceByKey".  Mandatory parameters are:
+
+a)  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
+
+b)  "keys":  The key(s) of the OpenShift resource(s) to delete.  Provide a comma-separated list.
+
+7.  "Scale OpenShift Deployment":  The step name is "openShiftScale".  Mandatory parameters are:
+
+a)  "deploymentConfig":  The name of the DeploymentConfig to scale.
+
+b)  "replicaCount":  The number of replicas to scale to.
+
+Optional parameters are:
+
+a)  "verifyReplicaCount":  Verify whether the specified number of replicas are up.  Specify `true` or `false`.
+
+b)  "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 1 minute.
+
+8.  "Tag OpenShift Image":  The step name is "openShiftTag".  Mandatory parameters are:
+
+a)  "sourceStream":  The ImageStream of the existing image.
+
+b)  "sourceTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image. 
+
+c)  "destinationStream":  The ImageStream for the new tag.
+
+d)  "destinationTag":  The name of the new tag.
+
+Optional parameters are:
+
+a)  "alias":  Whether to update destination tag whenever the source tag changes.  Equivalent of the `--alias` option for the `oc tag` command. When false, the destination tag type is "ImageStreamImage", and when true, the destination tag type is "ImageStreamTag".
+
+b)  "destinationNamespace":  The name of the project to host the destinationStream:destinationTag.  If nothing is specified, the plugin will inspect the PROJECT_NAME environment variable.
+
+c)  "destinationAuthToken":  The authorization token for interacting with the destinationNamespace.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
+
+9.  "Verify OpenShift Build":  The step name is "openShiftVerifyBuild".  Mandatory parameters are:
+
+a)  "buildConfig":  The name of the BuildConfig to verify.
+
+Optional parameters are:
+
+a) "checkForTriggeredDeployments":  Verify whether any deployments triggered by this build's output fired.  
+
+b) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5 minutes.
+
+10. "Verify OpenShift Deployment":  The step name is "openShiftVerifyDeployment".  Mandatory parameters are:
+
+a)  "deploymentConfig":  The name of the DeploymentConfig to scale.
+
+Optional parameters are:
+
+a)  "replicaCount":  The number of replicas to scale to.
+
+b)  "verifyReplicaCount":  Verify whether the specified number of replicas are up.  Specify `true` or `false`.
+
+c)  "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 1 minute.
+
+11.  "Verify OpenShift Service":  The step name is "openShiftVerifyService".  Mandatory parameters are:
+
+a)  "serviceName":  The name of the service to connect to.
+
+Optional parameters are:
+
+a)  "retryCount":  The number of times to attempt a connection before giving up.  The default is 100.
+
+
+### Pipeline / Workflow support prior to version 1.0.14 of the OpenShift Pipeline Plugin 
+
+Each of the Jenkins "build steps" can also be used as steps in a Jenkins Pipeline / Workflow plugin Groovy script, as they implement `jenkins.tasks.SimpleBuildStep` and `java.io.Serializable`.  From your Groovy script, instantiate the associated Java object, and then leverage the workflow plugin `step` keyword to call out to the object with the necessary workflow contexts.  [Here](https://github.com/jenkinsci/workflow-plugin/blob/master/TUTORIAL.md) is a useful reference on constructing Jenkins Workflow Groovy scripts.
 
 As a point of reference, here are the Java classes for each of the Jenkins "build steps":
 1.  "Trigger OpenShift Build":  com.openshift.jenkins.plugins.pipeline.OpenShiftBuilder

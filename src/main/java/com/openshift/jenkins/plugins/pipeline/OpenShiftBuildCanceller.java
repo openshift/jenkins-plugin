@@ -1,5 +1,4 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.EnvVars;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
@@ -45,19 +44,14 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
     // of insuring nulls are not returned for field getters
 
     public String getBldCfg() {
-    	if (bldCfg == null)
-    		return "";
     	return bldCfg;
     }
     
     public String getBldCfg(Map<String,String> overrides) {
-    	if (overrides != null && overrides.containsKey("bldCfg"))
-    		return overrides.get("bldCfg");
-    	return getBldCfg();
+		return getOverride(getBldCfg(), overrides);
     }
 	
-	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Map<String,String> overrides) {
+	public boolean coreLogic(Launcher launcher, TaskListener listener, Map<String,String> overrides) {
 		boolean chatty = Boolean.parseBoolean(verbose);
 				
     	listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));

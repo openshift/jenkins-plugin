@@ -1,5 +1,4 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.EnvVars;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
@@ -42,20 +41,15 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
     // of insuring nulls are not returned for field getters
 
 	public String getDepCfg() {
-		if (depCfg == null)
-			return "";
 		return depCfg;
 	}
 
 	public String getDepCfg(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("depCfg"))
-			return overrides.get("depCfg");
-		return getDepCfg();
+		return getOverride(getDepCfg(), overrides);
 	}
 	
 	@Override
-	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Map<String,String> overrides) {
+	public boolean coreLogic(Launcher launcher, TaskListener listener, Map<String,String> overrides) {
 
     	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));		
 		
@@ -71,7 +65,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
     		}
 			
     		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-			IReplicationController rc = Deployment.getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
+			IReplicationController rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
 				
 			if (rc != null) {
 				String state = this.getReplicationControllerState(rc);

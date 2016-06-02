@@ -13,7 +13,33 @@ import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.QueryParameter;
 import org.yaml.snakeyaml.Yaml;
 
+import com.openshift.jenkins.plugins.pipeline.dsl.OpenShiftBaseStep;
+
 public class ParamVerify {
+	
+	public static void updateDSLBaseStep(Map<String, Object> arguments, OpenShiftBaseStep step) {
+        if (arguments.containsKey("namespace")) {
+        	Object namespace = arguments.get("namespace");
+        	if (namespace != null) {
+        		step.setNamespace(namespace.toString());
+        	}
+        }
+        if (arguments.containsKey("apiURL")) {
+        	Object apiURL = arguments.get("apiURL");
+        	if (apiURL != null)
+        		step.setApiURL(apiURL.toString());
+        }
+        if (arguments.containsKey("authToken")) {
+        	Object authToken = arguments.get("authToken");
+        	if (authToken != null)
+        		step.setAuthToken(authToken.toString());
+        }
+        if (arguments.containsKey("verbose")) {
+        	Object verbose = arguments.get("verbose");
+        	if (verbose != null)
+        		step.setVerbose(verbose.toString());
+        }
+	}
 
     public static FormValidation doCheckApiURL(@QueryParameter String value)
             throws IOException, ServletException {

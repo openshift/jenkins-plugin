@@ -1,20 +1,14 @@
 package com.openshift.jenkins.plugins.pipeline;
 
-import hudson.EnvVars;
 import hudson.Extension;
-import hudson.Launcher;
 import hudson.model.AbstractProject;
 import hudson.model.Item;
-import hudson.model.TaskListener;
-import hudson.model.Descriptor.FormException;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
 import java.io.IOException;
-import java.util.Map;
-import java.util.Set;
 
 import javax.servlet.ServletException;
 
@@ -25,13 +19,10 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.openshift.jenkins.plugins.pipeline.OpenShiftCreator.DescriptorImpl;
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.model.IResource;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeleterList;
 
-public class OpenShiftDeleterList extends OpenShiftApiObjHandler {
+public class OpenShiftDeleterList extends OpenShiftBaseStep implements IOpenShiftDeleterList {
 
-	protected final static String DISPLAY_NAME = "Delete OpenShift Resource(s) by Key";
 	protected final String types;
 	protected final String keys;
 	
@@ -49,83 +40,13 @@ public class OpenShiftDeleterList extends OpenShiftApiObjHandler {
     // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 	public String getTypes() {
-		if (types == null)
-			return "";
 		return types;
 	}
 	
-	public String getTypes(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("types"))
-			return overrides.get("types");
-		return getTypes();
-	}
-	
 	public String getKeys() {
-		if (keys == null)
-			return "";
 		return keys;
 	}
 	
-	public String getKeys(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("keys"))
-			return overrides.get("keys");
-		return getKeys();
-	}
-	
-	@Override
-	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Map<String, String> overrides) {
-		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-    	listener.getLogger().println(String.format(MessageConstants.START_DELETE_OBJS, DISPLAY_NAME, getNamespace(overrides)));
-
-    	updateApiTypes(chatty, listener, overrides);
-    	
-    	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-    	
-    	if (client != null) {
-    		// verify valid type is specified
-    		Set<String> types = apiMap.keySet();
-    		String resourceKind = null;
-	    	// rc[0] will be successful deletes, rc[1] will be failed deletes
-    		int[] rc = new int[2];
-    		int badType = 0;
-    		String[] inputTypes = getTypes(overrides).split(",");
-    		String[] inputKeys = getKeys(overrides).split(",");
-    		
-    		if (inputTypes.length != inputKeys.length) {
-    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_KEY_TYPE_MISMATCH, inputTypes.length, inputKeys.length));
-    			return false;
-    		}
-    		
-    		for (int i =0; i < inputTypes.length; i++) {
-        		for (String type : types) {
-        			
-        			if (type.equalsIgnoreCase(inputTypes[i])) {
-        				resourceKind = type;
-        				break;
-        			}
-        		}
-    			
-        		if (resourceKind == null) {
-        			listener.getLogger().println(String.format(MessageConstants.TYPE_NOT_SUPPORTED, inputTypes[i]));
-        			badType++;
-        			continue;
-        		}
-        		
-        		rc = deleteAPIObjs(client, listener, getNamespace(overrides), resourceKind, inputKeys[i], null);
-    		}
-    		
-    		if (rc[1] == 0 && badType == 0) {
-    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, rc[0]));
-    			return true;
-    		} else {
-    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_BAD, DISPLAY_NAME, rc[0], rc[1] + badType));
-    		}
-    	}
-		return false;
-	}
-
     // Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.

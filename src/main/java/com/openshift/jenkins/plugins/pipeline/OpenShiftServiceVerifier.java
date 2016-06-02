@@ -1,9 +1,6 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.EnvVars;
-import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
-import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
@@ -13,22 +10,17 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.model.IService;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftServiceVerifier;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Map;
 
-public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
+public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpenShiftServiceVerifier {
 
-	protected final static String DISPLAY_NAME = "Verify OpenShift Service";
-	
     protected final String svcName;
+    protected String retryCount;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
@@ -44,71 +36,20 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep {
     // of insuring nulls are not returned for field getters
 
 	public String getSvcName() {
-		if (svcName == null)
-			return "";
 		return svcName;
 	}
 	
-	public String getSvcName(Map<String,String> overrides) {
-		if (overrides != null && overrides.containsKey("svcName"))
-			return overrides.get("svcName");
-		return getSvcName();
+	public String getRetryCount() {
+		return retryCount;
 	}
-
-    public boolean coreLogic(Launcher launcher, TaskListener listener, EnvVars env, Map<String,String> overrides) {
-		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-    	listener.getLogger().println(String.format(MessageConstants.START_SERVICE_VERIFY, DISPLAY_NAME, getSvcName(overrides), getNamespace(overrides)));
-    	
-    	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-    	String spec = null;
-    	
-    	if (client != null) {
-        	// get Service
-        	IService svc = client.get(ResourceKind.SERVICE, getSvcName(overrides), getNamespace(overrides));
-        	String ip = svc.getPortalIP();
-        	int port = svc.getPort();
-        	spec = ip + ":" + port;
-        	int tryCount = 0;
-        	if (chatty)
-        		listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getDescriptor().getRetry());
-        	listener.getLogger().println(String.format(MessageConstants.SERVICE_CONNECTING, spec));
-        	while (tryCount < getDescriptor().getRetry()) {
-        		tryCount++;
-        		if (chatty) listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
-        		InetSocketAddress address = new InetSocketAddress(ip,port);
-        		Socket socket = null;
-        		try {
-        			socket = new Socket();
-	        		socket.connect(address, 2500);
-                	listener.getLogger().println(String.format(MessageConstants.EXIT_SERVICE_VERIFY_GOOD, DISPLAY_NAME, spec));
-	        		return true;
-				} catch (IOException e) {
-					if (chatty) e.printStackTrace(listener.getLogger());
-					try {
-						Thread.sleep(2500);
-					} catch (InterruptedException e1) {
-					}
-				} finally {
-					try {
-						socket.close();
-					} catch (IOException e) {
-						if (chatty)
-							e.printStackTrace(listener.getLogger());
-					}
-				}
-        	}
-            	
-        	
-    	} else {
-    		return false;
-    	}
-
-    	listener.getLogger().println(String.format(MessageConstants.EXIT_SERVICE_VERIFY_BAD, DISPLAY_NAME, spec));
-
-    	return false;
-    }
-
+	
+	public String getRetryCount(Map<String, String> overrides) {
+		String val = getOverride(getRetryCount(), overrides);
+		if (val.length() > 0)
+			return val;
+		return Integer.toString(getDescriptor().getRetry());
+	}
+	
     // Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.

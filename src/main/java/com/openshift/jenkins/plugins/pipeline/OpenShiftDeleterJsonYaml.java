@@ -1,40 +1,24 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.EnvVars;
-import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
-import hudson.model.TaskListener;
 import hudson.model.AbstractProject;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 
-import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
-import org.yaml.snakeyaml.Yaml;
 
-import com.openshift.internal.restclient.http.HttpClientException;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.internal.restclient.model.KubernetesResource;
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.model.IResource;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeleterJsonYaml;
 
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 
-public class OpenShiftDeleterJsonYaml extends OpenShiftApiObjHandler {
+public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpenShiftDeleterJsonYaml {
 	
-	protected final static String DISPLAY_NAME = "Delete OpenShift Resource(s) from JSON/YAML";
     protected final String jsonyaml;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
@@ -50,63 +34,8 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftApiObjHandler {
     // of insuring nulls are not returned for field getters
 
     public String getJsonyaml() {
-    	if (jsonyaml == null)
-    		return "";
     	return jsonyaml;
     }
-    
-    public String getJsonyaml(Map<String,String> overrides) {
-    	if (overrides != null && overrides.containsKey("jsonyaml"))
-    		return overrides.get("jsonyaml");
-    	return getJsonyaml();
-    }
-    
-	public boolean coreLogic(Launcher launcher, TaskListener listener,
-			EnvVars env, Map<String,String> overrides) {
-		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-    	listener.getLogger().println(String.format(MessageConstants.START_DELETE_OBJS, DISPLAY_NAME, getNamespace(overrides)));
-    	updateApiTypes(chatty, listener, overrides);
-    	
-    	ModelNode resources = this.hydrateJsonYaml(getJsonyaml(overrides), chatty ? listener : null);
-    	if (resources == null) {
-    		return false;
-    	}
-    	    	
-    	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-    	
-    	if (client != null) {
-	    	//cycle through json and POST to appropriate resource
-	    	String kind = resources.get("kind").asString();
-	    	// rc[0] will be successful deletes, rc[1] will be failed deletes
-	    	int[] rc = new int[2];
-	    	if (kind.equalsIgnoreCase("List")) {
-	    		List<ModelNode> list = resources.get("items").asList();
-	    		for (ModelNode node : list) {
-	    			String path = node.get("kind").asString();
-	    			String name = node.get("metadata").get("name").asString();
-					
-	    			rc = deleteAPIObjs(client, listener, getNamespace(overrides), path, name, null);
-	
-	    		}
-	    	} else {
-	    		String path = kind;
-	    		String name = resources.get("metadata").get("name").asString();
-	    		
-    			rc = deleteAPIObjs(client, listener, getNamespace(overrides), path, name, null);
-	    		
-	    	}
-	
-	    	if (rc[1] > 0) {
-	    		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_BAD, DISPLAY_NAME, rc[0], rc[1]));
-				return false;
-	    	} else {
-	    		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, rc[0]));
-	    		return true;
-	    	}
-    	}
-		return false;
-	}
     
 
     // Overridden for better type safety.
