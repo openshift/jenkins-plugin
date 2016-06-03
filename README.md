@@ -85,7 +85,7 @@ d) "verbose":  Allow for verbose logging during this build step plug-in.  Set to
 
 1.  "Trigger OpenShift Build":  The step name is "openShiftBuild".  Mandatory parameters are:
 
-a) "buildConfig":  The name of the BuildConfig to trigger
+a) "buildConfig" or "bldCfg":  The name of the BuildConfig to trigger
 
 Optional parameters are:
 
@@ -101,7 +101,7 @@ e) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5
 
 2. "Trigger OpenShift Deployment":  The step name is "openShiftDeploy".  Mandatory parameters are:
 
-a)  "deploymentConfig":  The name of the DeploymentConfig to trigger.
+a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to trigger.
 
 Optional parameters are:
 
@@ -109,15 +109,13 @@ a)  "waitTime":  Time in milliseconds to wait for deployment completion.  Defaul
 
 3. "Create OpenShift Resource(s)":  The step name is "openShiftCreateResources".  Mandatory parameters is either:
 
-a) "json": The JSON representation of the OpenShift resources
-
-b) "yaml": The YAML representation of the OpenShift resources
+a) "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
+as the string passes either the JSON or YAML format checking, it will be processed.
 
 4. "Delete OpenShift Resource(s) from JSON/YAML":  The step name is "openShiftDeleteResourceByJsonYaml".  Mandatory parameters is either:
 
-a) "json": The JSON representation of the OpenShift resources
-
-b) "yaml": The YAML representation of the OpenShift resources
+a) "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
+as the string passes either the JSON or YAML format checking, it will be processed.
 
 5.  "Delete OpenShift Resource(s) using Labels":  The step name is "openShiftDeleteResourceByLabels".  Mandatory parameters are:
 
@@ -135,7 +133,7 @@ b)  "keys":  The key(s) of the OpenShift resource(s) to delete.  Provide a comma
 
 7.  "Scale OpenShift Deployment":  The step name is "openShiftScale".  Mandatory parameters are:
 
-a)  "deploymentConfig":  The name of the DeploymentConfig to scale.
+a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
 
 b)  "replicaCount":  The number of replicas to scale to.
 
@@ -147,13 +145,13 @@ b)  "waitTime":  The amount of time in milliseconds to see whether the specified
 
 8.  "Tag OpenShift Image":  The step name is "openShiftTag".  Mandatory parameters are:
 
-a)  "sourceStream":  The ImageStream of the existing image.
+a)  "sourceStream" or "srcStream":  The ImageStream of the existing image.
 
-b)  "sourceTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image. 
+b)  "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image. 
 
-c)  "destinationStream":  The ImageStream for the new tag.
+c)  "destinationStream" or "destStream":  The ImageStream for the new tag.
 
-d)  "destinationTag":  The name of the new tag.
+d)  "destinationTag" or "destTag":  The name of the new tag.
 
 Optional parameters are:
 
@@ -165,7 +163,7 @@ c)  "destinationAuthToken":  The authorization token for interacting with the de
 
 9.  "Verify OpenShift Build":  The step name is "openShiftVerifyBuild".  Mandatory parameters are:
 
-a)  "buildConfig":  The name of the BuildConfig to verify.
+a)  "buildConfig" or "bldCfg":  The name of the BuildConfig to verify.
 
 Optional parameters are:
 
@@ -175,7 +173,7 @@ b) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5
 
 10. "Verify OpenShift Deployment":  The step name is "openShiftVerifyDeployment".  Mandatory parameters are:
 
-a)  "deploymentConfig":  The name of the DeploymentConfig to scale.
+a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
 
 Optional parameters are:
 
@@ -187,7 +185,7 @@ c)  "waitTime":  The amount of time in milliseconds to see whether the specified
 
 11.  "Verify OpenShift Service":  The step name is "openShiftVerifyService".  Mandatory parameters are:
 
-a)  "serviceName":  The name of the service to connect to.
+a)  "serviceName" or "svcName":  The name of the service to connect to.
 
 Optional parameters are:
 

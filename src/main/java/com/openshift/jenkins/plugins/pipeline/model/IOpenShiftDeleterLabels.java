@@ -67,13 +67,18 @@ public interface IOpenShiftDeleterLabels extends IOpenShiftApiObjHandler {
     		}
     		
     		for (int i =0; i < inputTypes.length; i++) {
-        		for (String type : types) {
-        			
-        			if (type.equalsIgnoreCase(inputTypes[i])) {
-        				resourceKind = type;
-        				break;
-        			}
-        		}
+    			if (OpenShiftApiObjHandler.typeShortcut.containsKey(inputTypes[i])) {
+    				resourceKind = OpenShiftApiObjHandler.typeShortcut.get(inputTypes[i]);
+    			} else {
+            		for (String type : types) {
+            			
+            			if (type.equalsIgnoreCase(inputTypes[i])) {
+            				resourceKind = type;
+            				break;
+            			}
+            			
+            		}
+    			}
     			
         		if (resourceKind == null) {
         			listener.getLogger().println(String.format(MessageConstants.TYPE_NOT_SUPPORTED, inputTypes[i]));

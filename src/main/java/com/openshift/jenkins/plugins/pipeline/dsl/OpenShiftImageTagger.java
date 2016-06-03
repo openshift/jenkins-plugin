@@ -139,17 +139,42 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("sourceStream") ||
-            	!arguments.containsKey("destinationStream") ||
-            	!arguments.containsKey("sourceTag") ||
-            	!arguments.containsKey("destinationTag"))
+            if (!arguments.containsKey("sourceStream") &&
+            	!arguments.containsKey("destinationStream") &&
+            	!arguments.containsKey("sourceTag") &&
+            	!arguments.containsKey("destinationTag") &&
+            	!arguments.containsKey("destStream") &&
+            	!arguments.containsKey("destTag") &&
+            	!arguments.containsKey("srcTag") &&
+            	!arguments.containsKey("destStream") &&
+            	!arguments.containsKey("srcStream"))
+            	throw new IllegalArgumentException("need to specify sourceStream, sourceTag, destinationStream, destinationTag");
+            
+            Object srcStream = arguments.get("sourceStream");
+            Object srcTag = arguments.get("sourceTag");
+            Object destStream = arguments.get("destinationStream");
+            Object destTag = arguments.get("destinationTag");
+            
+            if (srcStream == null || srcStream.toString().length() == 0)
+            	srcStream = arguments.get("srcStream");
+            if (srcTag == null || srcTag.toString().length() == 0)
+            	srcTag = arguments.get("srcTag");
+            if (destStream == null || destStream.toString().length() == 0)
+            	destStream = arguments.get("destStream");
+            if (destTag == null || destTag.toString().length() == 0)
+            	destTag = arguments.get("destTag");
+            
+            if (srcStream == null || srcStream.toString().length() == 0 ||
+            	srcTag == null || srcTag.toString().length() == 0 ||
+            	destStream == null || destStream.toString().length() == 0 ||
+            	destTag == null || destTag.toString().length() == 0) 
             	throw new IllegalArgumentException("need to specify sourceStream, sourceTag, destinationStream, destinationTag");
             
             OpenShiftImageTagger step = 
-            		new OpenShiftImageTagger(arguments.get("sourceStream").toString(),
-            												arguments.get("sourceTag").toString(),
-            												arguments.get("destinationStream").toString(),
-            												arguments.get("destinationTag").toString());
+            		new OpenShiftImageTagger(srcStream.toString(),
+            								 srcTag.toString(),
+            								 destStream.toString(),
+            								 destTag.toString());
             if(arguments.containsKey("alias")) {
                 Object alias = arguments.get("alias");
                 if (alias != null) {

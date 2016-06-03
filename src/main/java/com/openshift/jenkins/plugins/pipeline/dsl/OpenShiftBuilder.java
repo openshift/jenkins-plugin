@@ -114,9 +114,14 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("buildConfig"))
+            if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
             	throw new IllegalArgumentException("need to specify buildConfig");
-            OpenShiftBuilder step = new OpenShiftBuilder(arguments.get("buildConfig").toString());
+            Object bldCfg = arguments.get("buildConfig");
+            if (bldCfg == null || bldCfg.toString().length() == 0)
+            	bldCfg = arguments.get("bldCfg");
+            if (bldCfg == null || bldCfg.toString().length() == 0)
+            	throw new IllegalArgumentException("need to specify buildConfig");
+            OpenShiftBuilder step = new OpenShiftBuilder(bldCfg.toString());
             if(arguments.containsKey("buildName")) {
                 Object buildName = arguments.get("buildName");
                 if (buildName != null) {

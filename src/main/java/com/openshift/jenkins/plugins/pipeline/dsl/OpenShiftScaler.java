@@ -105,9 +105,16 @@ public class OpenShiftScaler extends OpenShiftBaseStep implements IOpenShiftScal
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("deploymentConfig") || !arguments.containsKey("replicaCount"))
-            	throw new IllegalArgumentException("need to specify deploymentConfig and replicaCount");
-            OpenShiftScaler step = new OpenShiftScaler(arguments.get("deploymentConfig").toString(),
+            if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
+            	throw new IllegalArgumentException("need to specify deploymentConfig");
+            Object depCfg = arguments.get("deploymentConfig");
+            if (depCfg == null || depCfg.toString().length() == 0)
+            	depCfg = arguments.get("depCfg");
+            if (depCfg == null || depCfg.toString().length() == 0)
+            	throw new IllegalArgumentException("need to specify deploymentConfig");
+            if (!arguments.containsKey("replicaCount"))
+            		throw new IllegalArgumentException("need to specif replicaCount");
+            OpenShiftScaler step = new OpenShiftScaler(depCfg.toString(),
             		arguments.get("replicaCount").toString());
             
             if (arguments.containsKey("waitTime")) {

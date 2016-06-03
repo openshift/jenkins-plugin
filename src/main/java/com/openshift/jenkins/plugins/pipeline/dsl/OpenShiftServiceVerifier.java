@@ -95,9 +95,14 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("serviceName"))
+            if (!arguments.containsKey("serviceName") && !arguments.containsKey("svcName"))
             	throw new IllegalArgumentException("need to specify serviceName");
-            OpenShiftServiceVerifier step = new OpenShiftServiceVerifier(arguments.get("serviceName").toString());
+            Object svcName = arguments.get("serviceName");
+            if (svcName == null || svcName.toString().length() == 0)
+            	svcName = arguments.get("svcName");
+            if (svcName == null || svcName.toString().length() == 0)
+            	throw new IllegalArgumentException("need to specify serviceName");
+            OpenShiftServiceVerifier step = new OpenShiftServiceVerifier(svcName.toString());
             
             if (arguments.containsKey("retryCount")) {
             	Object retryCount = arguments.get("retryCount");

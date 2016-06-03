@@ -13,6 +13,7 @@ public class OpenShiftApiObjHandler  {
     public final static String oapi = "/oapi";
     public final static String apis = "/apis";
 
+    public static final Map<String, String> typeShortcut;
     public static final Map<String, String[]> apiMap;
     static
     {
@@ -54,6 +55,17 @@ public class OpenShiftApiObjHandler  {
     	apiMap.put("ServiceAccount", new String[]{api, "serviceaccounts"});
     	apiMap.put("Service", new String[]{api, "services"});
     	apiMap.put("Job", new String[]{apis, "jobs"});
+    	
+    	typeShortcut = new HashMap<String, String>();
+    	typeShortcut.put("build", "Build");
+    	typeShortcut.put("bc", "BuildConfig");
+    	typeShortcut.put("dc", "DeploymentConfig");
+    	typeShortcut.put("is", "ImageStream");
+    	typeShortcut.put("istag", "ImageStreamTag");
+    	typeShortcut.put("route", "Route");
+    	typeShortcut.put("rc", "ReplicationController");
+    	typeShortcut.put("secret", "Secret");
+    	typeShortcut.put("svc", "Service");
     }
     
 

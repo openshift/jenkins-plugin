@@ -74,15 +74,14 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpen
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-        	Object json = arguments.get("json");
-        	Object yaml = arguments.get("yaml");
-            if (json == null && yaml == null)
+        	Object jsonyaml = arguments.get("yaml");
+        	if (jsonyaml == null || jsonyaml.toString().length() == 0)
+        		jsonyaml = arguments.get("json");
+        	if (jsonyaml == null || jsonyaml.toString().length() == 0)
+        		jsonyaml = arguments.get("jsonyaml");
+            if (jsonyaml == null || jsonyaml.toString().length() == 0)
             	throw new IllegalArgumentException("need to specify json or yaml");
-            OpenShiftDeleterJsonYaml step = null;
-            if (json != null)
-            	step = new OpenShiftDeleterJsonYaml(json.toString());
-            else 
-            	step = new OpenShiftDeleterJsonYaml(yaml.toString());
+            OpenShiftDeleterJsonYaml step = new OpenShiftDeleterJsonYaml(jsonyaml.toString());
             ParamVerify.updateDSLBaseStep(arguments, step);
             return step;
         }

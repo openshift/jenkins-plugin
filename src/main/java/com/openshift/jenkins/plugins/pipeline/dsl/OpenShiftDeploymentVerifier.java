@@ -108,9 +108,14 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IO
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("deploymentConfig"))
+            if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
             	throw new IllegalArgumentException("need to specify deploymentConfig");
-            OpenShiftDeploymentVerifier step = new OpenShiftDeploymentVerifier(arguments.get("deploymentConfig").toString());
+            Object depCfg = arguments.get("deploymentConfig");
+            if (depCfg == null || depCfg.toString().length() == 0)
+            	depCfg = arguments.get("depCfg");
+            if (depCfg == null || depCfg.toString().length() == 0)
+            	throw new IllegalArgumentException("need to specify deploymentConfig");
+            OpenShiftDeploymentVerifier step = new OpenShiftDeploymentVerifier(depCfg.toString());
             
             if (arguments.containsKey("waitTime")) {
             	Object waitTime = arguments.get("waitTime");
