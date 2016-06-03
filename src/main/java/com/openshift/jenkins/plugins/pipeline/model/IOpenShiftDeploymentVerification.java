@@ -15,6 +15,10 @@ public interface IOpenShiftDeploymentVerification extends IOpenShiftPlugin {
 
 	final static String DISPLAY_NAME = "Verify OpenShift Deployment";
 	
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	String getDepCfg();
 
 	String getReplicaCount();

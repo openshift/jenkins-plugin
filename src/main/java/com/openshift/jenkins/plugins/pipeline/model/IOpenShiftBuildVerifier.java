@@ -17,6 +17,10 @@ public interface IOpenShiftBuildVerifier extends IOpenShiftPlugin {
 
 	public final static String DISPLAY_NAME = "Verify OpenShift Build";
 
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	String getBldCfg();
 		
 	String getCheckForTriggeredDeployments();

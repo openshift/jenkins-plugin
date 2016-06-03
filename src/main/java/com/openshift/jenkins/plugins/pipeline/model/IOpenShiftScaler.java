@@ -14,6 +14,10 @@ import com.openshift.restclient.model.IReplicationController;
 public interface IOpenShiftScaler extends IOpenShiftPlugin {
 	final static String DISPLAY_NAME = "Scale OpenShift Deployment";
 
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	public String getDepCfg();
 	
 	public String getReplicaCount();

@@ -25,6 +25,10 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
 
 	final static String DISPLAY_NAME = "Tag OpenShift Image";
 
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	public String getAlias();
 	
 	public String getTestTag();

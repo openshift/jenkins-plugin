@@ -15,6 +15,10 @@ public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
 
 	final static String DISPLAY_NAME = "Delete OpenShift Resource(s) from JSON/YAML";
 	
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	String getJsonyaml();
 		
     default String getJsonyaml(Map<String,String> overrides) {

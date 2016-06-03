@@ -14,6 +14,10 @@ public interface IOpenShiftDeleterList extends IOpenShiftApiObjHandler {
 
 	final static String DISPLAY_NAME = "Delete OpenShift Resource(s) by Key";
 	
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	String getKeys();
 		
 	String getTypes();

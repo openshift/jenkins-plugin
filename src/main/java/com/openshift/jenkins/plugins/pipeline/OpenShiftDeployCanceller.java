@@ -26,6 +26,10 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 
 	protected static final String DISPLAY_NAME = "Cancel OpenShift Deployment";
 	
+	public String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	protected final String depCfg;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"

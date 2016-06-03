@@ -15,6 +15,10 @@ public interface IOpenShiftDeleterLabels extends IOpenShiftApiObjHandler {
 
 	final static String DISPLAY_NAME = "Delete OpenShift Resource(s) using Labels";
 	
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	String getTypes();
 		
 	String getKeys();

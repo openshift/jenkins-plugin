@@ -15,6 +15,10 @@ public interface IOpenShiftDeployer extends IOpenShiftPlugin {
 
 	final static String DISPLAY_NAME = "Trigger OpenShift Deployment";
 	
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	String getDepCfg();
 		
 	String getWaitTime();

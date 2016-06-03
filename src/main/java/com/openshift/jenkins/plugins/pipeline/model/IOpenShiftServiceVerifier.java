@@ -16,6 +16,10 @@ import com.openshift.restclient.model.IService;
 public interface IOpenShiftServiceVerifier extends IOpenShiftPlugin {
 	final static String DISPLAY_NAME = "Verify OpenShift Service";
 	
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	public String getSvcName();
 	
 	public String getRetryCount();

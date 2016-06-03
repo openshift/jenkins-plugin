@@ -37,6 +37,10 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 	
 	protected final static String DISPLAY_NAME = "OpenShift ImageStreams";
 	
+	public String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	protected final String imageStreamName;
 	protected final String tag;
     protected final String apiURL;

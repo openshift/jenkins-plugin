@@ -133,18 +133,23 @@ public interface IOpenShiftPlugin {
     	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(overrides), listener, chatty)));
 		return coreLogic(launcher, listener, overrides);
 	}
+	
+	public String getDisplayName();
 
 	default void doIt(Run<?, ?> run, FilePath workspace, Launcher launcher,
 			TaskListener listener) throws InterruptedException, IOException {
     	EnvVars env = run.getEnvironment(listener);
     	boolean successful = this.doItCore(listener, env, run, null, launcher);
     	if (!successful)
-    		throw new AbortException("The OpenShift Build Step " +  getBaseClassName() + " was unsuccessful");
+    		throw new AbortException("\"" + getDisplayName() + "\" failed");
 	}
 
     default boolean doIt(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
     	EnvVars env = build.getEnvironment(listener);
-    	return this.doItCore(listener, env, null, build, launcher);
+    	boolean successful = this.doItCore(listener, env, null, build, launcher);
+    	if (!successful)
+    		throw new AbortException("\"" + getDisplayName() + "\" failed");
+    	return successful;
     }
     
     default String pruneKey(String key) {

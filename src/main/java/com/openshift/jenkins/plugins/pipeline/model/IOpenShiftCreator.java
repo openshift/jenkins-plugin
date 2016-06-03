@@ -20,6 +20,10 @@ import com.openshift.restclient.IClient;
 public interface IOpenShiftCreator extends IOpenShiftApiObjHandler {
 	final static String DISPLAY_NAME = "Create OpenShift Resource(s)";
 	
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	String getJsonyaml();
 	
     default String getJsonyaml(Map<String,String> overrides) {

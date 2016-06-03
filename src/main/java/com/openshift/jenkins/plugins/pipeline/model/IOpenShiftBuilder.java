@@ -25,6 +25,10 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 
 	public final static String DISPLAY_NAME = "Trigger OpenShift Build";
 	
+	default String getDisplayName() {
+		return DISPLAY_NAME;
+	}
+	
 	String getCommitID();
 		
 	String getBuildName();
