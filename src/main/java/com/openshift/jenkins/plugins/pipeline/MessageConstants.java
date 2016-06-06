@@ -97,7 +97,7 @@ public static final String EXIT_DEPLOY_CANCEL_GOOD_NO_REPCTR = "\n\nExiting \"" 
 /*
  * These messages are for the "Trigger OpenShift Deployment" jenkins build step implemented by OpenShiftDeployer
  */
-public static final String EXIT_DEPLOY_TRIGGER_TIMED_OUT = "\n\nExiting \"" + OpenShiftDeployCanceller.DISPLAY_NAME + "\" unsuccessfully; gave up on deployment \"%s\" with status:  [%s].";
+public static final String EXIT_DEPLOY_TRIGGER_TIMED_OUT = "\n\nExiting \"%s\" unsuccessfully; gave up on deployment \"%s\" with status:  [%s].";
 
 /*
  * These messages are for the "Verify OpenShift Deployment" jenkins build step implemented by OpenShiftDeploymenVerifier
