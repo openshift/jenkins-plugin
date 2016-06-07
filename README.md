@@ -73,7 +73,7 @@ You can, however, also create the step without assigning it to a variable, and a
 
 Here is the complete DSL reference for the OpenShift Pipeline Plugin.
 
-0.  Optional parameters that apply to all the DSL steps:
+####  Optional parameters that apply to all the DSL steps:
 
 a) "apiURL":  URL of the OpenShift api endpoint.  If nothing is specified, the plugin will inspect the KUBERNETES_SERVICE_HOST environment variable. If that variable is not set, the plugin will attempt to connect to "https://openshift.default.svc.cluster.local".
 
@@ -83,7 +83,9 @@ c) "authToken":  The authorization token for interacting with OpenShift.  If you
 
 d) "verbose":  Allow for verbose logging during this build step plug-in.  Set to `true` to generate the additional logging.
 
-1.  "Trigger OpenShift Build":  The step name is "openShiftBuild".  Mandatory parameters are:
+####  "Trigger OpenShift Build"
+
+The step name is "openShiftBuild".  Mandatory parameters are:
 
 a) "buildConfig" or "bldCfg":  The name of the BuildConfig to trigger
 
@@ -99,7 +101,9 @@ d) "checkForTriggeredDeployments":  Verify whether any deployments triggered by 
 
 e) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5 minutes.
 
-2. "Trigger OpenShift Deployment":  The step name is "openShiftDeploy".  Mandatory parameters are:
+#### "Trigger OpenShift Deployment"
+
+The step name is "openShiftDeploy".  Mandatory parameters are:
 
 a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to trigger.
 
@@ -107,17 +111,23 @@ Optional parameters are:
 
 a)  "waitTime":  Time in milliseconds to wait for deployment completion.  Default is 1 minute.
 
-3. "Create OpenShift Resource(s)":  The step name is "openShiftCreateResources".  Mandatory parameters is either:
+#### "Create OpenShift Resource(s)"
+
+The step name is "openShiftCreateResources".  Mandatory parameters is either:
 
 a) "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
 as the string passes either the JSON or YAML format checking, it will be processed.
 
-4. "Delete OpenShift Resource(s) from JSON/YAML":  The step name is "openShiftDeleteResourceByJsonYaml".  Mandatory parameters is either:
+#### "Delete OpenShift Resource(s) from JSON/YAML"
+
+The step name is "openShiftDeleteResourceByJsonYaml".  Mandatory parameters is either:
 
 a) "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
 as the string passes either the JSON or YAML format checking, it will be processed.
 
-5.  "Delete OpenShift Resource(s) using Labels":  The step name is "openShiftDeleteResourceByLabels".  Mandatory parameters are:
+####  "Delete OpenShift Resource(s) using Labels"
+
+The step name is "openShiftDeleteResourceByLabels".  Mandatory parameters are:
 
 a)  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
 
@@ -125,13 +135,17 @@ b)  "keys":  The key(s) of labels on the OpenShift resource(s) to delete.  Provi
 
 c)  "values":  The value(s) of labels on the OpenShift resource(s) to delete.  Provide a comma-separated list.
 
-6.  "Delete OpenShift Resource(s) by Key":  The step name is "openShiftDeleteResourceByKey".  Mandatory parameters are:
+####  "Delete OpenShift Resource(s) by Key"
+
+The step name is "openShiftDeleteResourceByKey".  Mandatory parameters are:
 
 a)  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
 
 b)  "keys":  The key(s) of the OpenShift resource(s) to delete.  Provide a comma-separated list.
 
-7.  "Scale OpenShift Deployment":  The step name is "openShiftScale".  Mandatory parameters are:
+####  "Scale OpenShift Deployment"
+
+The step name is "openShiftScale".  Mandatory parameters are:
 
 a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
 
@@ -143,7 +157,9 @@ a)  "verifyReplicaCount":  Verify whether the specified number of replicas are u
 
 b)  "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 1 minute.
 
-8.  "Tag OpenShift Image":  The step name is "openShiftTag".  Mandatory parameters are:
+####  "Tag OpenShift Image"
+
+The step name is "openShiftTag".  Mandatory parameters are:
 
 a)  "sourceStream" or "srcStream":  The ImageStream of the existing image.
 
@@ -161,7 +177,9 @@ b)  "destinationNamespace":  The name of the project to host the destinationStre
 
 c)  "destinationAuthToken":  The authorization token for interacting with the destinationNamespace.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
 
-9.  "Verify OpenShift Build":  The step name is "openShiftVerifyBuild".  Mandatory parameters are:
+####  "Verify OpenShift Build"
+
+The step name is "openShiftVerifyBuild".  Mandatory parameters are:
 
 a)  "buildConfig" or "bldCfg":  The name of the BuildConfig to verify.
 
@@ -171,7 +189,9 @@ a) "checkForTriggeredDeployments":  Verify whether any deployments triggered by 
 
 b) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5 minutes.
 
-10. "Verify OpenShift Deployment":  The step name is "openShiftVerifyDeployment".  Mandatory parameters are:
+#### "Verify OpenShift Deployment"
+
+The step name is "openShiftVerifyDeployment".  Mandatory parameters are:
 
 a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
 
@@ -183,7 +203,9 @@ b)  "verifyReplicaCount":  Verify whether the specified number of replicas are u
 
 c)  "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 1 minute.
 
-11.  "Verify OpenShift Service":  The step name is "openShiftVerifyService".  Mandatory parameters are:
+####  "Verify OpenShift Service"
+
+The step name is "openShiftVerifyService".  Mandatory parameters are:
 
 a)  "serviceName" or "svcName":  The name of the service to connect to.
 

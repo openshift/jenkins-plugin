@@ -104,9 +104,14 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenSh
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("buildConfig"))
+            if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
             	throw new IllegalArgumentException("need to specify buildConfig");
-            OpenShiftBuildVerifier step = new OpenShiftBuildVerifier(arguments.get("buildConfig").toString());
+            Object bldCfg = arguments.get("buildConfig");
+            if (bldCfg == null || bldCfg.toString().length() == 0)
+            	bldCfg = arguments.get("bldCfg");
+            if (bldCfg == null || bldCfg.toString().length() == 0)
+            	throw new IllegalArgumentException("need to specify buildConfig");
+            OpenShiftBuildVerifier step = new OpenShiftBuildVerifier(bldCfg.toString());
             if (arguments.containsKey("checkForTriggeredDeployments")) {
                 Object checkForTriggeredDeployments = arguments.get("checkForTriggeredDeployments");
                 if (checkForTriggeredDeployments != null) {
