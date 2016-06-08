@@ -241,23 +241,26 @@ As a point of reference, here are the Java classes for each of the Jenkins "buil
 
 ### Authorization
 
-In order for this plugin to operate against OpenShift resources, the OpenShift service account that is used will need to have the necessary role and permissions.  In particular, you will need to add the `edit` role to the `default` service account in the project those resources are located in.  
+In order for this plugin to operate against OpenShift resources, the OpenShift service account for the project(s) being operated against will need to have the necessary role and permissions.  In particular, you will need to add the `edit` role to the `default` service account in the project those resources are located in.  
 
 For example, in the case of the `test` project, the specific command will be:  `oc policy add-role-to-user edit system:serviceaccount:test:default`
 
-If that project is also where Jenkins is running out of, and hence you are using the OpenShift Jenkins image (https://github.com/openshift/jenkins), then the bearer authorization token associated with that service account is already made available to the plugin (mounted into the container Jenkins is running in at "/run/secrets/kubernetes.io/serviceaccount/token").
+If that project is also where Jenkins is running out of, and hence you are using the OpenShift Jenkins image (https://github.com/openshift/jenkins), then the bearer authorization token associated with that service account is already made available to the plugin (mounted into the container Jenkins is running in at "/run/secrets/kubernetes.io/serviceaccount/token").  So you don't need to specify it in the various build step config panels.
 
-Next, in the case of "Tag OpenShift Image", you could potentially wish to access two projects (the source and destination image streams can be in different projects with `oc tag`).  If so, the service account and associated token need access to both projects.  This can 
-be done in one of two ways:
+Next, in the case of "Tag OpenShift Image", you could potentially wish to access two projects (the source and destination image streams can be in different projects with `oc tag`).  If so, the service accounts for each project (and ther associated tokens) need `edit` access to the other project.  
 
-- Grant permission to the service account token from the project Jenkins is running in (i.e. the default token just described) to the second project; for example, if Jenkins is running in the project `test`, and you want to tag an ImageStream running in the project `test2`, run the command `oc policy add-role-to-user edit system:serviceaccount:test:default -n test2`
-- Or supply the token for the `default` service account for project `test2` as the destination token in the step's UI (i.e. the "The authorization token for interacting with OpenShift (if the new tag is targeted for a project external to the project hosting Jenkins)" field), and give that token permission to access project `test` by running the command `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
+Consider the scenario where the source image stream is in the project `test` and the destination image stream is in project `test2`.  Then you will want to run these two commands:
 
-Finally, outside of the default token mounted into the OpenShift Jenkins image container, the token can be provided by the user via the following:
+-  `oc policy add-role-to-user edit system:serviceaccount:test:default -n test2`
+-  `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
+
+Finally, for any of the build steps, outside of the previously mentioned mounting of the token for the project's `default` service account into the OpenShift Jenkins image container (assuming OpenShift brings up your Jenkins server), the token can be provided by the user via the following:
 
 - the field for the token in the specific build step
 - if a string parameter with the key of `AUTH_TOKEN` is set in the Jenkins Project panel, where the value is the token
 - if a global property with the key of `AUTH_TOKEN` is set in the `Manage Jenkins` panel, where the value is the token
+
+Per the OpenShift documentation, see the commands `oc describe serviceaccount default` and `oc describe secret <secret name>` for obtaining actual token strings.
 
 ### Certificates and Encryption
 
