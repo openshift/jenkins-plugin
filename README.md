@@ -54,6 +54,8 @@ A few Jenkins "post-build action" implementations are also provided, which you c
 
 2. "Cancel OpenShift Deployment": this action is intended to cleanup any OpenShift deployments which still in-progress after the Build completes;  this step will allow you to perform the equivalent of a `oc deploy --cancel` for the provided deployment config.
 
+3. "Scale OpenShift Deployment":  performs the equivalent of an `oc scale` command invocation; the number of desired replicas is specified as a parameter to this build step, and the plugin can optionally confirm whether the desired number of replicas was launched in a timely manner; if no integer is provided, it will assume 0 replica pods are desired.  And yes, it is equivalent to the "Scale OpenShift Deployment" build step listed above.
+
 ## Jenkins Pipeline (formerly Workflow) Plugin
 
 ### DSL
