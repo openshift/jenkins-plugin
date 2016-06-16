@@ -145,7 +145,7 @@ public class Auth implements ISSLCertificateCallback {
 		return cert;
 	}
 	
-	private static String pullTokenFromFile(File f, TaskListener listener) {
+	public static String pullTokenFromFile(File f, TaskListener listener) {
 		FileInputStream fis = null;
 		String authToken = null;
 		boolean verbose = listener != null;

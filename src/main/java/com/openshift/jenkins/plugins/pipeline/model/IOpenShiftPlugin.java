@@ -5,15 +5,18 @@ import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
+import hudson.model.Computer;
 import hudson.model.BuildListener;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.jboss.dmr.ModelNode;
 
@@ -48,6 +51,8 @@ public interface IOpenShiftPlugin {
 	// This annotation will contain a the full url of the jenkins job instance that lead
 	// to this object (e.g. build, deployment) being created.
 	public static final String BUILD_URL_ANNOTATION = "openshift.io/jenkins-build-uri";
+	
+	public static final String NAMESPACE_FILE = "/run/secrets/kubernetes.io/serviceaccount/namespace";
 
 	String getBaseClassName();
 	
@@ -75,11 +80,13 @@ public interface IOpenShiftPlugin {
 	
 	default String getApiURL(Map<String,String> overrides) {
 		String val = getOverride(getApiURL(), overrides);
-		if (val.length() == 0 && overrides != null && overrides.containsKey("KUBERNETES_SERVICE_HOST")) {
+		if ((val == null || val.length() == 0) && overrides != null && overrides.containsKey("KUBERNETES_SERVICE_HOST")) {
 			val = overrides.get("KUBERNETES_SERVICE_HOST");
 		}
-		if (val != null && !val.startsWith("https://"))
+		if (val != null && val.length() > 0 && !val.startsWith("https://"))
 			val = "https://" + val;
+		if (val == null || val.length() == 0)
+			val = "https://openshift.default.svc.cluster.local";
 		return val;
 	}
 	
@@ -89,6 +96,10 @@ public interface IOpenShiftPlugin {
 		String val = getOverride(getNamespace(), overrides);
 		if (val.length() == 0 && overrides != null && overrides.containsKey("PROJECT_NAME")) {
 			val = overrides.get("PROJECT_NAME");
+		} else {
+			File f = new File(NAMESPACE_FILE);
+			if (f.exists())
+				val = Auth.pullTokenFromFile(f, null);
 		}
 		return val;
 	}
@@ -122,14 +133,70 @@ public interface IOpenShiftPlugin {
 		return scaledAppropriately;
 	}
 	
+	//TODO leaving EnvVars env param for now ... in DSL scenario, curious of the injected contents vs. the run/build/computer contents
 	default boolean doItCore(TaskListener listener, EnvVars env, Run<?, ?> run, AbstractBuild<?, ?> build, Launcher launcher) {
 		boolean chatty = Boolean.parseBoolean(getVerbose());
+		
 		if (run == null && build == null)
 			throw new RuntimeException("Either the run or build parameter must be set");
+		
+		// EnvVars extends TreeMap
+		TreeMap<String,String> overrides = new TreeMap<String, String>();
+		// merge from all potential sources
+    	if (run != null) {
+    		try {
+				EnvVars runEnv = run.getEnvironment(listener);
+				if (chatty)
+					listener.getLogger().println("run env vars:  " + runEnv);
+				overrides.putAll(runEnv);
+			} catch (IOException | InterruptedException e) {
+				if (chatty)
+					e.printStackTrace(listener.getLogger());
+			}
+    	}
+    	
+    	if (build != null) {
+    		try {
+				EnvVars buildEnv = build.getEnvironment(listener);
+				if (chatty)
+					listener.getLogger().println("build env vars:  " + buildEnv);
+				overrides.putAll(buildEnv);
+			} catch (IOException | InterruptedException e) {
+				if (chatty)
+					e.printStackTrace(listener.getLogger());
+			}
+    	}
+    	
+		try {
+			EnvVars computerEnv = null;
+			Computer computer = Computer.currentComputer();
+			if (computer != null) {
+				computerEnv = computer.getEnvironment();
+			} else {
+				computer = launcher.getComputer();
+				if (computer != null) {
+					computerEnv = computer.getEnvironment();
+				}
+			}
+			if (chatty)
+				listener.getLogger().println("computer env vars:  " + computerEnv);
+			if (computerEnv != null)
+				overrides.putAll(computerEnv);
+		} catch (IOException | InterruptedException e2) {
+			if (chatty) 
+				e2.printStackTrace(listener.getLogger());
+		}
+		
+		if (env != null) {
+			if (chatty)
+				listener.getLogger().println("DSL injected env vars: " + env);
+			overrides.putAll(env);
+		}
+		
     	if (chatty)
-    		listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + env);
-		Map<String,String> overrides = env;
-		setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), env));
+    		listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + overrides);
+    	
+		setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), overrides));
     	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(overrides), listener, chatty)));
 		return coreLogic(launcher, listener, overrides);
 	}
@@ -138,15 +205,13 @@ public interface IOpenShiftPlugin {
 
 	default void doIt(Run<?, ?> run, FilePath workspace, Launcher launcher,
 			TaskListener listener) throws InterruptedException, IOException {
-    	EnvVars env = run.getEnvironment(listener);
-    	boolean successful = this.doItCore(listener, env, run, null, launcher);
+    	boolean successful = this.doItCore(listener, null, run, null, launcher);
     	if (!successful)
     		throw new AbortException("\"" + getDisplayName() + "\" failed");
 	}
 
     default boolean doIt(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
-    	EnvVars env = build.getEnvironment(listener);
-    	boolean successful = this.doItCore(listener, env, null, build, launcher);
+    	boolean successful = this.doItCore(listener, null, null, build, launcher);
     	if (!successful)
     		throw new AbortException("\"" + getDisplayName() + "\" failed");
     	return successful;
