@@ -98,7 +98,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IO
 
         @Override
         public String getFunctionName() {
-            return "openShiftVerifyDeployment";
+            return "openshiftVerifyDeployment";
         }
 
         @Override

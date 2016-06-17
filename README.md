@@ -65,13 +65,13 @@ This Pipeline DSL is the replacement for the Java object instantiation within th
 
 For each of the DSLs, you can still instantiate the various steps and assign to a variable, however you no longer need to pass it to the `step` method (execution will commence immediately after the step is created).  That would like the following example:
 
-`def builder = openShiftBuild buildConfig: 'frontend'`
+`def builder = openshiftBuild buildConfig: 'frontend'`
 
 NOTE:  the Pipeline Plugin "Snippet Generator" creates Groovy of this form.
 
 You can, however, also create the step without assigning it to a variable, and allow the automatic execution to commence.  That would like like the following example:
 
-`openShiftBuild(buildConfig: 'frontend')`
+`openshiftBuild(buildConfig: 'frontend')`
 
 Here is the complete DSL reference for the OpenShift Pipeline Plugin.
 
@@ -87,7 +87,7 @@ d) "verbose":  Allow for verbose logging during this build step plug-in.  Set to
 
 ####  "Trigger OpenShift Build"
 
-The step name is "openShiftBuild".  Mandatory parameters are:
+The step name is "openshiftBuild".  Mandatory parameters are:
 
 a) "buildConfig" or "bldCfg":  The name of the BuildConfig to trigger
 
@@ -105,7 +105,7 @@ e) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5
 
 #### "Trigger OpenShift Deployment"
 
-The step name is "openShiftDeploy".  Mandatory parameters are:
+The step name is "openshiftDeploy".  Mandatory parameters are:
 
 a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to trigger.
 
@@ -115,21 +115,21 @@ a)  "waitTime":  Time in milliseconds to wait for deployment completion.  Defaul
 
 #### "Create OpenShift Resource(s)"
 
-The step name is "openShiftCreateResources".  Mandatory parameters is either:
+The step name is "openshiftCreateResources".  Mandatory parameters is either:
 
 a) "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
 as the string passes either the JSON or YAML format checking, it will be processed.
 
 #### "Delete OpenShift Resource(s) from JSON/YAML"
 
-The step name is "openShiftDeleteResourceByJsonYaml".  Mandatory parameters is either:
+The step name is "openshiftDeleteResourceByJsonYaml".  Mandatory parameters is either:
 
 a) "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
 as the string passes either the JSON or YAML format checking, it will be processed.
 
 ####  "Delete OpenShift Resource(s) using Labels"
 
-The step name is "openShiftDeleteResourceByLabels".  Mandatory parameters are:
+The step name is "openshiftDeleteResourceByLabels".  Mandatory parameters are:
 
 a)  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
 
@@ -139,7 +139,7 @@ c)  "values":  The value(s) of labels on the OpenShift resource(s) to delete.  P
 
 ####  "Delete OpenShift Resource(s) by Key"
 
-The step name is "openShiftDeleteResourceByKey".  Mandatory parameters are:
+The step name is "openshiftDeleteResourceByKey".  Mandatory parameters are:
 
 a)  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
 
@@ -147,7 +147,7 @@ b)  "keys":  The key(s) of the OpenShift resource(s) to delete.  Provide a comma
 
 ####  "Scale OpenShift Deployment"
 
-The step name is "openShiftScale".  Mandatory parameters are:
+The step name is "openshiftScale".  Mandatory parameters are:
 
 a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
 
@@ -161,7 +161,7 @@ b)  "waitTime":  The amount of time in milliseconds to see whether the specified
 
 ####  "Tag OpenShift Image"
 
-The step name is "openShiftTag".  Mandatory parameters are:
+The step name is "openshiftTag".  Mandatory parameters are:
 
 a)  "sourceStream" or "srcStream":  The ImageStream of the existing image.
 
@@ -181,7 +181,7 @@ c)  "destinationAuthToken":  The authorization token for interacting with the de
 
 ####  "Verify OpenShift Build"
 
-The step name is "openShiftVerifyBuild".  Mandatory parameters are:
+The step name is "openshiftVerifyBuild".  Mandatory parameters are:
 
 a)  "buildConfig" or "bldCfg":  The name of the BuildConfig to verify.
 
@@ -193,7 +193,7 @@ b) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5
 
 #### "Verify OpenShift Deployment"
 
-The step name is "openShiftVerifyDeployment".  Mandatory parameters are:
+The step name is "openshiftVerifyDeployment".  Mandatory parameters are:
 
 a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
 
@@ -207,7 +207,7 @@ c)  "waitTime":  The amount of time in milliseconds to see whether the specified
 
 ####  "Verify OpenShift Service"
 
-The step name is "openShiftVerifyService".  Mandatory parameters are:
+The step name is "openshiftVerifyService".  Mandatory parameters are:
 
 a)  "serviceName" or "svcName":  The name of the service to connect to.
 

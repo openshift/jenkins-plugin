@@ -70,7 +70,7 @@ public class OpenShiftDeleterList extends OpenShiftBaseStep implements IOpenShif
 
         @Override
         public String getFunctionName() {
-            return "openShiftDeleteResourceByKey";
+            return "openshiftDeleteResourceByKey";
         }
 
         @Override

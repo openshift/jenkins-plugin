@@ -76,7 +76,7 @@ public class OpenShiftDeleterLabels extends OpenShiftBaseStep implements IOpenSh
 
         @Override
         public String getFunctionName() {
-            return "openShiftDeleteResourceByLabels";
+            return "openshiftDeleteResourceByLabels";
         }
 
         @Override

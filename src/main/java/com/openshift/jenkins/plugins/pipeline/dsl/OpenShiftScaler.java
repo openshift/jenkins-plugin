@@ -95,7 +95,7 @@ public class OpenShiftScaler extends OpenShiftBaseStep implements IOpenShiftScal
 
         @Override
         public String getFunctionName() {
-            return "openShiftScale";
+            return "openshiftScale";
         }
 
         @Override

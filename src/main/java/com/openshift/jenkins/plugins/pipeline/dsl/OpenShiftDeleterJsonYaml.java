@@ -64,7 +64,7 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpen
 
         @Override
         public String getFunctionName() {
-            return "openShiftDeleteResourceByJsonYaml";
+            return "openshiftDeleteResourceByJsonYaml";
         }
 
         @Override

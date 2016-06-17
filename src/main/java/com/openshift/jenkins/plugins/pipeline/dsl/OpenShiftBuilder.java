@@ -104,7 +104,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
 
         @Override
         public String getFunctionName() {
-            return "openShiftBuild";
+            return "openshiftBuild";
         }
 
         @Override

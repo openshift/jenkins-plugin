@@ -94,7 +94,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenSh
 
         @Override
         public String getFunctionName() {
-            return "openShiftVerifyBuild";
+            return "openshiftVerifyBuild";
         }
 
         @Override

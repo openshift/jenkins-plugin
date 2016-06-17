@@ -129,7 +129,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 
         @Override
         public String getFunctionName() {
-            return "openShiftTag";
+            return "openshiftTag";
         }
 
         @Override

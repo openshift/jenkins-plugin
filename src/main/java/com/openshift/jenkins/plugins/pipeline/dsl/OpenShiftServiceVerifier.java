@@ -85,7 +85,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
 
         @Override
         public String getFunctionName() {
-            return "openShiftVerifyService";
+            return "openshiftVerifyService";
         }
 
         @Override

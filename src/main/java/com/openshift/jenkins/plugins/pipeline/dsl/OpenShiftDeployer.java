@@ -80,7 +80,7 @@ public class OpenShiftDeployer extends OpenShiftBaseStep implements IOpenShiftDe
 
         @Override
         public String getFunctionName() {
-            return "openShiftDeploy";
+            return "openshiftDeploy";
         }
 
         @Override

@@ -64,7 +64,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep implements IOpenShiftCre
 
         @Override
         public String getFunctionName() {
-            return "openShiftCreateResource";
+            return "openshiftCreateResource";
         }
 
         @Override
