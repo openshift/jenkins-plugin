@@ -10,6 +10,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftServiceVerifier;
 
 import javax.servlet.ServletException;
@@ -65,7 +66,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-    	private int retry = 100;
+    	private int retry = GlobalConfig.SERVICE_VERIFY_RETRY;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -130,6 +131,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
         	retry = formData.getInt("retry");
+        	GlobalConfig.setServiceVerifyRetry(retry);
             save();
             return super.configure(req,formData);
         }

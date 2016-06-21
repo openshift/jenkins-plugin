@@ -17,6 +17,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftScaler;
 
 public class OpenShiftScaler extends OpenShiftBaseStep implements IOpenShiftScaler {
@@ -55,7 +56,7 @@ public class OpenShiftScaler extends OpenShiftBaseStep implements IOpenShiftScal
 		String val = getOverride(getWaitTime(), overrides);
 		if (val.length() > 0)
 			return val;
-		return "60000";
+		return Long.toString(GlobalConfig.getScalerWait());
 	}
 	
 	@DataBoundSetter public void setWaitTime(String waitTime) {

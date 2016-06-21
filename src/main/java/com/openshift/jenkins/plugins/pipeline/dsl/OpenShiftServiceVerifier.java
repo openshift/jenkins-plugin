@@ -17,6 +17,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftServiceVerifier;
 
 public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpenShiftServiceVerifier {
@@ -45,7 +46,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
 		String val = getOverride(getRetryCount(), overrides);
 		if (val.length() > 0)
 			return val;
-		return "100";
+		return Integer.toString(GlobalConfig.getServiceVerifyRetry());
 	}
 	
 	@DataBoundSetter public void setRetryCount(String retryCount) {

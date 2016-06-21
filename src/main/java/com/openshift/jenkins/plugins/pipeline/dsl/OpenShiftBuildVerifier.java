@@ -17,6 +17,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuildVerifier;
 
 public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenShiftBuildVerifier {
@@ -74,7 +75,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenSh
 		String val = getOverride(getWaitTime(), overrides);
 		if (val.length() > 0)
 			return val;
-		return "60000";
+		return Long.toString(GlobalConfig.getBuildVerifyWait());
 	}
 
 	@DataBoundSetter public void setWaitTime(String waitTime) {

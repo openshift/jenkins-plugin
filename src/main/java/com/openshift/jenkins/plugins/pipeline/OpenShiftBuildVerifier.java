@@ -10,6 +10,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuildVerifier;
 
 import javax.servlet.ServletException;
@@ -72,7 +73,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenSh
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-    	private long wait = 60000;
+    	private long wait = GlobalConfig.BUILD_VERIFY_WAIT;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -142,6 +143,7 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenSh
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
         	wait = formData.getLong("wait");
+        	GlobalConfig.setBuildVerifyWait(wait);
             save();
             return super.configure(req,formData);
         }

@@ -157,7 +157,7 @@ Optional parameters are:
 
 a)  "verifyReplicaCount":  Verify whether the specified number of replicas are up.  Specify `true` or `false`.
 
-b)  "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 1 minute.
+b)  "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 3 minutes.
 
 ####  "Tag OpenShift Image"
 
@@ -189,7 +189,7 @@ Optional parameters are:
 
 a) "checkForTriggeredDeployments":  Verify whether any deployments triggered by this build's output fired.  
 
-b) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5 minutes.
+b) "waitTime":  Time in milliseconds to wait for build completion.  Default is 1 minute.
 
 #### "Verify OpenShift Deployment"
 

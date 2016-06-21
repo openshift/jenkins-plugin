@@ -10,6 +10,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftScaler;
 
 import javax.servlet.ServletException;
@@ -78,7 +79,7 @@ public class OpenShiftScalerPostAction extends OpenShiftBasePostAction implement
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
     public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
-    	private long wait = 180000;
+    	private long wait = GlobalConfig.SCALER_WAIT;
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
