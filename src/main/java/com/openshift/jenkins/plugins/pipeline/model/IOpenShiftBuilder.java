@@ -9,6 +9,8 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
 import com.openshift.jenkins.plugins.pipeline.Auth;
@@ -90,13 +92,14 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 		return bld;
 	}
 	
-	default String waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean follow, boolean chatty) {
+	default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean follow, boolean chatty) {
 		IBuild bld = null;
 		String bldState = null;
 		String logs = "";
 		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
-		// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
-		// complete        						
+		// interactive log dumping; we kludge our way to achieving this with the REST
+		// client socket usage via removing the "follow" query param and diff'ing the output
+		// between calls
 		// get log "retrieve" and dump build logs
 //		IPodLogRetrieval logger = pod.getCapability(IPodLogRetrieval.class);
 //		listener.getLogger().println("\n\nOpenShiftBuilder obtained pod logger " + logger);
@@ -105,6 +108,7 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 			
 		// get internal OS Java REST Client error if access pod logs while bld is in Pending state
 		// instead of Running, Complete, or Failed
+		long connTO = wait / 1000;
 		while (System.currentTimeMillis() < (startTime + wait)) {
 			bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
 			bldState = bld.getStatus();
@@ -112,11 +116,22 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 				listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
 			
 			if (follow) {
-				String tmp = this.dumpLogs(bldId, listener, overrides, wait / 10, chatty);
-				if (chatty)
-					listener.getLogger().println("\n current logs :  " + tmp);
-				if (tmp != null && tmp.length() > logs.length()) {
-					logs = tmp;
+				String tmp = null;
+				try {
+					tmp = this.dumpLogs(bldId, listener, overrides, connTO, chatty);
+					if (chatty)
+						listener.getLogger().println("\n current logs :  " + tmp);
+					if (tmp != null && tmp.length() > logs.length()) {
+						String thisLog = StringUtils.difference(logs, tmp);
+						listener.getLogger().println(thisLog);
+						logs = tmp;
+					}
+				} catch (SocketTimeoutException e) {
+					connTO = connTO * 10;
+					if (connTO > wait)
+						connTO = wait;
+					if (chatty)
+						e.printStackTrace(listener.getLogger());
 				}
 			}
 							
@@ -130,21 +145,21 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 			}
 		}
 		
-		return logs;
 //			} else {
 //			listener.getLogger().println("\n\nOpenShiftBuilder logger for pod " + pod.getName() + " not available");
 //			bldState = pod.getStatus();
 //		}
 	}
 	
-	default String dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean chatty) {
+	default String dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean chatty) throws SocketTimeoutException, HttpClientException {
     	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
     	// so we set up our own trust manager like we used to do in order to verify the server cert
     	Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
 		// create stream and copy bytes
     	URL url = null;
     	try {
-			url = new URL(getApiURL(overrides) + "/oapi/v1/namespaces/"+getNamespace(overrides)+"/builds/" + bldId + "/log?follow=true");
+    		// removing ?follow=true aided with interactive logging; the get returns more expediently
+			url = new URL(getApiURL(overrides) + "/oapi/v1/namespaces/"+getNamespace(overrides)+"/builds/" + bldId + "/log");//?follow=true");
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 		}
@@ -156,20 +171,13 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 				null, "application/json", null, getAuth(), null, null);
 		urlClient.setAuthorizationStrategy(getToken());
 		String response = null;
-		try {
-			response = urlClient.get(url, (int) wait);
-		} catch (SocketTimeoutException e1) {
-			if (chatty)
-				e1.printStackTrace(listener.getLogger());
-		} catch (HttpClientException e1) {
-			if (chatty)
-				e1.printStackTrace(listener.getLogger());
-		}
+		response = urlClient.get(url, (int) wait);
 		return response;
 		
 		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
-		// interactive log dumping, while simply make the REST call provides dumping of the build logs once the build is
-		// complete        						
+		// interactive log dumping; we kludge our way to achieving this with the REST
+		// client socket usage via removing the "follow" query param and diff'ing the output
+		// between calls
 //		InputStream logs = new BufferedInputStream(logger.getLogs(true));
 //		int b;
 //		try {
@@ -260,11 +268,8 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
         						if (chatty)
         							listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
         						
-        							String logs = waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty);
+        							waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty);
             						
-            						if (follow)
-            							listener.getLogger().println("\nBuild logs:  \n" + logs);
-    								
         					}
         					
         					if (foundPod)
