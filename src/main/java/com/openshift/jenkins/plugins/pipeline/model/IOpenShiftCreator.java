@@ -3,15 +3,12 @@ package com.openshift.jenkins.plugins.pipeline.model;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
 import org.jboss.dmr.ModelNode;
 
-import com.openshift.internal.restclient.http.HttpClientException;
+
 import com.openshift.internal.restclient.model.KubernetesResource;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.OpenShiftApiObjHandler;
@@ -32,8 +29,9 @@ public interface IOpenShiftCreator extends IOpenShiftApiObjHandler {
     }
     
     default boolean makeRESTCall(boolean chatty, TaskListener listener, String path, ModelNode resource, Map<String,String> overrides) {
-		String response = null;
-		URL url = null;
+    	//TODO openshift-restclient-java's IApiTypeMapper is not really accessible from our perspective,
+    	//without accessing/recreating the underlying OkHttpClient, so until that changes, we use our own
+    	// type mapping
 		if (OpenShiftApiObjHandler.apiMap.get(path) == null) {
 			listener.getLogger().println(String.format(MessageConstants.TYPE_NOT_SUPPORTED, path));
 			return false;
@@ -48,35 +46,19 @@ public interface IOpenShiftCreator extends IOpenShiftApiObjHandler {
     		namespace = getNamespace(overrides);
     	else
     		setOnResource = true;
-    	
-    	try {
-    		if (chatty) listener.getLogger().println("\nOpenShiftCreator POST URI " + OpenShiftApiObjHandler.apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" + namespace + "/" + OpenShiftApiObjHandler.apiMap.get(path)[1]);
-			url = new URL(getApiURL(overrides) + OpenShiftApiObjHandler.apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" + namespace + "/" + OpenShiftApiObjHandler.apiMap.get(path)[1]);
-		} catch (MalformedURLException e1) {
-			e1.printStackTrace(listener.getLogger());
-			return false;
-		}
-    	
+    	    	
     	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     
     	if (client == null) {
     		return false;
     	}
-		try {
-	    	KubernetesResource kr = new KubernetesResource(resource, client, null);
-	    	if (setOnResource)
-	    		kr.setNamespace(namespace);
-			response = createHttpClient().post(url, 10 * 1000, kr);
-			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST POST response " + response);
-		} catch (SocketTimeoutException e1) {
-			if (chatty) e1.printStackTrace(listener.getLogger());
-	    	listener.getLogger().println(String.format(MessageConstants.SOCKET_TIMEOUT, DISPLAY_NAME, getApiURL(overrides)));
-			return false;
-		} catch (HttpClientException e1) {
-			if (chatty) e1.printStackTrace(listener.getLogger());
-	    	listener.getLogger().println(String.format(MessageConstants.HTTP_ERR, e1.getMessage(), DISPLAY_NAME, getApiURL(overrides)));
-			return false;
-		}
+    	
+    	KubernetesResource kr = new KubernetesResource(resource, client, null);
+    	if (setOnResource)
+    		kr.setNamespace(namespace);
+    	if (chatty)
+    		listener.getLogger().println("\nOpenShiftCreator calling create on for type " + OpenShiftApiObjHandler.apiMap.get(path)[1] + " and resource " + kr.toJson(false));
+    	client.execute("POST", OpenShiftApiObjHandler.apiMap.get(path)[1], namespace, null, null, kr);
 		
 		return true;
     }

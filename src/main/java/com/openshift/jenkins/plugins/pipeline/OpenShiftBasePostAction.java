@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
-import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import jenkins.tasks.SimpleBuildStep;
 import hudson.FilePath;
@@ -22,7 +22,7 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
     protected final String namespace;
     protected final String authToken;
     protected final String verbose;
-    protected transient TokenAuthorizationStrategy bearerToken;
+    //protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
 
     public OpenShiftBasePostAction(String apiURL, String namespace, String authToken, String verbose) {
@@ -58,21 +58,21 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
 		this.auth = auth;
 	}
 
-	@Override
+/*	@Override
 	public void setToken(TokenAuthorizationStrategy token) {
 		this.bearerToken = token;
 	}
-    
+*/    
     @Override
 	public Auth getAuth() {
 		return auth;
 	}
 
-	@Override
+/*	@Override
 	public TokenAuthorizationStrategy getToken() {
 		return bearerToken;
 	}
-
+*/
 	@Override
 	public String getBaseClassName() {
 		return OpenShiftBasePostAction.class.getName();

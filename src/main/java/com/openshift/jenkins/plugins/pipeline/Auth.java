@@ -62,9 +62,10 @@ public class Auth implements ISSLCertificateCallback {
 		return auth;
 	}
 	
+	// let's only use the local trust store within a calling method, so callers will sync on Auth, get the store
+	// and then reset ... assumption that the sync cost impact is tolerable
 	
-	
-	public static void createLocalTrustStore(Auth auth, String apiURL) {
+	public static X509TrustManager createLocalTrustStore(Auth auth, String apiURL) {
 		if (auth.getCert() != null) {
 			try {
 				auth.getCert().checkValidity();
@@ -93,8 +94,14 @@ public class Auth implements ISSLCertificateCallback {
 				if (auth.listener != null)
 					t.printStackTrace(auth.listener.getLogger());
 			}
-		}		
+		}
+		return x509TrustManager;
 	}
+	
+	public static void resetLocalTrustStore() {
+		x509TrustManager = null;
+	}
+	
 	@Override
 	public boolean allowCertificate(final X509Certificate[] certificateChain) {
 		// this will be called if the trustManager.checkServerTrusted call fails in openshift-restclient-java;
@@ -182,7 +189,7 @@ public class Auth implements ISSLCertificateCallback {
 		return authToken;
 	}
 	
-	public static String deriveBearerToken(String at, TaskListener listener, boolean verbose, Map<String,String> vars, Map<String, String> env) {
+	public static String deriveBearerToken(String at, TaskListener listener, boolean verbose, Map<String, String> env) {
 		// the scm path may call this without a listener
 		if (listener == null)
 			verbose = false;
@@ -201,23 +208,6 @@ public class Auth implements ISSLCertificateCallback {
     			listener.getLogger().println("Auth authToken len " + authToken.length());
     	}
     	if (authToken == null || authToken.length() == 0) {
-    		if (vars != null) {
-    			// params from within the job definition, lowest level 
-    			authToken = vars.get("AUTH_TOKEN");
-    			if (authToken != null && authToken.length() > 0) {
-    				if (verbose) 
-    					listener.getLogger().println("Auth token from build vars " + authToken);
-    				File f = new File(authToken);
-    				if (f.exists()) {
-    	    			if (verbose)
-    	        			listener.getLogger().println("Auth file exists " + f.getAbsolutePath());
-    	    			authToken = pullTokenFromFile(f, listener);    					
-    				} else {
-    					return authToken;
-    				}
-    			}
-    		}
-    		
     		if (env != null) {
     			// global properties under manage jenkins
 				authToken = env.get("AUTH_TOKEN");
@@ -250,7 +240,7 @@ public class Auth implements ISSLCertificateCallback {
 		return authToken;
 	}
 
-	public static String deriveBearerToken(AbstractBuild<?, ?> build, String at, TaskListener listener, boolean verbose) {
+/*	public static String deriveBearerToken(AbstractBuild<?, ?> build, String at, TaskListener listener, boolean verbose) {
 		Map<String,String> vars = null;
 		EnvVars env = null;
 		if (build != null) {
@@ -285,7 +275,7 @@ public class Auth implements ISSLCertificateCallback {
 		}
 		return deriveBearerToken(at, listener, verbose, vars, env);
 	}
-	
+*/	
 	public static String deriveCA(String ca, TaskListener listener, boolean verbose) {
 		String caCert = ca;
 		if (verbose && listener != null)

@@ -13,7 +13,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftImageTagger;
-import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import java.util.Collection;
 import java.util.Map;
@@ -31,7 +31,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     protected String destinationAuthToken;
     protected String alias;
     // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
-    protected transient TokenAuthorizationStrategy destinationBearerToken;
+    //protected transient TokenAuthorizationStrategy destinationBearerToken;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
@@ -107,14 +107,14 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 		this.destinationAuthToken = destinationAuthToken;
 	}
 	
-	public TokenAuthorizationStrategy getDestinationToken() {
+/*	public TokenAuthorizationStrategy getDestinationToken() {
 		return destinationBearerToken;
 	}
 	
 	public void setDestinationToken(TokenAuthorizationStrategy token) {
 		destinationBearerToken = token;
 	}
-	
+*/	
 	
 	
     private static final Logger LOGGER = Logger.getLogger(OpenShiftImageTagger.class.getName());

@@ -3,22 +3,19 @@ package com.openshift.jenkins.plugins.pipeline.model;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
-import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang.StringUtils;
-
-import com.openshift.internal.restclient.http.HttpClientException;
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.capability.CapabilityVisitor;
+import com.openshift.restclient.capability.IStoppable;
 import com.openshift.restclient.capability.resources.IBuildTriggerable;
+import com.openshift.restclient.capability.resources.IPodLogRetrievalAsync;
+import com.openshift.restclient.capability.resources.IPodLogRetrievalAsync.Options;
+import com.openshift.restclient.capability.resources.IPodLogRetrievalAsync.IPodLogListener;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IPod;
@@ -65,19 +62,22 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 		return getOverride(getCheckForTriggeredDeployments(), overrides);
 	}
 	
-	default IBuild startBuild(IBuildConfig bc, IBuild prevBld, Map<String,String> overrides) {
+	default IBuild startBuild(IBuildConfig bc, IBuild prevBld, Map<String,String> overrides, boolean chatty, TaskListener listener, IClient client) {
 		IBuild bld = null;
 		if (bc != null) {
 			if (getCommitID(overrides) != null && getCommitID(overrides).length() > 0) {
 				final String cid = getCommitID(overrides);
     			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
 				    public IBuild visit(IBuildTriggerable triggerable) {
-				 		return triggerable.trigger(cid);
+				    	triggerable.setCommitId(cid);
+				    	triggerable.addBuildCause("Jenkins job URI: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
+				 		return triggerable.trigger();
 				 	}
 				 }, null);
 			} else {
     			bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
 				    public IBuild visit(IBuildTriggerable triggerable) {
+				    	triggerable.addBuildCause("Jenkins job URI: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
 				 		return triggerable.trigger();
 				 	}
 				 }, null);
@@ -85,6 +85,7 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 		} else if (prevBld != null) {
 			bld = prevBld.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
 				public IBuild visit(IBuildTriggerable triggerable) {
+			    	triggerable.addBuildCause("Jenkins job URI: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
 					return triggerable.trigger();
 				}
 			}, null);
@@ -92,23 +93,14 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 		return bld;
 	}
 	
-	default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean follow, boolean chatty) {
+	default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean follow, boolean chatty, IPod pod) {
 		IBuild bld = null;
 		String bldState = null;
-		String logs = "";
-		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
-		// interactive log dumping; we kludge our way to achieving this with the REST
-		// client socket usage via removing the "follow" query param and diff'ing the output
-		// between calls
-		// get log "retrieve" and dump build logs
-//		IPodLogRetrieval logger = pod.getCapability(IPodLogRetrieval.class);
-//		listener.getLogger().println("\n\nOpenShiftBuilder obtained pod logger " + logger);
 		
-//		if (logger != null) {
-			
 		// get internal OS Java REST Client error if access pod logs while bld is in Pending state
 		// instead of Running, Complete, or Failed
-		long connTO = wait / 1000;
+		
+		IStoppable stop = null;
 		while (System.currentTimeMillis() < (startTime + wait)) {
 			bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
 			bldState = bld.getStatus();
@@ -116,23 +108,31 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 				listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
 			
 			if (follow) {
-				String tmp = null;
-				try {
-					tmp = this.dumpLogs(bldId, listener, overrides, connTO, chatty);
-					if (chatty)
-						listener.getLogger().println("\n current logs :  " + tmp);
-					if (tmp != null && tmp.length() > logs.length()) {
-						String thisLog = StringUtils.difference(logs, tmp);
-						listener.getLogger().println(thisLog);
-						logs = tmp;
+				final String container = pod.getContainers().iterator().next().getName();
+				stop = pod.accept(new CapabilityVisitor<IPodLogRetrievalAsync, IStoppable>() {
+
+					@Override
+					public IStoppable visit(IPodLogRetrievalAsync capability) {
+						return capability.start(new IPodLogListener() {
+							
+							@Override
+							public void onOpen() {
+							}
+							
+							@Override
+							public void onMessage(String message) {
+								listener.getLogger().print(message);
+							}
+							
+							@Override
+							public void onClose(int code, String reason) {
+							}
+						}, new Options()
+								.follow()
+								.container(container));
 					}
-				} catch (SocketTimeoutException e) {
-					connTO = connTO * 10;
-					if (connTO > wait)
-						connTO = wait;
-					if (chatty)
-						e.printStackTrace(listener.getLogger());
-				}
+				}, null);
+
 			}
 			
 			if (isBuildFinished(bldState))
@@ -143,66 +143,9 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 			} catch (InterruptedException e) {
 			}
 		}
+		if (stop != null)
+			stop.stop();
 				
-//			} else {
-//			listener.getLogger().println("\n\nOpenShiftBuilder logger for pod " + pod.getName() + " not available");
-//			bldState = pod.getStatus();
-//		}
-	}
-	
-	default String dumpLogs(String bldId, TaskListener listener, Map<String,String> overrides, long wait, boolean chatty) throws SocketTimeoutException, HttpClientException {
-    	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
-    	// so we set up our own trust manager like we used to do in order to verify the server cert
-    	Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
-		// create stream and copy bytes
-    	URL url = null;
-    	try {
-    		// removing ?follow=true aided with interactive logging; the get returns more expediently
-			url = new URL(getApiURL(overrides) + "/oapi/v1/namespaces/"+getNamespace(overrides)+"/builds/" + bldId + "/log");//?follow=true");
-		} catch (MalformedURLException e1) {
-			e1.printStackTrace(listener.getLogger());
-		}
-    	
-    	if (chatty)
-    		listener.getLogger().println(" dump logs URL " + url.toString());
-    	
-		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-				null, "application/json", null, getAuth(), null, null);
-		urlClient.setAuthorizationStrategy(getToken());
-		String response = null;
-		try {
-			response = urlClient.get(url, (int) wait);
-		} catch (Throwable t) {
-			if (t instanceof SocketTimeoutException)
-				throw t;
-			if (chatty)
-				t.printStackTrace(listener.getLogger());
-		}
-		return response;
-		
-		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
-		// interactive log dumping; we kludge our way to achieving this with the REST
-		// client socket usage via removing the "follow" query param and diff'ing the output
-		// between calls
-//		InputStream logs = new BufferedInputStream(logger.getLogs(true));
-//		int b;
-//		try {
-//			// we still process the build stream if followLogs is false, as 
-//			// it is a good indication of build progress (vs. periodically polling);
-//			// we simply do not dump the data to the Jenkins console if set to false
-//			while ((b = logs.read()) != -1) {
-//				if (follow)
-//					listener.getLogger().write(b);
-//			}
-//		} catch (IOException e) {
-//			e.printStackTrace(listener.getLogger());
-//		} finally {
-//			try {
-//				logs.close();
-//			} catch (final IOException e) {
-//				e.printStackTrace(listener.getLogger());
-//			}
-//		}
 	}
 	
 	default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String,String> overrides) {
@@ -235,7 +178,7 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
         	if (bc != null || prevBld != null) {
     			
         		// Trigger / start build
-    			IBuild bld = this.startBuild(bc, prevBld, overrides);
+    			IBuild bld = this.startBuild(bc, prevBld, overrides, chatty, listener, client);
     			
     			
     			if(bld == null) {
@@ -274,7 +217,7 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
         						if (chatty)
         							listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
         						
-        							waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty);
+        							waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty, pod);
             						
         					}
         					

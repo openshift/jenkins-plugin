@@ -14,22 +14,40 @@ import io.fabric8.jenkins.openshiftsync.BuildCause;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.X509TrustManager;
+
+import okhttp3.Dispatcher;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 import org.jboss.dmr.ModelNode;
 
+import com.openshift.internal.restclient.DefaultClient;
+import com.openshift.internal.restclient.authorization.AuthorizationContext;
 import com.openshift.internal.restclient.model.DeploymentConfig;
+import com.openshift.internal.restclient.okhttp.OpenShiftAuthenticator;
+import com.openshift.internal.restclient.okhttp.ResponseCodeInterceptor;
 import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.restclient.ClientBuilder;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.OpenShiftException;
 import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+import com.openshift.restclient.http.IHttpConstants;
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IDeploymentConfig;
@@ -38,6 +56,7 @@ import com.openshift.restclient.model.IResource;
 import com.openshift.restclient.model.deploy.IDeploymentImageChangeTrigger;
 import com.openshift.restclient.model.deploy.IDeploymentTrigger;
 import com.openshift.restclient.model.route.IRoute;
+import com.openshift.restclient.utils.SSLUtils;
 
 public interface IOpenShiftPlugin {
 	
@@ -84,9 +103,9 @@ public interface IOpenShiftPlugin {
 	
 	void setAuth(Auth auth);
 	
-	TokenAuthorizationStrategy getToken();
+	//TokenAuthorizationStrategy getToken();
 	
-	void setToken(TokenAuthorizationStrategy token);
+	//void setToken(TokenAuthorizationStrategy token);
 	
 	public String getApiURL();
 	
@@ -123,7 +142,23 @@ public interface IOpenShiftPlugin {
 	boolean coreLogic(Launcher launcher, TaskListener listener, Map<String,String> overrides);
 	
 	default IClient getClient(TaskListener listener, String displayName, Map<String,String> overrides) {
-		IClient client = new ClientBuilder(getApiURL(overrides)).sslCertificateCallback(getAuth()).resourceFactory(getToken()).sslCertificate(getApiURL(overrides), getAuth().getCert()).build();
+		IClient client = new ClientBuilder(getApiURL(overrides)).
+				sslCertificateCallback(getAuth()).
+				usingToken(Auth.deriveBearerToken(getAuthToken(overrides), listener, Boolean.getBoolean(getVerbose(overrides)), overrides)).
+				sslCertificate(getApiURL(overrides), getAuth().getCert()).
+				build();
+    	if (client == null) {
+	    	listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
+    	}
+    	return client;
+	}
+	
+	default IClient getClient(TaskListener listener, String displayName, Map<String, String> overrides, String token) {
+		IClient client = new ClientBuilder(getApiURL(overrides)).
+				sslCertificateCallback(getAuth()).
+				usingToken(token).
+				sslCertificate(getApiURL(overrides), getAuth().getCert()).
+				build();
     	if (client == null) {
 	    	listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
     	}
@@ -260,7 +295,7 @@ public interface IOpenShiftPlugin {
 		Map<String, String> overrides = consolidateEnvVars(listener, env, run, build, launcher, chatty);
 		
 		setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), overrides));
-    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(overrides), listener, chatty)));
+    	//setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(overrides), listener, chatty)));
     	
     	// this needs to follow the auth/token set up since a rest client instance is set up if we need
     	// to set up the BUILD_URL
@@ -593,4 +628,66 @@ public interface IOpenShiftPlugin {
 		return annotated;
 	}
     
+	default String httpGet(boolean chatty, TaskListener listener, 
+    		Map<String,String> overrides, String urlString) {
+    	URL url = null;
+    	try {
+    		url = new URL(urlString);
+		} catch (MalformedURLException e) {
+			e.printStackTrace(listener.getLogger());
+			return null;
+		}
+    	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
+    	// so we set up our own trust manager like we used to do in order to verify the server cert
+    	try {
+    		X509TrustManager trustManager = Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
+        	SSLContext sslContext = null;
+    		try {
+    			sslContext = SSLUtils.getSSLContext(trustManager);
+    		} catch (KeyManagementException e) {
+    			if (chatty)
+    				e.printStackTrace(listener.getLogger());
+    			return null;
+    		} catch (NoSuchAlgorithmException e) {
+    			if (chatty)
+    				e.printStackTrace(listener.getLogger());
+    			return null;
+    		}
+    		AuthorizationContext authContext = new AuthorizationContext(getAuthToken(overrides), null, null);
+    		ResponseCodeInterceptor responseCodeInterceptor = new ResponseCodeInterceptor();
+    		OpenShiftAuthenticator authenticator = new OpenShiftAuthenticator();
+    		Dispatcher dispatcher = new Dispatcher();
+    		DefaultClient client = (DefaultClient) this.getClient(listener, getDisplayName(), overrides);
+    		OkHttpClient.Builder builder = new OkHttpClient.Builder()
+    		.addInterceptor(responseCodeInterceptor)
+    		.authenticator(authenticator)
+    		.dispatcher(dispatcher)
+    		.readTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
+    		.writeTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
+    		.connectTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
+    		.hostnameVerifier(getAuth())
+    		.sslSocketFactory(sslContext.getSocketFactory(), trustManager);
+    		OkHttpClient okClient = builder.build();
+    		authContext.setClient(client);
+    		responseCodeInterceptor.setClient(client);
+    		authenticator.setClient(client);
+    		authenticator.setOkClient(okClient);
+        	Request request = client.newRequestBuilderTo(url.toString()).get().build();
+        	Response result;
+    		try {
+    			result = okClient.newCall(request).execute();
+    	    	String response =  result.body().string();
+    	    	if (chatty)
+    	    		listener.getLogger().println("http get for " + urlString + " had response: " + response);
+    	    	return response;
+    		} catch (IOException e) {
+    			if (chatty)
+    				e.printStackTrace(listener.getLogger());
+    		}
+    		return null;
+    	} finally {
+    		Auth.resetLocalTrustStore();
+    	}
+	}
+
 }
