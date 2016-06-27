@@ -35,6 +35,7 @@ import com.openshift.restclient.model.IReplicationController;
 import com.openshift.restclient.model.IResource;
 import com.openshift.restclient.model.deploy.IDeploymentImageChangeTrigger;
 import com.openshift.restclient.model.deploy.IDeploymentTrigger;
+import com.openshift.restclient.model.route.IRoute;
 
 public interface IOpenShiftPlugin {
 	
@@ -133,13 +134,7 @@ public interface IOpenShiftPlugin {
 		return scaledAppropriately;
 	}
 	
-	//TODO leaving EnvVars env param for now ... in DSL scenario, curious of the injected contents vs. the run/build/computer contents
-	default boolean doItCore(TaskListener listener, EnvVars env, Run<?, ?> run, AbstractBuild<?, ?> build, Launcher launcher) {
-		boolean chatty = Boolean.parseBoolean(getVerbose());
-		
-		if (run == null && build == null)
-			throw new RuntimeException("Either the run or build parameter must be set");
-		
+	default Map<String, String> consolidateEnvVars(TaskListener listener, EnvVars env, Run<?, ?> run, AbstractBuild<?, ?> build, Launcher launcher, boolean chatty) {
 		// EnvVars extends TreeMap
 		TreeMap<String,String> overrides = new TreeMap<String, String>();
 		// merge from all potential sources
@@ -193,11 +188,54 @@ public interface IOpenShiftPlugin {
 			overrides.putAll(env);
 		}
 		
+		return overrides;
+	}
+	
+	default Map<String, String> constructBuildUrl(TaskListener listener, Map<String, String> overrides, boolean chatty) {
+		// for our pipeline strategy / build annotaion logic, we will construct the BUILD_URL env var 
+		// if it is not set (which can occur with freestyle jobs when the openshift-sync plugin is not 
+		// leveraged
+		String jobName = overrides.get(JOB_NAME);
+		String buildNum = overrides.get(BUILD_NUMBER);
+		// we check for null but these should always be there from a jenkins api guarantee perspective
+		if (jobName != null && buildNum != null) {
+			IClient client = getClient(listener, getDisplayName(), overrides);
+			List<IRoute> routes = client.list(ResourceKind.ROUTE, getNamespace(overrides));
+			for (IRoute route : routes) {
+				if (route.getServiceName().equals("jenkins")) {
+					overrides.put(BUILD_URL_ENV_KEY, route.getURL() + "/job/" + jobName + "/" + buildNum + "/");
+					break;
+				}
+			}
+		} else {
+			if (chatty)
+				listener.getLogger().printf("\n missing jenkins job/build info: job %s build %s \n", jobName, buildNum);
+		}
+		
+		return overrides;
+	}
+	
+	//TODO leaving EnvVars env param for now ... in DSL scenario, curious of the injected contents vs. the run/build/computer contents
+	default boolean doItCore(TaskListener listener, EnvVars env, Run<?, ?> run, AbstractBuild<?, ?> build, Launcher launcher) {
+		boolean chatty = Boolean.parseBoolean(getVerbose());
+		
+		if (run == null && build == null)
+			throw new RuntimeException("Either the run or build parameter must be set");
+		
+		Map<String, String> overrides = consolidateEnvVars(listener, env, run, build, launcher, chatty);
+		
+		setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), overrides));
+    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(overrides), listener, chatty)));
+    	
+    	// this needs to follow the auth/token set up since a rest client instance is set up if we need
+    	// to set up the BUILD_URL
+    	if (!overrides.containsKey(BUILD_URL_ENV_KEY)) {
+    		overrides = constructBuildUrl(listener, overrides, chatty);
+    	}
+    	
     	if (chatty)
     		listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + overrides);
     	
-		setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), overrides));
-    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(build != null ? build : run, getAuthToken(overrides), listener, chatty)));
 		return coreLogic(launcher, listener, overrides);
 	}
 	
@@ -477,12 +515,6 @@ public interface IOpenShiftPlugin {
 	default boolean annotateJobInfoToResource(IClient client, TaskListener listener, boolean chatty, Map<String, String> env, IResource resource) {
 		boolean annotated = false;
 		String buildURL = env.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY);
-		// when not running as a pipeline, the build_url key is not available, so we have to
-		// construct the url from pieces.  unfortunately the jenkins hostname itself is not available
-		// as an env variable in this case.
-		if(buildURL == null) {
-			buildURL = "job/"+env.get(IOpenShiftPlugin.JOB_NAME)+"/"+env.get(IOpenShiftPlugin.BUILD_NUMBER);
-		}
 		for(int i=0;i<3;i++) {
 			// anticipate update conflicts so get the latest object and retry the update 3 times.
 			IResource annotatedResource = client.get(resource.getKind(),resource.getName(),resource.getNamespace());
