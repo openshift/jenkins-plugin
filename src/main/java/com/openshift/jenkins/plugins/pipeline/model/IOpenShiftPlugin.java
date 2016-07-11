@@ -290,7 +290,10 @@ public interface IOpenShiftPlugin {
 			}
 		}
 		if (bldState == null || !bldState.equals("Complete")) {
-	    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_BAD, displayName, bldId, bldState));
+			String displayState = bldState;
+			if (displayState == null)
+				displayState = "NotStarted";
+	    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_BAD, displayName, bldId, wait, displayState));
 			return false;
 		} else {
 			// calling this will annotate any RC that was created as a result of this build, with the jenkins job info.

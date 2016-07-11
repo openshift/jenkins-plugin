@@ -134,17 +134,16 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 						e.printStackTrace(listener.getLogger());
 				}
 			}
-							
-			if ("Pending".equals(bldState) || "New".equals(bldState) || "Running".equals(bldState)) {
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-				}
-			} else {
+			
+			if ("Complete".equals(bldState))
 				break;
+							
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
 			}
 		}
-		
+				
 //			} else {
 //			listener.getLogger().println("\n\nOpenShiftBuilder logger for pod " + pod.getName() + " not available");
 //			bldState = pod.getStatus();

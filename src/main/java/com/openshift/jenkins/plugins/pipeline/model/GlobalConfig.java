@@ -8,7 +8,7 @@ package com.openshift.jenkins.plugins.pipeline.model;
 // access for the DSL versions of our build steps.
 public class GlobalConfig {
 
-	public static final long BUILD_WAIT = 300000;
+	public static final long BUILD_WAIT = 900000;
 	public static final long BUILD_VERIFY_WAIT = 60000;
 	public static final long DEPLOY_WAIT = 60000;
 	public static final long DEPLOY_VERIFY_WAIT = 180000;
