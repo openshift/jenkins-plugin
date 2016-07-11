@@ -38,7 +38,11 @@ A series of Jenkins "build step" implementations are provided, which you can sel
 
 8. "Create OpenShift Resource(s)":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are specified.
 
+	- NOTE: if a namespace is specified for any of the resources, the plugin will attempt to create the resource in that namespace instead of the namespace specified in the "The name of the project to create the resources in" field.  However, the authorization token provided must have edit permission to that project/namespace.
+
 9. "Delete OpenShift Resource(s)...":  performs the equivalent of an `oc delete` command invocation; there are 3 versions of this build step; one takes in provided JSON or YAML text, and if it conforms to OpenShift schema, deletes whichever OpenShift resources are specified; the next form takes in comma delimited lists of types and keys, and deletes the corresponding entries; the last form takes in a comma separated list of types, along with comma separated lists of keys and values that might appear as labels on the API resources, and then for each of the types, deletes any objects that have labels that match the key/value pair(s) specified. 
+
+	- NOTE: if a namespace is specified for any of the resources when deleting via JSON/YAML, the plugin will attempt to delete the resource in that namespace instead of the namespace specified in the "The name of the project to delete the resources in" field.  However, the authorization token provided must have edit permission to that project/namespace.
 
 ## Jenkins "Source Code Management (SCM)"
 
@@ -255,6 +259,9 @@ Consider the scenario where the source image stream is in the project `test` and
 
 -  `oc policy add-role-to-user edit system:serviceaccount:test:default -n test2`
 -  `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
+
+A similar situation also applies for creating or deleting resources via JSON/YAML.  A namespace/project which differs from the namespace set for the build step could be specified for any of the resources in the JSON/YAML.  If so, similar `oc policy` invocations
+to add the edit role for any of those namespaces listed in the JSON/YAML will be needed.
 
 Finally, for any of the build steps, outside of the previously mentioned mounting of the token for the project's `default` service account into the OpenShift Jenkins image container (assuming OpenShift brings up your Jenkins server), the token can be provided by the user via the following:
 

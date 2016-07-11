@@ -95,12 +95,14 @@ public interface IOpenShiftPlugin {
 	
 	default String getNamespace(Map<String,String> overrides) {
 		String val = getOverride(getNamespace(), overrides);
-		if (val.length() == 0 && overrides != null && overrides.containsKey("PROJECT_NAME")) {
-			val = overrides.get("PROJECT_NAME");
-		} else {
-			File f = new File(NAMESPACE_FILE);
-			if (f.exists())
-				val = Auth.pullTokenFromFile(f, null);
+		if (val.length() == 0) {
+			if (overrides != null && overrides.containsKey("PROJECT_NAME"))
+				val = overrides.get("PROJECT_NAME");
+			else {
+				File f = new File(NAMESPACE_FILE);
+				if (f.exists())
+					val = Auth.pullTokenFromFile(f, null);
+			}
 		}
 		return val;
 	}

@@ -14,6 +14,7 @@ import com.openshift.restclient.IClient;
 public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
 
 	final static String DISPLAY_NAME = "Delete OpenShift Resource(s) from JSON/YAML";
+	final static String UNDEFINED = "undefined";
 	
 	default String getDisplayName() {
 		return DISPLAY_NAME;
@@ -48,15 +49,21 @@ public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
 	    		for (ModelNode node : list) {
 	    			String path = node.get("kind").asString();
 	    			String name = node.get("metadata").get("name").asString();
+	    	    	String namespace = node.get("metadata").get("namespace").asString();
+	    	    	if (UNDEFINED.equals(namespace))
+	    	    		namespace = getNamespace(overrides);
 					
-	    			rc = deleteAPIObjs(client, listener, getNamespace(overrides), path, name, null);
+	    			rc = deleteAPIObjs(client, listener, namespace, path, name, null);
 	
 	    		}
 	    	} else {
 	    		String path = kind;
 	    		String name = resources.get("metadata").get("name").asString();
+    	    	String namespace = resources.get("metadata").get("namespace").asString();
+    	    	if (UNDEFINED.equals(namespace))
+    	    		namespace = getNamespace(overrides);
 	    		
-    			rc = deleteAPIObjs(client, listener, getNamespace(overrides), path, name, null);
+    			rc = deleteAPIObjs(client, listener, namespace, path, name, null);
 	    		
 	    	}
 	

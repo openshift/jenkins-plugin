@@ -19,6 +19,7 @@ import com.openshift.restclient.IClient;
 
 public interface IOpenShiftCreator extends IOpenShiftApiObjHandler {
 	final static String DISPLAY_NAME = "Create OpenShift Resource(s)";
+	final static String UNDEFINED = "undefined";
 	
 	default String getDisplayName() {
 		return DISPLAY_NAME;
@@ -38,20 +39,33 @@ public interface IOpenShiftCreator extends IOpenShiftApiObjHandler {
 			return false;
 		}
 		
+    	// if they have specified a namespace in the json/yaml, honor that vs. the one specified in the build step,
+    	// though the user then needs to insure that the service account for the one specified in the build step 
+    	// has access to that namespace
+    	String namespace = resource.get("metadata").get("namespace").asString();
+    	boolean setOnResource = false;
+    	if (UNDEFINED.equals(namespace))
+    		namespace = getNamespace(overrides);
+    	else
+    		setOnResource = true;
+    	
     	try {
-    		if (chatty) listener.getLogger().println("\nOpenShiftCreator POST URI " + OpenShiftApiObjHandler.apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" +getNamespace(overrides) + "/" + OpenShiftApiObjHandler.apiMap.get(path)[1]);
-			url = new URL(getApiURL(overrides) + OpenShiftApiObjHandler.apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" + getNamespace(overrides) + "/" + OpenShiftApiObjHandler.apiMap.get(path)[1]);
+    		if (chatty) listener.getLogger().println("\nOpenShiftCreator POST URI " + OpenShiftApiObjHandler.apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" + namespace + "/" + OpenShiftApiObjHandler.apiMap.get(path)[1]);
+			url = new URL(getApiURL(overrides) + OpenShiftApiObjHandler.apiMap.get(path)[0] + "/" + resource.get("apiVersion").asString() + "/namespaces/" + namespace + "/" + OpenShiftApiObjHandler.apiMap.get(path)[1]);
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace(listener.getLogger());
 			return false;
 		}
     	
     	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
+    
     	if (client == null) {
     		return false;
     	}
 		try {
 	    	KubernetesResource kr = new KubernetesResource(resource, client, null);
+	    	if (setOnResource)
+	    		kr.setNamespace(namespace);
 			response = createHttpClient().post(url, 10 * 1000, kr);
 			if (chatty) listener.getLogger().println("\nOpenShiftCreator REST POST response " + response);
 		} catch (SocketTimeoutException e1) {
@@ -85,7 +99,7 @@ public interface IOpenShiftCreator extends IOpenShiftApiObjHandler {
     		List<ModelNode> list = resources.get("items").asList();
     		for (ModelNode node : list) {
     			String path = node.get("kind").asString();
-				
+    			
     			boolean success = this.makeRESTCall(chatty, listener, path, node, overrides);
     			if (!success) {
     				listener.getLogger().println(String.format(MessageConstants.FAILED_OBJ, path));
