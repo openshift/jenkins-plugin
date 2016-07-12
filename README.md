@@ -323,7 +323,13 @@ For the API Endpoint and Project name, any value specified for the specific step
 
 Note that with the "OpenShift ImageStreams" SCM plug-in, these environment variables will not be available when running in the background polling mode (though they are available when that step runs as part of an explicit project build).
 
-Also, since many are possibly entrenched in specifying environment variables with a preceding `$`, the plug-ins will accept either form.  For example, if the environment variable `GIT_COMMIT` is set, you can specify either `GIT_COMMIT` or `$GIT_COMMIT`.
+Also, when referencing parameters in the build step fields, the following forms
+can be used:
+- the name as is; for example, for the parameter `VERSION`, you can use `VERSION` in the field
+- the name preceded with a `$`; for the parameter `VERSION`, you can use `$VERSION` in the field
+- the name encapsulated with `${..}`; for the parameter `VERSION`, you can use `${VERSION}` in the field
+- the name ecapsulated with `${..}` and combined with some constant text; for the parameter `VERSION`, you can specify `myapp-${VERSION}` in the field 
+
 
 ### Communication Timeouts 
 

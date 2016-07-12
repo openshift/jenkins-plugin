@@ -267,8 +267,15 @@ public interface IOpenShiftPlugin {
     
     default String getOverride(String key, Map<String, String> overrides) {
 		String val = pruneKey(key);
+		// try override when the key is the entire parameter ... we don't just use
+		// replaceMacro cause we also support PARM with $ or ${}
 		if (overrides != null && overrides.containsKey(val)) {
 			val = overrides.get(val);
+		} else {
+			// see if it is a mix used key (i.e. myapp-${VERSION}) or ${val}
+			String tmp = hudson.Util.replaceMacro(key, overrides);
+			if (tmp != null && tmp.length() > 0)
+				val = tmp;
 		}
 		return val;
     }
