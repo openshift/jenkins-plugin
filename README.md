@@ -1,10 +1,19 @@
 # OpenShift V3 Plugin for Jenkins
 This project provides a series Jenkins plugin implementations that operate on [Kubernetes based OpenShift](https://docs.openshift.org/latest/welcome/index.html).  In summary
-they are a series of REST clients that interface with the OpenShift server via the [exposed API](https://docs.openshift.org/latest/rest_api/overview.html).
+they are a series of REST flows that interface with the OpenShift server via the [exposed API](https://docs.openshift.org/latest/rest_api/overview.html).
 They minimally mimic the REST flows of common uses of the `oc` [CLI command](https://docs.openshift.org/latest/cli_reference/basic_cli_operations.html), but in several
-instances additional REST flows have been added to provide validation of the operations being performed.
+instances additional logic has been added to provide validation of the operations being performed.
 
-Their ultimate intent is to provide easy to use building blocks that simplify the construction of the projects, workflows, and pipelines in Jenkins that operate against an OpenShift deployments.
+Their ultimate intent is to provide easy to use building blocks that simplify the construction of the projects, workflows, and pipelines in Jenkins that operate against OpenShift deployments,
+where allowing OpenShift interactions via Jenkins build steps, pipeline DSL, etc. gives those familiar with Jenkins, but new to OpenShift and the `oc` CLI, a better introductory experience.
+
+NOTE:  This plugin does require the `oc` binary be present.
+
+NOTE:  This plugin currently does not intend to match feature to feature what is provided via `oc`, but rather expose and augment when possible (additional validations for example) 
+OpenShift API REST endpoints, with which the `oc` client also leverages, typically used with CI/CD type flows.  One notable example of an `oc` option that is not exposed in the plugin is the `oc new-app` command.
+This omission stems from the fact that there is no single OpenShift server side API for `oc new-app`, and there is a fair amount of client side logic involved.  Rather than invest 
+in porting that logic to the plugin, we currently recommend that if `oc new-app` functionality is desired in your Jenkins jobs, either use the OpenShift Jenkins image, where the `oc` binary
+is already provided and can be invoked from your Jenkins jobs, or if you are not using the OpenShift Jenkins image, include the `oc` binary in your Jenkins installation.
 
 NOTE:  This plugin requires JDK 1.8, based on its maven dependency openshift-restclient-java.
 
