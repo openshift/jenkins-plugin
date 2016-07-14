@@ -170,7 +170,14 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 				null, "application/json", null, getAuth(), null, null);
 		urlClient.setAuthorizationStrategy(getToken());
 		String response = null;
-		response = urlClient.get(url, (int) wait);
+		try {
+			response = urlClient.get(url, (int) wait);
+		} catch (Throwable t) {
+			if (t instanceof SocketTimeoutException)
+				throw t;
+			if (chatty)
+				t.printStackTrace(listener.getLogger());
+		}
 		return response;
 		
 		//TODO leaving this code, commented out, in for now ... the use of the oc binary for log following allows for
