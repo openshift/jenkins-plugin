@@ -135,7 +135,7 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 				}
 			}
 			
-			if ("Complete".equals(bldState))
+			if (isBuildFinished(bldState))
 				break;
 							
 			try {

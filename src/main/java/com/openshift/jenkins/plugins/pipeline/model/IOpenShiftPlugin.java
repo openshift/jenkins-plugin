@@ -54,6 +54,11 @@ public interface IOpenShiftPlugin {
 	public static final String BUILD_URL_ANNOTATION = "openshift.io/jenkins-build-uri";
 	
 	public static final String NAMESPACE_FILE = "/run/secrets/kubernetes.io/serviceaccount/namespace";
+	
+	public static final String STATE_COMPLETE = "Complete";
+	public static final String STATE_CANCELLED = "Cancelled";
+	public static final String STATE_ERROR = "Error";
+	public static final String STATE_FAILED = "Failed";
 
 	String getBaseClassName();
 	
@@ -126,7 +131,7 @@ public interface IOpenShiftPlugin {
 	default boolean isReplicationControllerScaledAppropriately(IReplicationController rc, boolean checkCount, int count) {
 		boolean scaledAppropriately = false;
 		// check state, and if needed then check replica count
-		if (getReplicationControllerState(rc).equalsIgnoreCase("Complete")) {
+		if (getReplicationControllerState(rc).equalsIgnoreCase(STATE_COMPLETE)) {
 			if (!checkCount) {
 				scaledAppropriately = true;
 			} else if (rc.getCurrentReplicaCount() == count) {
@@ -280,6 +285,12 @@ public interface IOpenShiftPlugin {
 		return val;
     }
     
+    default boolean isBuildFinished(String bldState) {
+		if (bldState != null && (bldState.equals(STATE_COMPLETE) || bldState.equals(STATE_FAILED) || bldState.equals(STATE_ERROR) || bldState.equals(STATE_CANCELLED)))
+			return true;
+    	return false;
+    }
+    
     default boolean verifyBuild(long startTime, long wait, IClient client, String bldCfg, String bldId, String namespace, boolean chatty, TaskListener listener, String displayName, boolean checkDeps, boolean annotateRC, Map<String, String> env) {
 		String bldState = null;
     	while (System.currentTimeMillis() < (startTime + wait)) {
@@ -287,7 +298,7 @@ public interface IOpenShiftPlugin {
 			bldState = bld.getStatus();
 			if (chatty)
 				listener.getLogger().println("\nOpenShiftBuilder post bld launch bld state:  " + bldState);
-			if (!bldState.equals("Complete") && !bldState.equals("Failed") && !bldState.equals("Error") && !bldState.equals("Cancelled")) {
+			if (!isBuildFinished(bldState)) {
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
@@ -296,7 +307,7 @@ public interface IOpenShiftPlugin {
 				break;
 			}
 		}
-		if (bldState == null || !bldState.equals("Complete")) {
+		if (bldState == null || !bldState.equals(STATE_COMPLETE)) {
 			String displayState = bldState;
 			if (displayState == null)
 				displayState = "NotStarted";

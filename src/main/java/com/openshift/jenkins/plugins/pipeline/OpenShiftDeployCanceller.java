@@ -73,7 +73,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 				
 			if (rc != null) {
 				String state = this.getReplicationControllerState(rc);
-        		if (state.equalsIgnoreCase("Failed") || state.equalsIgnoreCase("Complete") || state.equalsIgnoreCase("Cancelled")) {
+        		if (state.equalsIgnoreCase(STATE_FAILED) || state.equalsIgnoreCase(STATE_COMPLETE) || state.equalsIgnoreCase(STATE_CANCELLED)) {
         	    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_NOOP, rc.getName(), state));
         			return true;
         		}

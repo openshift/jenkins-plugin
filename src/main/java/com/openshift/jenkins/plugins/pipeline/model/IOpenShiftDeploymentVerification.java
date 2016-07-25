@@ -90,7 +90,7 @@ public interface IOpenShiftDeploymentVerification extends IOpenShiftPlugin {
 						state = this.getReplicationControllerState(rc);
 						depId = rc.getName();
 						// first check state
-		        		if (state.equalsIgnoreCase("Failed")) {
+		        		if (state.equalsIgnoreCase(STATE_FAILED)) {
 	        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, getDepCfg(overrides), state));
 		        			return false;
 		        		}

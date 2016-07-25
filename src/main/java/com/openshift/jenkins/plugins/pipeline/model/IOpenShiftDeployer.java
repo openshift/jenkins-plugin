@@ -78,9 +78,9 @@ public interface IOpenShiftDeployer extends IOpenShiftPlugin {
     					if (rc != null) {
     						annotateJobInfoToResource(client, listener, chatty, overrides, rc); 
     						state = this.getReplicationControllerState(rc);
-    						if (state.equalsIgnoreCase("Complete")) {
+    						if (state.equalsIgnoreCase(STATE_COMPLETE)) {
             					deployDone = true;
-    						} else if (state.equalsIgnoreCase("Failed")) {
+    						} else if (state.equalsIgnoreCase(STATE_FAILED)) {
     	        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, rc.getName(), state));
     							return false;
     						} else {

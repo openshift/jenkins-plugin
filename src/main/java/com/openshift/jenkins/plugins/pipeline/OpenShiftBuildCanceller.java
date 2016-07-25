@@ -72,7 +72,7 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 					
 					// if build active, let's cancel it
 					String buildName = bld.getName();
-					if (buildName.startsWith(getBldCfg(overrides)) && !phaseStr.equalsIgnoreCase("Complete") && !phaseStr.equalsIgnoreCase("Failed") && !phaseStr.equalsIgnoreCase("Cancelled")) {
+					if (buildName.startsWith(getBldCfg(overrides)) && !isBuildFinished(phaseStr)) {
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftBuildCanceller found active build " + buildName);
 						
