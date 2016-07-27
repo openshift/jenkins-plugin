@@ -207,10 +207,19 @@ public interface IOpenShiftPlugin {
 		// we check for null but these should always be there from a jenkins api guarantee perspective
 		if (jobName != null && buildNum != null) {
 			IClient client = getClient(listener, getDisplayName(), overrides);
-			List<IRoute> routes = client.list(ResourceKind.ROUTE, getNamespace(overrides));
+			List<IRoute> routes = new ArrayList<IRoute>();
+			try {
+				routes = client.list(ResourceKind.ROUTE, getNamespace(overrides));
+			} catch (Throwable t) {
+				if (chatty)
+					t.printStackTrace(listener.getLogger());
+			}
 			for (IRoute route : routes) {
 				if (route.getServiceName().equals("jenkins")) {
-					overrides.put(BUILD_URL_ENV_KEY, route.getURL() + "/job/" + jobName + "/" + buildNum + "/");
+					String base = route.getURL();
+					if (!base.endsWith("/"))
+						base = base + "/";
+					overrides.put(BUILD_URL_ENV_KEY, base + "job/" + jobName + "/" + buildNum + "/");
 					break;
 				}
 			}
@@ -538,6 +547,13 @@ public interface IOpenShiftPlugin {
 	default boolean annotateJobInfoToResource(IClient client, TaskListener listener, boolean chatty, Map<String, String> env, IResource resource) {
 		boolean annotated = false;
 		String buildURL = env.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY);
+		// when not running as a pipeline, and if the plugin's token does not have permission to
+		// fetch routes, then the build_url key is not available, so we have to
+		// construct the url from pieces.  unfortunately the jenkins hostname itself is not available
+		// as an env variable in this case.
+		if(buildURL == null) {
+			buildURL = "job/"+env.get(IOpenShiftPlugin.JOB_NAME)+"/"+env.get(IOpenShiftPlugin.BUILD_NUMBER);
+		}
 		for(int i=0;i<3;i++) {
 			// anticipate update conflicts so get the latest object and retry the update 3 times.
 			IResource annotatedResource = client.get(resource.getKind(),resource.getName(),resource.getNamespace());
