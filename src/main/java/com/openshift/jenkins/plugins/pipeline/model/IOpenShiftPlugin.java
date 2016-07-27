@@ -5,10 +5,12 @@ import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
+import hudson.model.Cause;
 import hudson.model.Computer;
 import hudson.model.BuildListener;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import io.fabric8.jenkins.openshiftsync.BuildCause;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,6 +56,10 @@ public interface IOpenShiftPlugin {
 	public static final String BUILD_URL_ANNOTATION = "openshift.io/jenkins-build-uri";
 	
 	public static final String NAMESPACE_FILE = "/run/secrets/kubernetes.io/serviceaccount/namespace";
+	
+	public static final String NAMESPACE_ENV_VAR = "PROJECT_NAME";
+	
+	public static final String NAMESPACE_SYNC_BUILD_CAUSE = "NAMESPACE_SYNC_BUILD_CAUSE";
 	
 	public static final String STATE_COMPLETE = "Complete";
 	public static final String STATE_CANCELLED = "Cancelled";
@@ -101,8 +107,10 @@ public interface IOpenShiftPlugin {
 	default String getNamespace(Map<String,String> overrides) {
 		String val = getOverride(getNamespace(), overrides);
 		if (val.length() == 0) {
-			if (overrides != null && overrides.containsKey("PROJECT_NAME"))
-				val = overrides.get("PROJECT_NAME");
+			if (overrides != null && overrides.containsKey(NAMESPACE_SYNC_BUILD_CAUSE))
+				val = overrides.get(NAMESPACE_SYNC_BUILD_CAUSE);
+			else if (overrides != null && overrides.containsKey(NAMESPACE_ENV_VAR))
+				val = overrides.get(NAMESPACE_ENV_VAR);
 			else {
 				File f = new File(NAMESPACE_FILE);
 				if (f.exists())
@@ -238,6 +246,17 @@ public interface IOpenShiftPlugin {
 		if (run == null && build == null)
 			throw new RuntimeException("Either the run or build parameter must be set");
 		
+    	// if the openshift sync plugin is in play and has set the build cause, we can infer the namespace to use
+    	// from there, so let's store in the the env map; we could parse the short description string and not depend
+		// on openshift-sync, but for now let's add the dependency to call the namespace getter.  If size becomes a concern or circular
+		// dependencies arise, we can remove the explicit dependency and parse the string
+		BuildCause cause = run.getCause(BuildCause.class);
+		if (cause != null) {
+			if (chatty)
+				listener.getLogger().println("build cause namespace from sync plugin is " + cause.getNamespace());
+			env.put(NAMESPACE_SYNC_BUILD_CAUSE, cause.getNamespace());
+		}
+    	
 		Map<String, String> overrides = consolidateEnvVars(listener, env, run, build, launcher, chatty);
 		
 		setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), overrides));

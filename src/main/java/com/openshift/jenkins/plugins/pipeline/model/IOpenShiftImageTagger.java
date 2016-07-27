@@ -69,8 +69,8 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
 	
 	default String getDestinationNamespace(Map<String,String> overrides) {
 		String val = getOverride(getDestinationNamespace(), overrides);
-		if (val.length() == 0 && overrides != null && overrides.containsKey("PROJECT_NAME")) {
-			val = overrides.get("PROJECT_NAME");
+		if (val.length() == 0 && overrides != null && overrides.containsKey(NAMESPACE_ENV_VAR)) {
+			val = overrides.get(NAMESPACE_ENV_VAR);
 		}
 		return val;
 	}
