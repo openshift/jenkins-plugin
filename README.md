@@ -17,8 +17,11 @@ is already provided and can be invoked from your Jenkins jobs, or if you are not
 
 NOTE:  This plugin requires JDK 1.8, based on its maven dependency openshift-restclient-java.
 
-This document represents the most technical, detailed description of this plugin.  For reference, the associated wiki page for this plugin on the Jenkins site is [here](https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin).
-The most important piece of information on that page will be the indication of the latest officially released version of this plugin.
+The documentation and code at [https://github.com/openshift/jenkins-plugin](https://github.com/openshift/jenkins-plugin) always hosts the very latest version, including possibly pre-released versions that are still under test.
+The associated repository under the JenkinsCI project, [https://github.com/jenkinsci/openshift-pipeline-plugin](https://github.com/jenkinsci/openshift-pipeline-plugin), is only updated as part of cutting 
+official releases of this plugin.
+
+For each of those two repositories, this README represents the most technical and up to date description of this plugin's features.  For reference, the associated wiki page for this plugin on the Jenkins site is [here](https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin).  The most important piece of information on that page will be the indication of the latest officially released version of this plugin.
 
 ## Jenkins "build steps"
 
@@ -47,11 +50,11 @@ A series of Jenkins "build step" implementations are provided, which you can sel
 
 8. "Create OpenShift Resource(s)":  performs the equivalent of an `oc create` command invocation; this build step takes in the provided JSON or YAML text, and if it conforms to OpenShift schema, creates whichever OpenShift resources are specified.
 
-	- NOTE: if a namespace is specified for any of the resources, the plugin will attempt to create the resource in that namespace instead of the namespace specified in the "The name of the project to create the resources in" field.  However, the authorization token provided must have edit permission to that project/namespace.
+	- NOTE: if a namespace is specified in the provided json/yaml for any of the resources, that namespace will take precedence over the namespace specified in the "The name of the project to create the resources in" field.  However, the authorization token provided in the field "The authorization token for interacting with OpenShift" must have edit permission to any project/namespace referenced in the json/yaml.  If no token is specified, the assumption is that Jenkins in running in OpenShift, and the default service account associated with the project/namespace Jenkins is running in has edit permission to any project/namespace referenced in the json/yaml.
 
 9. "Delete OpenShift Resource(s)...":  performs the equivalent of an `oc delete` command invocation; there are 3 versions of this build step; one takes in provided JSON or YAML text, and if it conforms to OpenShift schema, deletes whichever OpenShift resources are specified; the next form takes in comma delimited lists of types and keys, and deletes the corresponding entries; the last form takes in a comma separated list of types, along with comma separated lists of keys and values that might appear as labels on the API resources, and then for each of the types, deletes any objects that have labels that match the key/value pair(s) specified. 
 
-	- NOTE: if a namespace is specified for any of the resources when deleting via JSON/YAML, the plugin will attempt to delete the resource in that namespace instead of the namespace specified in the "The name of the project to delete the resources in" field.  However, the authorization token provided must have edit permission to that project/namespace.
+	- NOTE: if a namespace is specified in the provided json/yaml for any of the resources, that namespace will take precedence over the namespace specified in the "The name of the project to create the resources in" field.  However, the authorization token provided in the field "The authorization token for interacting with OpenShift" must have edit permission to any project/namespace referenced in the json/yaml.  If no token is specified, the assumption is that Jenkins in running in OpenShift, and the default service account associated with the project/namespace Jenkins is running in has edit permission to any project/namespace reference in the json/yaml.
 
 ## Jenkins "Source Code Management (SCM)"
 
