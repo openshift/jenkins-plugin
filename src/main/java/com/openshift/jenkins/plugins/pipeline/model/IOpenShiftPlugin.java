@@ -250,7 +250,7 @@ public interface IOpenShiftPlugin {
     	// from there, so let's store in the the env map; we could parse the short description string and not depend
 		// on openshift-sync, but for now let's add the dependency to call the namespace getter.  If size becomes a concern or circular
 		// dependencies arise, we can remove the explicit dependency and parse the string
-		BuildCause cause = run.getCause(BuildCause.class);
+		BuildCause cause = run != null ? run.getCause(BuildCause.class) : null;
 		if (cause != null) {
 			if (chatty)
 				listener.getLogger().println("build cause namespace from sync plugin is " + cause.getNamespace());
