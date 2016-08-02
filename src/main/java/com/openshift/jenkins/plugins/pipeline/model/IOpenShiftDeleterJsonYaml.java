@@ -53,7 +53,7 @@ public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
 	    	    	if (UNDEFINED.equals(namespace))
 	    	    		namespace = getNamespace(overrides);
 					
-	    			rc = deleteAPIObjs(client, listener, namespace, path, name, null);
+	    			rc = deleteAPIObjs(client, listener, namespace, path, name, null, chatty);
 	
 	    		}
 	    	} else {
@@ -63,7 +63,7 @@ public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
     	    	if (UNDEFINED.equals(namespace))
     	    		namespace = getNamespace(overrides);
 	    		
-    			rc = deleteAPIObjs(client, listener, namespace, path, name, null);
+    			rc = deleteAPIObjs(client, listener, namespace, path, name, null, chatty);
 	    		
 	    	}
 	

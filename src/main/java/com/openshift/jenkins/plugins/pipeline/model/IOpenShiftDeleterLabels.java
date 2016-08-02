@@ -3,7 +3,9 @@ package com.openshift.jenkins.plugins.pipeline.model;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -61,9 +63,12 @@ public interface IOpenShiftDeleterLabels extends IOpenShiftApiObjHandler {
     			return false;
     		}
     		
-    		Map<String, String> labels = new HashMap<String, String>();
+    		// we do a list of maps so that users can specify different value options for a common key
+    		List<Map<String,String>> listOfLabels = new ArrayList<Map<String,String>>();
     		for (int j=0; j < inputKeys.length; j++) {
+        		Map<String, String> labels = new HashMap<String, String>();
     			labels.put(inputKeys[j], inputValues[j]);
+    			listOfLabels.add(labels);
     		}
     		
     		for (int i =0; i < inputTypes.length; i++) {
@@ -85,7 +90,7 @@ public interface IOpenShiftDeleterLabels extends IOpenShiftApiObjHandler {
         			continue;
         		}
         		
-        		rc = deleteAPIObjs(client, listener, getNamespace(overrides), resourceKind, null, labels);
+        		rc = deleteAPIObjs(client, listener, getNamespace(overrides), resourceKind, null, listOfLabels, chatty);
     		}
     		
     		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, rc[0]));

@@ -112,11 +112,13 @@ public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
     	return resources;
     }
     
-    default int[] deleteAPIObjs(IClient client, TaskListener listener, String namespace, String type, String key, Map<String, String> labels) {
+    default int[] deleteAPIObjs(IClient client, TaskListener listener, String namespace, String type, String key, List<Map<String,String>> listOfLabels, boolean chatty) {
     	int[] ret = new int[2];
     	int deleted = 0;
     	int failed = 0;
 
+    	if (chatty)
+    		listener.getLogger().println(String.format("deleteAPIObjs with namespace %s type %s key %s labels %s", namespace, type, key, listOfLabels));
     	if (type != null && key != null) {
 			IResource resource = client.get(type, key, namespace);
     		if (resource != null) {
@@ -129,14 +131,20 @@ public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
     		}
     	}
     	
-    	if (labels != null && labels.size() > 0) {
-    		List<IResource> resources = client.list(type, namespace, labels);
-    		for (IResource resource : resources) {
-        		if (resource != null) {
-        			client.delete(resource);
-        			listener.getLogger().println(String.format(MessageConstants.DELETED_OBJ, type, resource.getName()));
-        			deleted++;
-        		}
+    	if (listOfLabels != null && listOfLabels.size() > 0) {
+    		for (Map<String,String> labels : listOfLabels) {
+    			if (chatty)
+    				listener.getLogger().println(String.format("deleteAPIObjs calling list with type %s namespace %s labels %s", type, namespace, labels));
+    			List<IResource> resources = client.list(type, namespace, labels);
+    			for (IResource resource : resources) {
+    				if (resource != null) {
+    					if (chatty)
+    						listener.getLogger().println("deleteAPIObjs calling delete on " + resource.toJson(false));
+    					client.delete(resource);
+    					listener.getLogger().println(String.format(MessageConstants.DELETED_OBJ, type, resource.getName()));
+    					deleted++;
+    				}
+    			}
     		}
     	}
     	

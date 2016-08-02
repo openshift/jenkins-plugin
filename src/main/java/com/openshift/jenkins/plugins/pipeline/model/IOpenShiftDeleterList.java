@@ -74,7 +74,7 @@ public interface IOpenShiftDeleterList extends IOpenShiftApiObjHandler {
         			continue;
         		}
         		
-        		rc = deleteAPIObjs(client, listener, getNamespace(overrides), resourceKind, inputKeys[i], null);
+        		rc = deleteAPIObjs(client, listener, getNamespace(overrides), resourceKind, inputKeys[i], null, chatty);
     		}
     		
     		if (rc[1] == 0 && badType == 0) {
