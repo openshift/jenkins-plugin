@@ -2,9 +2,6 @@ package com.openshift.jenkins.plugins.pipeline.model;
 
 import hudson.model.TaskListener;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
@@ -13,8 +10,6 @@ import net.sf.json.JSONObject;
 import org.jboss.dmr.ModelNode;
 import org.yaml.snakeyaml.Yaml;
 
-import com.openshift.internal.restclient.http.UrlConnectionHttpClient;
-import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.OpenShiftApiObjHandler;
 import com.openshift.restclient.IClient;
@@ -22,30 +17,10 @@ import com.openshift.restclient.model.IResource;
 
 
 public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
-
-    default UrlConnectionHttpClient createHttpClient() {
-		UrlConnectionHttpClient urlClient = new UrlConnectionHttpClient(
-				null, "application/json", null, getAuth(), null, null);
-		urlClient.setAuthorizationStrategy(getToken());
-		return urlClient;
-    }
-    
+	
 	default String fetchApiJsonFromApiServer(boolean chatty, TaskListener listener, 
     		Map<String,String> overrides, String apiDomain) {
-    	URL url = null;
-    	try {
-    		url = new URL(this.getApiURL(overrides) + "/swaggerapi/" + apiDomain + "/v1");
-		} catch (MalformedURLException e) {
-			e.printStackTrace(listener.getLogger());
-			return null;
-		}
-    	try {
-    		return createHttpClient().get(url, 10 * 1000);
-		} catch (IOException e1) {
-			if (chatty)
-				e1.printStackTrace(listener.getLogger());
-			return null;
-		}
+		return httpGet(chatty, listener, overrides, this.getApiURL(overrides) + "/swaggerapi/" + apiDomain + "/v1");
     }
     
     default void importJsonOfApiTypes(boolean chatty, TaskListener listener, 
@@ -68,7 +43,7 @@ public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
         				String typeStrForURL = null;
         				String[] pathPieces = path.split("/");
         				for (String pathPiece : pathPieces) {
-        					if (pathPiece.equalsIgnoreCase(coreType + "s")) {
+        					if (pathPiece.equalsIgnoreCase(coreType + "s") || pathPiece.equalsIgnoreCase(coreType)) {
         						typeStrForURL = pathPiece;
         						break;
         					}
@@ -84,13 +59,12 @@ public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
     	
     }
     
+	//TODO openshift-restclient-java's IApiTypeMapper is not really accessible from our perspective,
+	//without accessing/recreating the underlying OkHttpClient, so until that changes, we use our own
+	// type mapping
     default void updateApiTypes(boolean chatty, TaskListener listener, Map<String,String>overrides) {
-    	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
-    	// so we set up our own trust manager like we used to do in order to verify the server cert
-    	Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
 		importJsonOfApiTypes(chatty, listener, overrides, OpenShiftApiObjHandler.oapi, fetchApiJsonFromApiServer(chatty, listener, overrides, OpenShiftApiObjHandler.oapi));
 		importJsonOfApiTypes(chatty, listener, overrides, OpenShiftApiObjHandler.api, fetchApiJsonFromApiServer(chatty, listener, overrides, OpenShiftApiObjHandler.api));
-    	
     }
     
     default ModelNode hydrateJsonYaml(String jsonyaml, TaskListener listener) {

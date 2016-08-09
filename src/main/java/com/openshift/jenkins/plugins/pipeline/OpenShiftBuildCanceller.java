@@ -12,7 +12,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.openshift.internal.restclient.http.HttpClientException;
+//import com.openshift.internal.restclient.http.HttpClientException;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.capability.CapabilityVisitor;
@@ -64,8 +64,8 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
     	IClient client = getClient(listener, DISPLAY_NAME, overrides);
     	
     	if (client != null) {
-			try {
-				List<IBuild> list = client.list(ResourceKind.BUILD, getNamespace(overrides));
+/*			try {
+*/				List<IBuild> list = client.list(ResourceKind.BUILD, getNamespace(overrides));
 				int count = 0;
 				for (IBuild bld : list) {
 					String phaseStr = bld.getStatus();
@@ -95,11 +95,11 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
 		    	listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_CANCEL, DISPLAY_NAME, count));
 				
 				return true;
-			} catch (HttpClientException e1) {
+/*			} catch (HttpClientException e1) {
 				e1.printStackTrace(listener.getLogger());
 				return false;
 			}
-    	} else {
+*/    	} else {
     		return false;
     	}
 	}

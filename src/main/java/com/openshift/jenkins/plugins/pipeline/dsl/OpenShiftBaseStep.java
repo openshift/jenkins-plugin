@@ -8,7 +8,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 
 import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
-import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 import jenkins.tasks.SimpleBuildStep;
 import hudson.FilePath;
@@ -25,7 +25,7 @@ public abstract class OpenShiftBaseStep extends AbstractStepImpl  implements Sim
     protected String authToken;
     protected String verbose;
     // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
-    protected transient TokenAuthorizationStrategy bearerToken;
+    //protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
     
     protected OpenShiftBaseStep() {
@@ -78,7 +78,7 @@ public abstract class OpenShiftBaseStep extends AbstractStepImpl  implements Sim
 		return auth;
 	}
 
-	@Override
+/*	@Override
 	public TokenAuthorizationStrategy getToken() {
 		return bearerToken;
 	}
@@ -87,7 +87,7 @@ public abstract class OpenShiftBaseStep extends AbstractStepImpl  implements Sim
 	public void setToken(TokenAuthorizationStrategy token) {
 		this.bearerToken = token;
 	}
-
+*/
 	@Override
 	public String getBaseClassName() {
 		return OpenShiftBaseStep.class.getName();

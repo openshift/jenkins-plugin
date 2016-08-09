@@ -18,7 +18,7 @@ import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.OpenShiftCreator;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.model.IImageStream;
 
 public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
@@ -43,10 +43,10 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
 		
 	public String getDestinationAuthToken();
 		
-	public TokenAuthorizationStrategy getDestinationToken();
+/*	public TokenAuthorizationStrategy getDestinationToken();
 	
 	public void setDestinationToken(TokenAuthorizationStrategy token);
-	
+*/	
 	default String getAlias(Map<String,String> overrides) {
 		return getOverride(getAlias(), overrides);
 	}
@@ -138,7 +138,7 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
     	
     	// get oc clients 
     	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-   		setDestinationToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, getDestinationAuthToken(overrides), listener, chatty)));
+   		//setDestinationToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, getDestinationAuthToken(overrides), listener, chatty)));
     	
     	if (client != null) {
     		// get src id
@@ -200,8 +200,8 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
     				// for the OpenShiftCreator
     				if (this.getDestinationAuthToken(overrides) != null && this.getDestinationAuthToken(overrides).length() > 0) {
     					this.setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), overrides));
-    					this.setToken(getDestinationToken());
-    					client = this.getClient(listener, DISPLAY_NAME, overrides);
+    					//this.setToken(getDestinationToken());
+    					client = this.getClient(listener, DISPLAY_NAME, overrides, getDestinationAuthToken(overrides));
     				}
     				destIS = client.get(ResourceKind.IMAGE_STREAM, getProdStream(overrides), destinationNS);
     			} catch (com.openshift.restclient.OpenShiftException e) {
@@ -211,9 +211,9 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
     				Map<String,String> newOverrides = new HashMap<String,String>(overrides);
     				// we don't want this step's source namespace to be the creator's namespace, but rather this step's destination namespace, so clear out the override and then reuse all other overrides
     				newOverrides.remove("namespace");
-    				OpenShiftCreator isCreator = new OpenShiftCreator(getApiURL(newOverrides), destinationNS, getDestinationToken().getToken(), getVerbose(newOverrides), createJson);
+    				OpenShiftCreator isCreator = new OpenShiftCreator(getApiURL(newOverrides), destinationNS, getDestinationAuthToken(overrides), getVerbose(newOverrides), createJson);
     				isCreator.setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(newOverrides), overrides));
-    		    	isCreator.setToken(getDestinationToken());
+    		    	//isCreator.setToken(getDestinationToken());
     				
     				
     				boolean newISCreated = isCreator.coreLogic(launcher, listener, newOverrides);

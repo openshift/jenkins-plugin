@@ -16,7 +16,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 import com.openshift.restclient.model.IImageStream;
 
 import hudson.Extension;
@@ -49,7 +49,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
     protected final String verbose;
     protected String lastCommitId = null;
     // marked transient so don't serialize these next 3 in the workflow plugin flow; constructed on per request basis
-    protected transient TokenAuthorizationStrategy bearerToken;
+    //protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
@@ -105,7 +105,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 		
     	// get oc client (sometime REST, sometimes Exec of oc command
     	setAuth(Auth.createInstance(null, getApiURL(overrides), overrides));
-    	setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty)));		
+    	//setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty)));		
     	// get oc client 
     	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
@@ -268,11 +268,11 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 		this.auth = auth;
 	}
 
-	@Override
+/*	@Override
 	public void setToken(TokenAuthorizationStrategy token) {
 		this.bearerToken = token;
 	}
-
+*/
 	@Override
 	public boolean coreLogic(Launcher launcher, TaskListener listener, Map<String,String> overrides) {
 		return false;
@@ -283,11 +283,11 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 		return auth;
 	}
 
-	@Override
+/*	@Override
 	public TokenAuthorizationStrategy getToken() {
 		return bearerToken;
 	}
-
+*/
 
 
 }
