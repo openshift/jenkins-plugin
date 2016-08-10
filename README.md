@@ -1,4 +1,6 @@
 # OpenShift V3 Plugin for Jenkins
+[![Build Status](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=openshift-pipeline-plugin)](https://ci.openshift.redhat.com/jenkins/job/openshift-pipeline-plugin/) [![Build Status](https://travis-ci.org/openshift/jenkins-plugin.svg?branch=master)](https://travis-ci.org/openshift/jenkins-plugin)
+
 This project provides a series Jenkins plugin implementations that operate on [Kubernetes based OpenShift](https://docs.openshift.org/latest/welcome/index.html).  In summary
 they are a series of REST flows that interface with the OpenShift server via the [exposed API](https://docs.openshift.org/latest/rest_api/overview.html).
 They minimally mimic the REST flows of common uses of the `oc` [CLI command](https://docs.openshift.org/latest/cli_reference/basic_cli_operations.html), but in several
@@ -9,16 +11,16 @@ where allowing OpenShift interactions via Jenkins build steps, pipeline DSL, etc
 
 NOTE:  This plugin does require the `oc` binary be present.
 
-NOTE:  This plugin currently does not intend to match feature to feature what is provided via `oc`, but rather expose and augment when possible (additional validations for example) 
+NOTE:  This plugin currently does not intend to match feature to feature what is provided via `oc`, but rather expose and augment when possible (additional validations for example)
 OpenShift API REST endpoints, with which the `oc` client also leverages, typically used with CI/CD type flows.  One notable example of an `oc` option that is not exposed in the plugin is the `oc new-app` command.
-This omission stems from the fact that there is no single OpenShift server side API for `oc new-app`, and there is a fair amount of client side logic involved.  Rather than invest 
+This omission stems from the fact that there is no single OpenShift server side API for `oc new-app`, and there is a fair amount of client side logic involved.  Rather than invest
 in porting that logic to the plugin, we currently recommend that if `oc new-app` functionality is desired in your Jenkins jobs, either use the OpenShift Jenkins image, where the `oc` binary
 is already provided and can be invoked from your Jenkins jobs, or if you are not using the OpenShift Jenkins image, include the `oc` binary in your Jenkins installation.
 
 NOTE:  This plugin requires JDK 1.8, based on its maven dependency openshift-restclient-java.
 
 The documentation and code at [https://github.com/openshift/jenkins-plugin](https://github.com/openshift/jenkins-plugin) always hosts the very latest version, including possibly pre-released versions that are still under test.
-The associated repository under the JenkinsCI project, [https://github.com/jenkinsci/openshift-pipeline-plugin](https://github.com/jenkinsci/openshift-pipeline-plugin), is only updated as part of cutting 
+The associated repository under the JenkinsCI project, [https://github.com/jenkinsci/openshift-pipeline-plugin](https://github.com/jenkinsci/openshift-pipeline-plugin), is only updated as part of cutting
 official releases of this plugin.
 
 For each of those two repositories, this README represents the most technical and up to date description of this plugin's features.  For reference, the associated wiki page for this plugin on the Jenkins site is [here](https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin).  The most important piece of information on that page will be the indication of the latest officially released version of this plugin.
@@ -52,7 +54,7 @@ A series of Jenkins "build step" implementations are provided, which you can sel
 
 	- NOTE: if a namespace is specified in the provided json/yaml for any of the resources, that namespace will take precedence over the namespace specified in the "The name of the project to create the resources in" field.  However, the authorization token provided in the field "The authorization token for interacting with OpenShift" must have edit permission to any project/namespace referenced in the json/yaml.  If no token is specified, the assumption is that Jenkins in running in OpenShift, and the default service account associated with the project/namespace Jenkins is running in has edit permission to any project/namespace referenced in the json/yaml.
 
-9. "Delete OpenShift Resource(s)...":  performs the equivalent of an `oc delete` command invocation; there are 3 versions of this build step; one takes in provided JSON or YAML text, and if it conforms to OpenShift schema, deletes whichever OpenShift resources are specified; the next form takes in comma delimited lists of types and keys, and deletes the corresponding entries; the last form takes in a comma separated list of types, along with comma separated lists of keys and values that might appear as labels on the API resources, and then for each of the types, deletes any objects that have labels that match the key/value pair(s) specified. 
+9. "Delete OpenShift Resource(s)...":  performs the equivalent of an `oc delete` command invocation; there are 3 versions of this build step; one takes in provided JSON or YAML text, and if it conforms to OpenShift schema, deletes whichever OpenShift resources are specified; the next form takes in comma delimited lists of types and keys, and deletes the corresponding entries; the last form takes in a comma separated list of types, along with comma separated lists of keys and values that might appear as labels on the API resources, and then for each of the types, deletes any objects that have labels that match the key/value pair(s) specified.
 
 	- NOTE: if a namespace is specified in the provided json/yaml for any of the resources, that namespace will take precedence over the namespace specified in the "The name of the project to create the resources in" field.  However, the authorization token provided in the field "The authorization token for interacting with OpenShift" must have edit permission to any project/namespace referenced in the json/yaml.  If no token is specified, the assumption is that Jenkins in running in OpenShift, and the default service account associated with the project/namespace Jenkins is running in has edit permission to any project/namespace reference in the json/yaml.
 
@@ -181,7 +183,7 @@ The step name is "openshiftTag".  Mandatory parameters are:
 
 a)  "sourceStream" or "srcStream":  The ImageStream of the existing image.
 
-b)  "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image. 
+b)  "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image.
 
 c)  "destinationStream" or "destStream":  The ImageStream for the new tag.
 
@@ -232,7 +234,7 @@ Optional parameters are:
 a)  "retryCount":  The number of times to attempt a connection before giving up.  The default is 100.
 
 
-### Pipeline / Workflow support prior to version 1.0.14 of the OpenShift Pipeline Plugin 
+### Pipeline / Workflow support prior to version 1.0.14 of the OpenShift Pipeline Plugin
 
 Each of the Jenkins "build steps" can also be used as steps in a Jenkins Pipeline / Workflow plugin Groovy script, as they implement `jenkins.tasks.SimpleBuildStep` and `java.io.Serializable`.  From your Groovy script, instantiate the associated Java object, and then leverage the workflow plugin `step` keyword to call out to the object with the necessary workflow contexts.  [Here](https://github.com/jenkinsci/workflow-plugin/blob/master/TUTORIAL.md) is a useful reference on constructing Jenkins Workflow Groovy scripts.
 
@@ -290,7 +292,7 @@ For the certificate, when running in the OpenShift Jenkins image, the CA certifi
 - For all steps of a given project, set a build parameter (again, of type `Text Parameter`)  named `CA_CERT` to the string needed to construct the certificate.
 - Since `Text Parameter` input fields are not available with the global key/value properties, the plug-in does not support defining certificates via a `CA_CERT` property across Jenkins projects.
 
-If you want to skip TLS verification and allow for untrusted certificates, set the named parameter `SKIP_TLS` to any value.  Since this can be done with a Jenkins `String Parameter`, you can use this at either the global or project level. 
+If you want to skip TLS verification and allow for untrusted certificates, set the named parameter `SKIP_TLS` to any value.  Since this can be done with a Jenkins `String Parameter`, you can use this at either the global or project level.
 
 
 ### Providing parameter values
@@ -331,10 +333,10 @@ can be used:
 - the name as is; for example, for the parameter `VERSION`, you can use `VERSION` in the field
 - the name preceded with a `$`; for the parameter `VERSION`, you can use `$VERSION` in the field
 - the name encapsulated with `${..}`; for the parameter `VERSION`, you can use `${VERSION}` in the field
-- the name ecapsulated with `${..}` and combined with some constant text; for the parameter `VERSION`, you can specify `myapp-${VERSION}` in the field 
+- the name ecapsulated with `${..}` and combined with some constant text; for the parameter `VERSION`, you can specify `myapp-${VERSION}` in the field
 
 
-### Communication Timeouts 
+### Communication Timeouts
 
 The default timeouts for the various interactions with the OpenShift API endpoint are also configurable for those steps that have to wait on results.  Overriding the timeouts are currently done globally across all instances of a given build step or post-build step.  Go to the "Configure System" panel under "Manage Jenkins" of the Jenkins UI (i.e. http://<host:port>/configure), and then change the "Wait interval" for the item of interest.  Similarly, the OpenShift Service Verification has a retry count for attempts to contact the OpenShift Service successfully.
 
@@ -344,7 +346,7 @@ Like the Jenkins project itself, this project is a maven based project.  To buil
 
 Aside from building the plugin locally, there are a few other ways to obtain built version of the plugin:
 
-1.  The Centos and RHEL versions of the OpenShift Jenkins Docker Image, starting officially with V3.2 of OpenShift, will have the plugin installed.  See the [Jenkins Docker Image repository](https://github.com/openshift/jenkins) for details. 
+1.  The Centos and RHEL versions of the OpenShift Jenkins Docker Image, starting officially with V3.2 of OpenShift, will have the plugin installed.  See the [Jenkins Docker Image repository](https://github.com/openshift/jenkins) for details.
 
 2.  As noted earlier, [wiki page](https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin) has a link to the latest official version of the plugin.
 
@@ -354,4 +356,4 @@ Aside from building the plugin locally, there are a few other ways to obtain bui
 
 5.  A RHEL RPM is also available as of V3.2 of OpenShift.
 
-Unless you are using a OpenShift Jenkins Docker Image with the plugin preinstalled, follow the Jenkins instructions for installing a plugin either by supplying the `openshift-pipeline.hpi` file, or by pulling it down from the Jenkins Update Center. 
+Unless you are using a OpenShift Jenkins Docker Image with the plugin preinstalled, follow the Jenkins instructions for installing a plugin either by supplying the `openshift-pipeline.hpi` file, or by pulling it down from the Jenkins Update Center.
