@@ -23,16 +23,17 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IO
     protected final String depCfg;
     protected final String replicaCount;
     protected final String verifyReplicaCount;
-    protected String waitTime;
+    protected final String waitTime;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose, String verifyReplicaCount) {
+    public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose, String verifyReplicaCount, String waitTime) {
     	super(apiURL, namespace, authToken, verbose);
         this.depCfg = depCfg;
         this.replicaCount = replicaCount;
         this.verifyReplicaCount = verifyReplicaCount;
+        this.waitTime = waitTime;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically

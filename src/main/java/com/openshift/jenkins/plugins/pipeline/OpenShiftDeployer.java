@@ -23,14 +23,15 @@ import hudson.util.FormValidation;
 public class OpenShiftDeployer extends OpenShiftBaseStep implements IOpenShiftDeployer {
 	
     protected final String depCfg;    
-    protected String waitTime;
+    protected final String waitTime;
     
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose) {
+    public OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose, String waitTime) {
     	super(apiURL, namespace, authToken, verbose);
         this.depCfg = depCfg;
+        this.waitTime = waitTime;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically

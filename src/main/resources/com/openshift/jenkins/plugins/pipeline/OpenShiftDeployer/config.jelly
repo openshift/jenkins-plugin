@@ -22,6 +22,9 @@
   <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
     <f:textbox  />
   </f:entry>
+  <f:entry title="Deploy wait time" field="waitTime">
+    <f:textbox  />
+  </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
     <f:booleanRadio default="false" />
   </f:entry>

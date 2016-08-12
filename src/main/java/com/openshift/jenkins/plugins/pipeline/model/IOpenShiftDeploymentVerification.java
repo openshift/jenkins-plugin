@@ -88,18 +88,26 @@ public interface IOpenShiftDeploymentVerification extends IOpenShiftPlugin {
 						if (chatty)
 							listener.getLogger().println("\nOpenShiftDeploymentVerifier current rc " + rc);
 						state = this.getReplicationControllerState(rc);
-						depId = rc.getName();
-						// first check state
-		        		if (state.equalsIgnoreCase(STATE_FAILED)) {
-	        		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, getDepCfg(overrides), state));
-		        			return false;
-		        		}
-						if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
-						
-						scaledAppropriately = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
-						if (scaledAppropriately)
-							break;
+						if (this.isDeployFinished(state)) {
+							depId = rc.getName();
+							// first check state
+							if (state.equalsIgnoreCase(STATE_FAILED)) {
+								listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, getDepCfg(overrides), state));
+								return false;
+							}
+							if (chatty) listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
+
+							scaledAppropriately = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
+							if (scaledAppropriately)
+								break;
+						} else {
+							if (chatty)
+								listener.getLogger().println("\nOpenShiftDeploymentVerifier current phase " + state);
+						}
 		        		
+					} else {
+						if (chatty)
+							listener.getLogger().println("\nOpenShiftDeploymenVerifier no rc for latest version yet");
 					}
 				} else {
 		    		listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));

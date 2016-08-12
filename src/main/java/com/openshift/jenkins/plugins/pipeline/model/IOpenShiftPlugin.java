@@ -80,11 +80,12 @@ public interface IOpenShiftPlugin {
 	
 	public static final String NAMESPACE_SYNC_BUILD_CAUSE = "NAMESPACE_SYNC_BUILD_CAUSE";
 	
+	// states of note
 	public static final String STATE_COMPLETE = "Complete";
 	public static final String STATE_CANCELLED = "Cancelled";
 	public static final String STATE_ERROR = "Error";
 	public static final String STATE_FAILED = "Failed";
-
+	
 	String getBaseClassName();
 	
 	String getAuthToken();
@@ -351,6 +352,12 @@ public interface IOpenShiftPlugin {
     default boolean isBuildFinished(String bldState) {
 		if (bldState != null && (bldState.equals(STATE_COMPLETE) || bldState.equals(STATE_FAILED) || bldState.equals(STATE_ERROR) || bldState.equals(STATE_CANCELLED)))
 			return true;
+    	return false;
+    }
+    
+    default boolean isDeployFinished(String deployState) {
+    	if (deployState != null && (deployState.equals(STATE_FAILED) || deployState.equals(STATE_COMPLETE)))
+    		return true;
     	return false;
     }
     
