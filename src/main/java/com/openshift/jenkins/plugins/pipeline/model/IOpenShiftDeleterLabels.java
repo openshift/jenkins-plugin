@@ -52,8 +52,7 @@ public interface IOpenShiftDeleterLabels extends IOpenShiftApiObjHandler {
     		// verify valid type is specified
     		Set<String> types = OpenShiftApiObjHandler.apiMap.keySet();
     		String resourceKind = null;
-	    	// rc[0] will be successful deletes, rc[1] will be failed deletes, not no failed deletes in the labels scenario
-    		int[] rc = new int[2];
+    		int deletes = 0;
     		String[] inputTypes = getTypes(overrides).split(",");
     		String[] inputKeys = getKeys(overrides).split(",");
     		String[] inputValues = getValues(overrides).split(",");
@@ -90,10 +89,13 @@ public interface IOpenShiftDeleterLabels extends IOpenShiftApiObjHandler {
         			continue;
         		}
         		
+    	    	// rc[0] will be successful deletes, rc[1] will be failed deletes, but no failed deletes in the labels scenario
+        		int[] rc = new int[2];
         		rc = deleteAPIObjs(client, listener, getNamespace(overrides), resourceKind, null, listOfLabels, chatty);
+        		deletes = deletes + rc[0];
     		}
     		
-    		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, rc[0]));
+    		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, deletes));
     		return true;
      	}
 		return false;

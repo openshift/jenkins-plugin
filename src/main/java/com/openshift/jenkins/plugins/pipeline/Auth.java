@@ -36,28 +36,34 @@ public class Auth implements ISSLCertificateCallback {
 	public static final String CERT_ARG = " --certificate-authority=/run/secrets/kubernetes.io/serviceaccount/ca.crt ";
 	
 	private X509Certificate cert = null;
+	private boolean skipTls = false;
 	private TaskListener listener = null;
 	private static X509TrustManager x509TrustManager;
-	private Auth(X509Certificate cert, TaskListener listener) {
+	private Auth(X509Certificate cert, TaskListener listener, boolean skipTls) {
 		this.cert = cert;
 		this.listener = listener;
+		this.skipTls = skipTls;
 	}
 	
-	public static Auth createInstance(TaskListener listener, String apiURL, Map<String, String> env) {
+	public static Auth createInstance(TaskListener listener, String apiURL, Map<String, String> env) throws RuntimeException {
 		Auth auth = null;
 		File f = new File(CERT_FILE);
-		if ((f.exists() || env.get("CA_CERT") != null) && env.get("SKIP_TLS") == null) {
+		boolean skip = env.get("SKIP_TLS") != null;
+		if ((f.exists() || env.get("CA_CERT") != null) && !skip) {
 			if (listener != null)
 				listener.getLogger().println("Auth - cert file exists - " + f.exists() + ", CA_CERT - " + env.get("CA_CERT") + "\n skip tls - " + env.get("SKIP_TLS"));
 			try {
-				auth = new Auth(createCert(f, env.get("CA_CERT"), listener, apiURL), listener);
+				auth = new Auth(createCert(f, env.get("CA_CERT"), listener, apiURL), listener, skip);
 			} catch (Exception e) {
 				if (listener != null)
 					e.printStackTrace(listener.getLogger());
-				auth = new Auth(null, listener);
+				throw new RuntimeException(e);
 			}
 		} else {
-			auth = new Auth(null, listener);
+			if (skip)
+				auth = new Auth(null, listener, skip);
+			else 
+				throw new RuntimeException("You have not specified SKIP_TLS, but a cert is not accessible.  See https://github.com/openshift/jenkins-plugin#certificates-and-encryption");
 		}
 		return auth;
 	}
@@ -66,7 +72,7 @@ public class Auth implements ISSLCertificateCallback {
 	// and then reset ... assumption that the sync cost impact is tolerable
 	
 	public static X509TrustManager createLocalTrustStore(Auth auth, String apiURL) {
-		if (auth.getCert() != null) {
+		if (auth.useCert()) {
 			try {
 				auth.getCert().checkValidity();
 				if (auth.listener != null) {
@@ -111,7 +117,7 @@ public class Auth implements ISSLCertificateCallback {
 		}
 
 		// means we are a skip tls equivalent run
-		if (this.cert == null) {
+		if (skipTls) {
 			if (this.listener != null)
 				listener.getLogger().println("Auth - in skip tls mode, returning true");
 			return true;
@@ -145,7 +151,7 @@ public class Auth implements ISSLCertificateCallback {
 		return true;
 	}
 	public boolean useCert() {
-		return cert != null;
+		return cert != null && !skipTls;
 	}
 	
 	public X509Certificate getCert() {

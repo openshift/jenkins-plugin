@@ -5,7 +5,6 @@ import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
-import hudson.model.Cause;
 import hudson.model.Computer;
 import hudson.model.BuildListener;
 import hudson.model.Run;
@@ -647,19 +646,6 @@ public interface IOpenShiftPlugin {
     	// our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
     	// so we set up our own trust manager like we used to do in order to verify the server cert
     	try {
-    		X509TrustManager trustManager = Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
-        	SSLContext sslContext = null;
-    		try {
-    			sslContext = SSLUtils.getSSLContext(trustManager);
-    		} catch (KeyManagementException e) {
-    			if (chatty)
-    				e.printStackTrace(listener.getLogger());
-    			return null;
-    		} catch (NoSuchAlgorithmException e) {
-    			if (chatty)
-    				e.printStackTrace(listener.getLogger());
-    			return null;
-    		}
     		AuthorizationContext authContext = new AuthorizationContext(getAuthToken(overrides), null, null);
     		ResponseCodeInterceptor responseCodeInterceptor = new ResponseCodeInterceptor();
     		OpenShiftAuthenticator authenticator = new OpenShiftAuthenticator();
@@ -672,8 +658,23 @@ public interface IOpenShiftPlugin {
     		.readTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
     		.writeTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
     		.connectTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
-    		.hostnameVerifier(getAuth())
-    		.sslSocketFactory(sslContext.getSocketFactory(), trustManager);
+    		.hostnameVerifier(getAuth());
+    		if (getAuth().useCert()) {
+        		X509TrustManager trustManager = Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
+            	SSLContext sslContext = null;
+        		try {
+        			sslContext = SSLUtils.getSSLContext(trustManager);
+        		} catch (KeyManagementException e) {
+        			if (chatty)
+        				e.printStackTrace(listener.getLogger());
+        			return null;
+        		} catch (NoSuchAlgorithmException e) {
+        			if (chatty)
+        				e.printStackTrace(listener.getLogger());
+        			return null;
+        		}
+    			builder.sslSocketFactory(sslContext.getSocketFactory(), trustManager);
+    		}
     		OkHttpClient okClient = builder.build();
     		authContext.setClient(client);
     		responseCodeInterceptor.setClient(client);
@@ -684,8 +685,6 @@ public interface IOpenShiftPlugin {
     		try {
     			result = okClient.newCall(request).execute();
     	    	String response =  result.body().string();
-    	    	if (chatty)
-    	    		listener.getLogger().println("http get for " + urlString + " had response: " + response);
     	    	return response;
     		} catch (IOException e) {
     			if (chatty)

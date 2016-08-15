@@ -42,8 +42,8 @@ public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
     	if (client != null) {
 	    	//cycle through json and POST to appropriate resource
 	    	String kind = resources.get("kind").asString();
-	    	// rc[0] will be successful deletes, rc[1] will be failed deletes
-	    	int[] rc = new int[2];
+	    	int deletes = 0;
+	    	int fails = 0;
 	    	if (kind.equalsIgnoreCase("List")) {
 	    		List<ModelNode> list = resources.get("items").asList();
 	    		for (ModelNode node : list) {
@@ -53,7 +53,11 @@ public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
 	    	    	if (UNDEFINED.equals(namespace))
 	    	    		namespace = getNamespace(overrides);
 					
+	    	    	// rc[0] will be successful deletes, rc[1] will be failed deletes
+	    	    	int[] rc = new int[2];
 	    			rc = deleteAPIObjs(client, listener, namespace, path, name, null, chatty);
+	    			deletes = deletes + rc[0];
+	    			fails = fails + rc[1];
 	
 	    		}
 	    	} else {
@@ -63,15 +67,19 @@ public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
     	    	if (UNDEFINED.equals(namespace))
     	    		namespace = getNamespace(overrides);
 	    		
+    	    	// rc[0] will be successful deletes, rc[1] will be failed deletes
+    	    	int[] rc = new int[2];
     			rc = deleteAPIObjs(client, listener, namespace, path, name, null, chatty);
+    			deletes = deletes + rc[0];
+    			fails = fails + rc[1];
 	    		
 	    	}
 	
-	    	if (rc[1] > 0) {
-	    		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_BAD, DISPLAY_NAME, rc[0], rc[1]));
+	    	if (fails > 0) {
+	    		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_BAD, DISPLAY_NAME, deletes, fails));
 				return false;
 	    	} else {
-	    		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, rc[0]));
+	    		listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, deletes));
 	    		return true;
 	    	}
     	}

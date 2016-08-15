@@ -43,8 +43,8 @@ public interface IOpenShiftDeleterList extends IOpenShiftApiObjHandler {
     		// verify valid type is specified
     		Set<String> types = OpenShiftApiObjHandler.apiMap.keySet();
     		String resourceKind = null;
-	    	// rc[0] will be successful deletes, rc[1] will be failed deletes
-    		int[] rc = new int[2];
+    		int deletes = 0;
+    		int fails = 0;
     		int badType = 0;
     		String[] inputTypes = getTypes(overrides).split(",");
     		String[] inputKeys = getKeys(overrides).split(",");
@@ -74,14 +74,18 @@ public interface IOpenShiftDeleterList extends IOpenShiftApiObjHandler {
         			continue;
         		}
         		
+    	    	// rc[0] will be successful deletes, rc[1] will be failed deletes
+        		int[] rc = new int[2];
         		rc = deleteAPIObjs(client, listener, getNamespace(overrides), resourceKind, inputKeys[i], null, chatty);
+        		deletes = deletes + rc[0];
+        		fails = fails + rc[1];
     		}
     		
-    		if (rc[1] == 0 && badType == 0) {
-    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, rc[0]));
+    		if (fails == 0 && badType == 0) {
+    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, deletes));
     			return true;
     		} else {
-    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_BAD, DISPLAY_NAME, rc[0], rc[1] + badType));
+    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_BAD, DISPLAY_NAME, deletes, fails + badType));
     		}
     	}
 		return false;
