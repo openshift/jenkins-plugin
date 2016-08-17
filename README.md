@@ -23,6 +23,14 @@ official releases of this plugin.
 
 For each of those two repositories, this README represents the most technical and up to date description of this plugin's features.  For reference, the associated wiki page for this plugin on the Jenkins site is [here](https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin).  The most important piece of information on that page will be the indication of the latest officially released version of this plugin.
 
+Some Jenkins job examples which use this plugin and illustrate typical Jenkins / OpenShift intergration flows can be found at:
+- https://github.com/openshift/origin/blob/master/examples/jenkins/README.md
+- https://github.com/openshift/origin/blob/master/examples/jenkins/pipeline/README.md
+
+And overall documentation for the OpenShift Jenkins image (which includes this plugin) is at:
+- https://docs.openshift.org/latest/using_images/other_images/jenkins.html
+- https://github.com/openshift/jenkins
+
 ## Jenkins "build steps"
 
 A series of Jenkins "build step" implementations are provided, which you can select from the `Add build step` pull down available on any project's configure page:
