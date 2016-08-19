@@ -10,7 +10,7 @@ public class GlobalConfig {
 
 	public static final long BUILD_WAIT = 900000;
 	public static final long BUILD_VERIFY_WAIT = 60000;
-	public static final long DEPLOY_WAIT = 60000;
+	public static final long DEPLOY_WAIT = 600000;
 	public static final long DEPLOY_VERIFY_WAIT = 180000;
 	public static final long SCALER_WAIT = 180000;
 	public static final int SERVICE_VERIFY_RETRY = 100;
