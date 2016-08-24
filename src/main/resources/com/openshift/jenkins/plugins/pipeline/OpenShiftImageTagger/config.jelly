@@ -34,7 +34,7 @@
   <f:entry title="The authorization token for the default service account of the project for the current tag" field="authToken">
     <f:textbox />
   </f:entry>
-  <f:entry title="The authorization token for the default service account of the project for the new tag (only needed if the new tag is targeted for a different project than the project containing the current tag)" field="destinationAuthToken">
+  <f:entry title="The authorization token for the default service account of the project for the new tag" field="destinationAuthToken">
     <f:textbox />
   </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">

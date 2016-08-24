@@ -118,6 +118,11 @@ public class OpenShiftDeleterList extends OpenShiftBaseStep implements IOpenShif
         	return ret;
         }
 
+        public FormValidation doCheckAuthToken(@QueryParameter String value)
+                throws IOException, ServletException {
+        	return ParamVerify.doCheckToken(value);
+        }
+
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
             // Indicates that this builder can be used with all kinds of project types 
             return true;

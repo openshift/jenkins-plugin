@@ -13,6 +13,7 @@ import org.kohsuke.stapler.QueryParameter;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftImageTagger;
 //import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
+
 import javax.servlet.ServletException;
 
 import java.io.IOException;
@@ -164,6 +165,16 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
         public FormValidation doCheckProdStream(@QueryParameter String value)
                 throws IOException, ServletException {
             return ParamVerify.doCheckProdStream(value);
+        }
+
+        public FormValidation doCheckAuthToken(@QueryParameter String value)
+                throws IOException, ServletException {
+        	return ParamVerify.doCheckToken(value);
+        }
+        
+        public FormValidation doCheckDestinationAuthToken(@QueryParameter String value)
+                throws IOException, ServletException {
+        	return ParamVerify.doCheckDestTagToken(value);
         }
 
 

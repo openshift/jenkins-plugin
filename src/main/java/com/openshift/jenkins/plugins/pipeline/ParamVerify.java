@@ -62,6 +62,21 @@ public class ParamVerify {
         return FormValidation.ok();
     }
     
+    public static FormValidation doCheckToken(@QueryParameter String value)
+    		throws IOException, ServletException {
+    	if (value.length() == 0)
+    		return FormValidation.warning("Unless you specify a value here, the default token will be used; see this field's help or https://github.com/openshift/jenkins-plugin#common-aspects-across-the-rest-based-functions-build-steps-scm-post-build-actions for details");
+    	return FormValidation.ok();
+    }
+        
+    
+    public static FormValidation doCheckDestTagToken(@QueryParameter String value)
+    		throws IOException, ServletException {
+    	if (value.length() == 0)
+    		return FormValidation.warning("A token is only needed if the new tag is targeted for a different project than the project containing the current tag");
+    	return FormValidation.ok();
+    }
+    
     public static FormValidation doCheckCheckForTriggeredDeployments(@QueryParameter String value)
             throws IOException, ServletException {
         if (value.length() == 0)

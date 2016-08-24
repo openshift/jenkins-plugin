@@ -244,6 +244,11 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
             return ParamVerify.doCheckImageStreamName(value);
         }
         
+        public FormValidation doCheckAuthToken(@QueryParameter String value)
+                throws IOException, ServletException {
+        	return ParamVerify.doCheckToken(value);
+        }
+
 		@Override
 		public String getDisplayName() {
 			return DISPLAY_NAME;
