@@ -31,6 +31,9 @@
   <f:entry title="Deploy wait time" field="waitTime">
     <f:textbox  />
   </f:entry>
+  <f:entry title="Deploy wait units" field="waitUnit">
+    <f:select />
+  </f:entry>
   <f:entry title="Verify whether the specified number of replicas are up" field="verifyReplicaCount">
     <f:booleanRadio default="false" />
   </f:entry>

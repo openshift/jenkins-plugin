@@ -13,7 +13,7 @@ import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IBuild;
 
-public interface IOpenShiftBuildVerifier extends IOpenShiftPlugin {
+public interface IOpenShiftBuildVerifier extends IOpenShiftTimedPlugin {
 
 	public final static String DISPLAY_NAME = "Verify OpenShift Build";
 
@@ -24,11 +24,7 @@ public interface IOpenShiftBuildVerifier extends IOpenShiftPlugin {
 	String getBldCfg();
 		
 	String getCheckForTriggeredDeployments();
-		
-	String getWaitTime();
-	
-	String getWaitTime(Map<String, String> overrides);
-	
+
 	default String getBldCfg(Map<String,String> overrides) {
 		return getOverride(getBldCfg(), overrides);
 	}
@@ -77,8 +73,7 @@ public interface IOpenShiftBuildVerifier extends IOpenShiftPlugin {
 			else
 				listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY, bldId));
 				
-			return this.verifyBuild(System.currentTimeMillis(), Long.parseLong(getWaitTime(overrides)), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, overrides);
-    				        		
+			return this.verifyBuild(System.currentTimeMillis(), convertUnitNotation(getWaitTime(overrides)), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, overrides);
     	} else {
     		return false;
     	}

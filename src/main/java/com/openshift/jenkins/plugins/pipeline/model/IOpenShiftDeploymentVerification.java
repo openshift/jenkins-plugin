@@ -11,7 +11,7 @@ import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
 
-public interface IOpenShiftDeploymentVerification extends IOpenShiftPlugin {
+public interface IOpenShiftDeploymentVerification extends IOpenShiftTimedPlugin {
 
 	final static String DISPLAY_NAME = "Verify OpenShift Deployment";
 	
@@ -24,10 +24,6 @@ public interface IOpenShiftDeploymentVerification extends IOpenShiftPlugin {
 	String getReplicaCount();
 		
 	String getVerifyReplicaCount();
-		
-	String getWaitTime();
-	
-	String getWaitTime(Map<String, String> overrides);
 	
 	default String getDepCfg(Map<String,String> overrides) {
 		return getOverride(getDepCfg(), overrides);
@@ -69,8 +65,8 @@ public interface IOpenShiftDeploymentVerification extends IOpenShiftPlugin {
 			String depId = null;
         	boolean scaledAppropriately = false;
 			if (chatty)
-				listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + getWaitTime(overrides));
-			while (System.currentTimeMillis() < (currTime + Long.parseLong(getWaitTime(overrides)))) {
+				listener.getLogger().println("\nOpenShiftDeploymentVerifier wait " + convertUnitNotation(getWaitTime(overrides)));
+			while (System.currentTimeMillis() < (currTime + convertUnitNotation(getWaitTime(overrides)))) {
 				// refresh dc first
 				IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
 				
