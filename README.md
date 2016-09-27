@@ -239,6 +239,20 @@ Optional parameters are:
 
 a)  "retryCount":  The number of times to attempt a connection before giving up.  The default is 100.
 
+####  "ImageStreams SCM"
+
+This step associates a pipeline with an ImageStream as its SCM. With polling enabled on a job,
+this allows a pipeline job to be launched automatically whenever a new image is tagged on an 
+ImageStream.
+
+The step name is "openshiftImageStream". Mandatory parameters are:
+
+a) "name":  The name of the ImageStream to poll
+
+b) "tag":  The tag to watch on the ImageStream
+
+c) "namespace": The project for the ImageStream
+
 
 ### Pipeline / Workflow support prior to version 1.0.14 of the OpenShift Pipeline Plugin 
 

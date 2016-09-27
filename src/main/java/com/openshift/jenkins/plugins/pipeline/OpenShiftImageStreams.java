@@ -4,8 +4,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 
+import hudson.EnvVars;
+import hudson.model.Job;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
@@ -110,7 +114,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
     	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
     	
     	
-		IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, getImageStreamName(overrides), namespace);
+		IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, getImageStreamName(overrides), getNamespace(overrides));
 		// we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
 		String commitId = isImpl.getImageId(tag);
 		
@@ -144,20 +148,64 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 	public SCMRevisionState calcRevisionsFromBuild(Run<?, ?> build,
 			FilePath workspace, Launcher launcher, TaskListener listener)
 			throws IOException, InterruptedException {
-    	listener.getLogger().println(String.format(MessageConstants.SCM_CALC, DISPLAY_NAME, getImageStreamName(build.getEnvironment(listener)), tag, namespace));
+		EnvVars env = build.getEnvironment(listener);
+		listener.getLogger().println(String.format(MessageConstants.SCM_CALC, DISPLAY_NAME, getImageStreamName(env), tag, getNamespace(env)));
     	
     	String commitId = lastCommitId;
 			
 		ImageStreamRevisionState currIMSState = null;
+		if (commitId == null) {
+			commitId = this.getCommitId(listener, build.getEnvironment(listener));
+		}
+
 		if (commitId != null) {
 			currIMSState = new ImageStreamRevisionState(commitId);
 			listener.getLogger().println(String.format(MessageConstants.SCM_LAST_REV, currIMSState.toString()));
 		} else {
-	    	listener.getLogger().println(MessageConstants.SCM_NO_REV);
+			listener.getLogger().println(MessageConstants.SCM_NO_REV);
 		}
-		
+
 		
 		return currIMSState;
+	}
+
+	protected PollingResult compareRemoteRevisionInternal(EnvVars env, Launcher launcher, TaskListener listener, SCMRevisionState baseline) {
+		listener.getLogger().println(String.format(MessageConstants.SCM_COMP, DISPLAY_NAME, getImageStreamName(env), tag, getNamespace(env)));
+		String commitId = this.getCommitId(listener, env);
+
+		ImageStreamRevisionState currIMSState = null;
+		if (commitId != null)
+			currIMSState = new ImageStreamRevisionState(commitId);
+		boolean chatty = Boolean.parseBoolean(verbose);
+		if (chatty)
+			listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
+					" with lastest " + currIMSState);
+		boolean changes = false;
+		if (baseline != null && baseline instanceof ImageStreamRevisionState && currIMSState != null)
+			changes = !currIMSState.equals(baseline);
+
+		if (baseline == null && currIMSState != null) {
+			changes = true;
+		}
+
+		if (changes) {
+			lastCommitId = commitId;
+			listener.getLogger().println(MessageConstants.SCM_CHANGE);
+		} else {
+			listener.getLogger().println(MessageConstants.SCM_NO_CHANGE);
+		}
+
+		return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
+	}
+
+	@Override
+	public PollingResult compareRemoteRevisionWith(@Nonnull Job<?, ?> project,
+						   @Nullable Launcher launcher,
+						   @Nullable FilePath workspace,
+						   @Nonnull TaskListener listener,
+						   @Nonnull SCMRevisionState baseline)
+			throws IOException, InterruptedException {
+        return compareRemoteRevisionInternal(project.getEnvironment(null, listener), launcher, listener, baseline);
 	}
 
 	@Override
@@ -165,33 +213,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 			AbstractProject<?, ?> project, Launcher launcher,
 			FilePath workspace, TaskListener listener, SCMRevisionState baseline)
 			throws IOException, InterruptedException {
-    	listener.getLogger().println(String.format(MessageConstants.SCM_COMP, DISPLAY_NAME, getImageStreamName(project.getEnvironment(null, listener)), tag, namespace));
-    	String commitId = this.getCommitId(listener, project.getEnvironment(null,listener));
-		
-		ImageStreamRevisionState currIMSState = null;
-		if (commitId != null)
-			currIMSState = new ImageStreamRevisionState(commitId);
-		boolean chatty = Boolean.parseBoolean(verbose);
-		if (chatty)
-			listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
-				" with lastest " + currIMSState);
-		boolean changes = false;
-		if (baseline != null && baseline instanceof ImageStreamRevisionState && currIMSState != null)
-			changes = !currIMSState.equals(baseline);
-		
-		if (baseline == null && currIMSState != null) {
-			changes = true;
-		}
-		
-		if (changes) {
-			lastCommitId = commitId;
-			listener.getLogger().println(MessageConstants.SCM_CHANGE);
-		} else {
-			listener.getLogger().println(MessageConstants.SCM_NO_CHANGE);
-		}
-		
-		return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
-    				        		
+        return compareRemoteRevisionInternal(project.getEnvironment(null, listener), launcher, listener, baseline);
 	}
 
 	@Override
@@ -226,12 +248,8 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 
         public FormValidation doCheckNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
-        	// with some of the paths into the Image Stream SCM, the env vars typically available for the build steps are not available,
-        	// we we have to force the user to specify the project/namespace
-        	FormValidation fv = ParamVerify.doCheckNamespace(value);
-        	if (fv.kind == FormValidation.Kind.OK)
-        		return fv;
-        	return FormValidation.error("Please specify the name of the project");
+			// If a namespace is not specified, the default one is going to be used
+        	return ParamVerify.doCheckNamespace(value);
         }
         
         public FormValidation doCheckTag(@QueryParameter String value)
