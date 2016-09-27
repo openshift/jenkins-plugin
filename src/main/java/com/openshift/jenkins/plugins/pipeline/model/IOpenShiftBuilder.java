@@ -107,7 +107,7 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 			if (Boolean.parseBoolean(getVerbose(overrides)))
 				listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
 			
-			if (follow) {
+			if (follow && bldState.equals("Running") && stop == null) {
 				final String container = pod.getContainers().iterator().next().getName();
 				stop = pod.accept(new CapabilityVisitor<IPodLogRetrievalAsync, IStoppable>() {
 
