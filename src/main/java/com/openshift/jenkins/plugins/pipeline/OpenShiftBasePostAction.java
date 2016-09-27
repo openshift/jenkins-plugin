@@ -34,7 +34,7 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
     // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
+    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
     public String getApiURL() {
