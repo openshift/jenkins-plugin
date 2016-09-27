@@ -263,11 +263,11 @@ ImageStream.
 
 The step name is "openshiftImageStream". Mandatory parameters are:
 
-a) "name":  The name of the ImageStream to poll
+- "name":  The name of the ImageStream to poll
 
-b) "tag":  The tag to watch on the ImageStream
+- "tag":  The tag to watch on the ImageStream
 
-c) "namespace": The project for the ImageStream
+- "namespace": The project for the ImageStream
 
 
 ### Pipeline / Workflow support prior to version 1.0.14 of the OpenShift Pipeline Plugin 
