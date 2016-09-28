@@ -1,0 +1,32 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <!--
+    This jelly script is used for per-project configuration.
+
+    See global.jelly for a general discussion about jelly script.
+  -->
+
+  <!--
+    Creates a text field that shows the value of the "name" property.
+    When submitted, it will be passed to the corresponding constructor parameter.
+  -->
+  <f:entry title="The name of the ImageStream to monitor" field="name">
+    <f:textbox  />
+  </f:entry>
+  <f:entry title="The specific image tag in the ImageStream to monitor" field="tag">
+    <f:textbox  />
+  </f:entry>
+  <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
+    <f:textbox  />
+  </f:entry>
+  <f:entry title="The name of the project the ImageStream is stored in" field="namespace">
+    <f:textbox  />
+  </f:entry>
+  <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
+    <f:textbox  />
+  </f:entry>
+  <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
+    <f:booleanRadio default="false" />
+  </f:entry>
+</j:jelly>
+
