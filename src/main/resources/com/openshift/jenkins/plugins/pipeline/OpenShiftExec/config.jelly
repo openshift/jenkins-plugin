@@ -1,0 +1,40 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+  <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
+    <f:textbox  />
+  </f:entry>
+
+  <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
+    <f:textbox  />
+  </f:entry>
+
+  <f:entry title="The pod in which to execute the command" field="pod">
+    <f:textbox  />
+  </f:entry>
+
+  <f:entry title="The name of the project in which the pod resides" field="namespace">
+    <f:textbox  />
+  </f:entry>
+
+  <f:entry title="The container in which to execute the command" field="container">
+    <f:textbox  />
+  </f:entry>
+
+  <f:entry title="The command to execute" field="command">
+    <f:textbox  />
+  </f:entry>
+
+  <f:entry title="Arguments for the specified command" field="arguments">
+    <f:repeatableProperty field="arguments"  minimum="0" />
+  </f:entry>
+
+  <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
+    <f:booleanRadio default="false" />
+  </f:entry>
+
+  <f:entry title="Maximum wait time" field="waitTime">
+    <f:textbox />
+  </f:entry>
+
+</j:jelly>

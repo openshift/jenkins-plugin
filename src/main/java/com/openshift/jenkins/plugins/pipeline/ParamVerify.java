@@ -1,19 +1,15 @@
 package com.openshift.jenkins.plugins.pipeline;
 
+import com.openshift.jenkins.plugins.pipeline.dsl.OpenShiftBaseStep;
 import hudson.util.FormValidation;
-
-import java.io.IOException;
-import java.util.Map;
-
-import javax.servlet.ServletException;
-
 import net.sf.json.JSONObject;
-
 import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.QueryParameter;
 import org.yaml.snakeyaml.Yaml;
 
-import com.openshift.jenkins.plugins.pipeline.dsl.OpenShiftBaseStep;
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.util.Map;
 
 public class ParamVerify {
 	
