@@ -56,17 +56,24 @@ public interface IOpenShiftExec extends IOpenShiftPlugin {
 			return false;
 		}
 
+		int remainingWaitTime = Integer.parseInt( getWaitTime( overrides ) );
+
+		final int LOOP_DELAY = 1000;
+
 		IPod p = null;
 		for ( int retries = 10; p == null; retries-- ) {
 			try {
 				p = client.get( ResourceKind.POD, getPod(), getNamespace());
 			} catch ( Exception e ) {
-				if ( retries == 1 ) {
+				if ( retries == 1 || remainingWaitTime < 0 ) {
 					listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to find pod: " + getPod()));
 					e.printStackTrace( listener.getLogger() );
 					return false;
 				}
-				try { Thread.sleep( 6000 ); } catch ( InterruptedException ie ) {}
+				try {
+					Thread.sleep( LOOP_DELAY );
+					remainingWaitTime -= LOOP_DELAY;
+				} catch ( InterruptedException ie ) {}
 			}
 		}
 
@@ -115,7 +122,7 @@ public interface IOpenShiftExec extends IOpenShiftPlugin {
 		}, null);
 
 		try {
-			latch.await( Integer.parseInt( getWaitTime( overrides ) ), TimeUnit.SECONDS );
+			latch.await( Math.max( remainingWaitTime, 1 ), TimeUnit.MILLISECONDS );
 		} catch ( InterruptedException ie ) {}
 
 		listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_GOOD, DISPLAY_NAME));
