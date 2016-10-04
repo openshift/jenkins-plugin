@@ -133,7 +133,7 @@ public static final String SCM_NO_CHANGE = "\n\n No revision change found this p
 /*
  * These messages are for the "Tag OpenShift Image" jenkins build step implemented by OpenShiftImageTagger
  */
-public static final String START_TAG = "\n\nStarting \"" + OpenShiftImageTagger.DISPLAY_NAME + "\" with the source [image stream:tag] \"%s:%s\" from the project \"%s\" and destination [image stream:tag] \"%s:%s\" from the project \"%s\".";
+public static final String START_TAG = "\n\nStarting \"" + OpenShiftImageTagger.DISPLAY_NAME + "\" with the source [image stream:tag] \"%s:%s\" from the project \"%s\" and destination stream(s) \"%s\" with tag(s) \"%s\" from the project \"%s\".";
 public static final String EXIT_TAG_CANNOT_CREATE_DEST_IS = "\n\nExiting \"" + OpenShiftImageTagger.DISPLAY_NAME + "\" unsuccessfully; could not create the image stream \"%s\" in the project \"%s\".";
 public static final String EXIT_TAG_CANNOT_GET_IS = "\n\nExiting \"" + OpenShiftImageTagger.DISPLAY_NAME + "\" unsuccessfully; could not retrieve the image stream \"%s\" from the project \"%s\".";
 public static final String EXIT_TAG_NOT_FOUND = "\n\nExisting \"" + OpenShiftImageTagger.DISPLAY_NAME + "\" unsuccessfully; could not fine either an image tag or ID \"%s\" associated with the image stream \"%s\".";

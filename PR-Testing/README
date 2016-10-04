@@ -5,10 +5,13 @@ the test-openshift-pipeline-plugin job, it will be the hpi file from your PR.  B
 you have to the plugin in the same way.
 
 The `docker build` command used, if run from the same directory as this README, and if an "openshift-pipeline.jpi" file
-exists in the "jpi" subdirectory, is:  docker build -f ./Dockerfile-jenkins-test-new-plugin -t openshift/jenkins-plugin-snapshot-test:latest .
+exists in the "jpi" subdirectory, is:
+    docker build -f ./Dockerfile-jenkins-test-new-plugin -t openshift/jenkins-plugin-snapshot-test:latest .
 
 The next step is to  then run the extended tests for the plugin located at https://github.com/openshift/origin.
-From the top level directory of a clone of that repository, this command is run:  test/extended/core.sh --ginkgo.focus='openshift pipeline plugin' -ginkgo.v"
+From the top level directory of a clone of that repository, this command is run:
+    test/extended/core.sh --ginkgo.focus='openshift pipeline plugin' -ginkgo.v
 
-That extended test typically verifies the functionality of the openshift-pipeline plugin installed into OpenShift's official jenkins image (see https://github.com/openshift/jenkins),
-but it will look for the local existence of the openshift/jenkins-plugin-snapshot-test:latest image, and if present, deploy and test against that image instead.
+That extended test typically verifies the functionality of the openshift-pipeline plugin installed into OpenShift's
+official jenkins image (see https://github.com/openshift/jenkins), but it will look for the local existence of
+the openshift/jenkins-plugin-snapshot-test:latest image, and if present, deploy and test against that image instead.
