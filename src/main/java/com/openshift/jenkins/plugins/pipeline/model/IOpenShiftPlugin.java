@@ -17,6 +17,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
 import okhttp3.Dispatcher;
@@ -659,22 +661,45 @@ public interface IOpenShiftPlugin {
     		.writeTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
     		.connectTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
     		.hostnameVerifier(getAuth());
+    		X509TrustManager trustManager = null;
     		if (getAuth().useCert()) {
-        		X509TrustManager trustManager = Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
-            	SSLContext sslContext = null;
-        		try {
-        			sslContext = SSLUtils.getSSLContext(trustManager);
-        		} catch (KeyManagementException e) {
-        			if (chatty)
-        				e.printStackTrace(listener.getLogger());
-        			return null;
-        		} catch (NoSuchAlgorithmException e) {
-        			if (chatty)
-        				e.printStackTrace(listener.getLogger());
-        			return null;
-        		}
-    			builder.sslSocketFactory(sslContext.getSocketFactory(), trustManager);
+        		trustManager = Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
+    		} else {
+    			// so okhttp is a bit of a PITA when it comes to enforcing skip tls behavior
+    			// (it should just allow you to set a null ssl socket factory given how
+    			// RealConnection/Address/Route work), but stack overflow came to the rescue 
+    			// (http://stackoverflow.com/questions/25509296/trusting-all-certificates-with-okhttp)
+    		    // Create a trust manager that does not validate certificate chains
+    		    trustManager = new X509TrustManager() {
+    		          @Override
+    		          public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) throws CertificateException {
+    		          }
+
+    		          @Override
+    		          public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) throws CertificateException {
+    		          }
+
+    		          @Override
+    		          public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+    		            return new java.security.cert.X509Certificate[]{};
+    		          }
+    		        };
     		}
+    		
+        	SSLContext sslContext = null;
+    		try {
+    			sslContext = SSLUtils.getSSLContext(trustManager);
+    		} catch (KeyManagementException e) {
+    			if (chatty)
+    				e.printStackTrace(listener.getLogger());
+    			return null;
+    		} catch (NoSuchAlgorithmException e) {
+    			if (chatty)
+    				e.printStackTrace(listener.getLogger());
+    			return null;
+    		}
+			builder.sslSocketFactory(sslContext.getSocketFactory(), trustManager);
+    			
     		OkHttpClient okClient = builder.build();
     		authContext.setClient(client);
     		responseCodeInterceptor.setClient(client);
