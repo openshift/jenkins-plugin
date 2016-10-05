@@ -25,6 +25,9 @@
   <f:entry title="Specify the commit hash the build should be run from" field="commitID">
     <f:textbox  />
   </f:entry>
+  <f:entry title="Specify environment variables for the build" field="env">
+    <f:repeatableProperty field="env"  minimum="0" />
+  </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
     <f:booleanRadio default="false" />
   </f:entry>

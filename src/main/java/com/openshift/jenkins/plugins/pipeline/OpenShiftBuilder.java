@@ -1,22 +1,21 @@
 package com.openshift.jenkins.plugins.pipeline;
-import java.io.IOException;
-import java.util.Map;
-
-import javax.servlet.ServletException;
-
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
 
 import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuilder;
-
 import hudson.Extension;
 import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import net.sf.json.JSONObject;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 
 public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBuilder {
@@ -27,13 +26,15 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
     protected final String showBuildLogs;
     protected final String checkForTriggeredDeployments;
     protected final String waitTime;
+    protected final List<NameValuePair> envVars;
     
-    
+
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String commitID, String buildName, String showBuildLogs, String checkForTriggeredDeployments, String waitTime) {
+    public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, List<NameValuePair> env, String authToken, String verbose, String commitID, String buildName, String showBuildLogs, String checkForTriggeredDeployments, String waitTime) {
     	super(apiURL, namespace, authToken, verbose);
         this.bldCfg = bldCfg;
+        this.envVars = env;
         this.commitID = commitID;
         this.buildName = buildName;
         this.showBuildLogs = showBuildLogs;
@@ -43,7 +44,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
     // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
+    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
 	public String getCommitID() {
@@ -61,6 +62,10 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
 	public String getBldCfg() {
 		return bldCfg;
 	}
+
+    public List<NameValuePair>  getEnv() {
+        return envVars;
+    }
 	
 	public String getCheckForTriggeredDeployments() {
 		return checkForTriggeredDeployments;

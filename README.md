@@ -101,143 +101,136 @@ Here is the complete DSL reference for the OpenShift Pipeline Plugin.
 
 ####  Optional parameters that apply to all the DSL steps:
 
-a) "apiURL":  URL of the OpenShift api endpoint.  If nothing is specified, the plugin will inspect the KUBERNETES_SERVICE_HOST environment variable. If that variable is not set, the plugin will attempt to connect to "https://openshift.default.svc.cluster.local".
-
-b) "namespace":  The name of the project the BuildConfig is stored in.  If nothing is specified, the plugin will inspect the PROJECT_NAME environment variable.
-
-c) "authToken":  The authorization token for interacting with OpenShift.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
-
-d) "verbose":  Allow for verbose logging during this build step plug-in.  Set to `true` to generate the additional logging.
+- "apiURL":  URL of the OpenShift api endpoint.  If nothing is specified, the plugin will inspect the KUBERNETES_SERVICE_HOST environment variable. If that variable is not set, the plugin will attempt to connect to "https://openshift.default.svc.cluster.local".
+- "namespace":  The name of the project the BuildConfig is stored in.  If nothing is specified, the plugin will inspect the PROJECT_NAME environment variable.
+- "authToken":  The authorization token for interacting with OpenShift.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
+- "verbose":  Allow for verbose logging during this build step plug-in.  Set to `true` to generate the additional logging.
 
 ####  "Trigger OpenShift Build"
 
 The step name is "openshiftBuild".  Mandatory parameters are:
 
-a) "buildConfig" or "bldCfg":  The name of the BuildConfig to trigger
+- "buildConfig" or "bldCfg":  The name of the BuildConfig to trigger
 
 Optional parameters are:
 
-a) "buildName":  The name of a previous build which should be re-run.  Equivalent to specifying the `--from-build` option when invoking the OpenShift `oc start-build` command.
-
-b) "commitID":  The commit hash the build should be run from.  Equivalent to specifying the `--commit` option when invoking the OpenShift `oc start-build` command.
-
-c) "showBuildLogs":  Pipe the build logs from OpenShift to the Jenkins console.  
-
-d) "checkForTriggeredDeployments":  Verify whether any deployments triggered by this build's output fired.  
-
-e) "waitTime":  Time in milliseconds to wait for build completion.  Default is 5 minutes.
+- "buildName":  The name of a previous build which should be re-run.  Equivalent to specifying the `--from-build` option when invoking the OpenShift `oc start-build` command.
+- "commitID":  The commit hash the build should be run from.  Equivalent to specifying the `--commit` option when invoking the OpenShift `oc start-build` command.
+- "env": An array of environment variables for the build (e.g. `env : [ [ name : 'name1', value : 'value1' ], [ name : 'name2', value : 'value2' ] ]`.
+- "showBuildLogs":  Pipe the build logs from OpenShift to the Jenkins console.
+- "checkForTriggeredDeployments":  Verify whether any deployments triggered by this build's output fired.
+- "waitTime":  Time in milliseconds to wait for build completion.  Default is 5 minutes.
 
 #### "Trigger OpenShift Deployment"
 
 The step name is "openshiftDeploy".  Mandatory parameters are:
 
-a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to trigger.
+- "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to trigger.
 
 Optional parameters are:
 
-a)  "waitTime":  Time in milliseconds to wait for deployment completion.  Default is 1 minute.
+-  "waitTime":  Time in milliseconds to wait for deployment completion.  Default is 1 minute.
 
 #### "Create OpenShift Resource(s)"
 
 The step name is "openshiftCreateResources".  Mandatory parameters is either:
 
-a) "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
+- "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
 as the string passes either the JSON or YAML format checking, it will be processed.
 
 #### "Delete OpenShift Resource(s) from JSON/YAML"
 
 The step name is "openshiftDeleteResourceByJsonYaml".  Mandatory parameters is either:
 
-a) "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
+- "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
 as the string passes either the JSON or YAML format checking, it will be processed.
 
 ####  "Delete OpenShift Resource(s) using Labels"
 
 The step name is "openshiftDeleteResourceByLabels".  Mandatory parameters are:
 
-a)  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
+-  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
 
-b)  "keys":  The key(s) of labels on the OpenShift resource(s) to delete.  Provide a comma-separated list.
+-  "keys":  The key(s) of labels on the OpenShift resource(s) to delete.  Provide a comma-separated list.
 
-c)  "values":  The value(s) of labels on the OpenShift resource(s) to delete.  Provide a comma-separated list.
+-  "values":  The value(s) of labels on the OpenShift resource(s) to delete.  Provide a comma-separated list.
 
 ####  "Delete OpenShift Resource(s) by Key"
 
 The step name is "openshiftDeleteResourceByKey".  Mandatory parameters are:
 
-a)  "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
+- "types":  The type(s) of OpenShift resource(s) to delete.  Provide a comma-separated list.
 
-b)  "keys":  The key(s) of the OpenShift resource(s) to delete.  Provide a comma-separated list.
+- "keys":  The key(s) of the OpenShift resource(s) to delete.  Provide a comma-separated list.
 
 ####  "Scale OpenShift Deployment"
 
 The step name is "openshiftScale".  Mandatory parameters are:
 
-a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
+- "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
 
-b)  "replicaCount":  The number of replicas to scale to.
+- "replicaCount":  The number of replicas to scale to.
 
 Optional parameters are:
 
-a)  "verifyReplicaCount":  Verify whether the specified number of replicas are up.  Specify `true` or `false`.
+- "verifyReplicaCount":  Verify whether the specified number of replicas are up.  Specify `true` or `false`.
 
-b)  "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 3 minutes.
+- "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 3 minutes.
 
 ####  "Tag OpenShift Image"
 
 The step name is "openshiftTag".  Mandatory parameters are:
 
-a)  "sourceStream" or "srcStream":  The ImageStream of the existing image.
+- "sourceStream" or "srcStream":  The ImageStream of the existing image.
 
-b)  "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image. 
+- "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image.
 
-c)  "destinationStream" or "destStream":  The ImageStream for the new tag.
+- "destinationStream" or "destStream":  The ImageStream for the new tag.
 
-d)  "destinationTag" or "destTag":  The name of the new tag.
+- "destinationTag" or "destTag":  The name of the new tag.
 
 Optional parameters are:
 
-a)  "alias":  Whether to update destination tag whenever the source tag changes.  Equivalent of the `--alias` option for the `oc tag` command. When false, the destination tag type is "ImageStreamImage", and when true, the destination tag type is "ImageStreamTag".
+- "alias":  Whether to update destination tag whenever the source tag changes.  Equivalent of the `--alias` option for the `oc tag` command. When false, the destination tag type is "ImageStreamImage", and when true, the destination tag type is "ImageStreamTag".
 
-b)  "destinationNamespace":  The name of the project to host the destinationStream:destinationTag.  If nothing is specified, the plugin will inspect the PROJECT_NAME environment variable.
+- "destinationNamespace":  The name of the project to host the destinationStream:destinationTag.  If nothing is specified, the plugin will inspect the PROJECT_NAME environment variable.
 
-c)  "destinationAuthToken":  The authorization token for interacting with the destinationNamespace.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
+- "destinationAuthToken":  The authorization token for interacting with the destinationNamespace.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
 
 ####  "Verify OpenShift Build"
 
 The step name is "openshiftVerifyBuild".  Mandatory parameters are:
 
-a)  "buildConfig" or "bldCfg":  The name of the BuildConfig to verify.
+- "buildConfig" or "bldCfg":  The name of the BuildConfig to verify.
 
 Optional parameters are:
 
-a) "checkForTriggeredDeployments":  Verify whether any deployments triggered by this build's output fired.  
-
-b) "waitTime":  Time in milliseconds to wait for build completion.  Default is 1 minute.
+- "checkForTriggeredDeployments":  Verify whether any deployments triggered by this build's output fired.
+- "waitTime":  Time in milliseconds to wait for build completion.  Default is 1 minute.
 
 #### "Verify OpenShift Deployment"
 
 The step name is "openshiftVerifyDeployment".  Mandatory parameters are:
 
-a)  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
+-  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
 
 Optional parameters are:
 
-a)  "replicaCount":  The number of replicas to scale to.
+- "replicaCount":  The number of replicas to scale to.
 
-b)  "verifyReplicaCount":  Verify whether the specified number of replicas are up.  Specify `true` or `false`.
+- "verifyReplicaCount":  Verify whether the specified number of replicas are up.  Specify `true` or `false`.
 
-c)  "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 1 minute.
+- "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 1 minute.
 
 ####  "Verify OpenShift Service"
 
 The step name is "openshiftVerifyService".  Mandatory parameters are:
 
-a)  "serviceName" or "svcName":  The name of the service to connect to.
+- "serviceName" or "svcName":  The name of the service to connect to.
 
 Optional parameters are:
 
-a)  "retryCount":  The number of times to attempt a connection before giving up.  The default is 100.
+- "retryCount":  The number of times to attempt a connection before giving up.  The default is 100.
 
 ####  "ImageStreams SCM"
 
