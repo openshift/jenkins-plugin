@@ -13,11 +13,12 @@
     so it should be straightforward to find them.
   -->
   <f:section title="OpenShift Builder">
-  
     <f:entry title="Wait interval" field="wait"
-      description="Approximate amount of time in milliseconds to allow build to complete.">
+      description="Approximate amount of time to allow build to complete.">
       <f:textbox  />
     </f:entry>
-  
+    <f:entry title="Wait units" field="waitUnit">
+      <f:select />
+    </f:entry>
   </f:section>
 </j:jelly>

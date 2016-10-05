@@ -1,5 +1,6 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftTimedStepDescriptor;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.BuildListener;
@@ -23,15 +24,16 @@ import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftScaler;
 public class OpenShiftScaler extends OpenShiftBaseStep implements IOpenShiftScaler {
 	
 	protected final String depCfg;
-    protected final String replicaCount;
-    protected String verifyReplicaCount;
+	protected final String replicaCount;
+	protected String verifyReplicaCount;
 	protected String waitTime;
-    
-    @DataBoundConstructor public OpenShiftScaler(String depCfg, String replicaCount) {
-    	this.depCfg = depCfg;
-    	this.replicaCount = replicaCount;
+	protected String waitUnit;
+
+	@DataBoundConstructor public OpenShiftScaler(String depCfg, String replicaCount) {
+		this.depCfg = depCfg;
+		this.replicaCount = replicaCount;
 	}   
-    
+
 	public String getDepCfg() {
 		return depCfg;
 	}
@@ -51,12 +53,20 @@ public class OpenShiftScaler extends OpenShiftBaseStep implements IOpenShiftScal
 	public String getWaitTime() {
 		return waitTime;
 	}
+
+	public String getWaitUnit() {
+		return waitUnit;
+	}
+
+	@DataBoundSetter public void setWaitUnit(String waitUnit) {
+		this.waitUnit = waitUnit;
+	}
 	
 	public String getWaitTime(Map<String, String> overrides) {
 		String val = getOverride(getWaitTime(), overrides);
 		if (val.length() > 0)
 			return val;
-		return Long.toString(GlobalConfig.getScalerWait());
+		return GlobalConfig.getScalerWait() + GlobalConfig.getScalerWaitUnits();
 	}
 	
 	@DataBoundSetter public void setWaitTime(String waitTime) {
@@ -84,55 +94,77 @@ public class OpenShiftScaler extends OpenShiftBaseStep implements IOpenShiftScal
 		return null;
 	}
 
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftScaler.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(OpenShiftScaler.class.getName());
 
 
 	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+	public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftTimedStepDescriptor{
+		private String wait;
+		private String waitUnit = "sec";
 
-        public DescriptorImpl() {
-            super(OpenShiftScalerExecution.class);
-        }
 
-        @Override
-        public String getFunctionName() {
-            return "openshiftScale";
-        }
+		public DescriptorImpl() {
+			super(OpenShiftScalerExecution.class);
+		}
 
-        @Override
-        public String getDisplayName() {
-            return DISPLAY_NAME;
-        }
+		@Override
+		public String getFunctionName() {
+			return "openshiftScale";
+		}
 
-        @Override
-        public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
-            	throw new IllegalArgumentException("need to specify deploymentConfig");
-            Object depCfg = arguments.get("deploymentConfig");
-            if (depCfg == null || depCfg.toString().length() == 0)
-            	depCfg = arguments.get("depCfg");
-            if (depCfg == null || depCfg.toString().length() == 0)
-            	throw new IllegalArgumentException("need to specify deploymentConfig");
-            if (!arguments.containsKey("replicaCount"))
-            		throw new IllegalArgumentException("need to specif replicaCount");
-            OpenShiftScaler step = new OpenShiftScaler(depCfg.toString(),
-            		arguments.get("replicaCount").toString());
-            
-            if (arguments.containsKey("waitTime")) {
-            	Object waitTime = arguments.get("waitTime");
-            	if (waitTime != null)
-            		step.setWaitTime(waitTime.toString());
-            }
-            if (arguments.containsKey("verifyReplicaCount")) {
-            	Object verifyReplicaCount = arguments.get("verifyReplicaCount");
-            	if (verifyReplicaCount != null)
-            		step.setVerifyReplicaCount(verifyReplicaCount.toString());
-            }
-            
-            ParamVerify.updateDSLBaseStep(arguments, step);
-            return step;
-        }
-    }
+		@Override
+		public String getDisplayName() {
+			return DISPLAY_NAME;
+		}
+
+		@Override
+		public Step newInstance(Map<String, Object> arguments) throws Exception {
+			if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
+				throw new IllegalArgumentException("need to specify deploymentConfig");
+			Object depCfg = arguments.get("deploymentConfig");
+			if (depCfg == null || depCfg.toString().length() == 0)
+				depCfg = arguments.get("depCfg");
+			if (depCfg == null || depCfg.toString().length() == 0)
+				throw new IllegalArgumentException("need to specify deploymentConfig");
+			if (!arguments.containsKey("replicaCount"))
+					throw new IllegalArgumentException("need to specif replicaCount");
+			OpenShiftScaler step = new OpenShiftScaler(depCfg.toString(),
+					arguments.get("replicaCount").toString());
+
+			doFillWaitArguments(arguments);
+			step.setWaitTime(wait);
+			step.setWaitUnit(waitUnit);
+
+			if (arguments.containsKey("verifyReplicaCount")) {
+				Object verifyReplicaCount = arguments.get("verifyReplicaCount");
+				if (verifyReplicaCount != null)
+					step.setVerifyReplicaCount(verifyReplicaCount.toString());
+			}
+
+			ParamVerify.updateDSLBaseStep(arguments, step);
+			return step;
+		}
+
+		@Override
+		public String getWait() {
+			return wait;
+		}
+
+		@Override
+		public void setWait(String wait) {
+			this.wait = wait;
+		}
+
+		@Override
+		public String getWaitUnit() {
+			return waitUnit;
+		}
+
+		@Override
+		public void setWaitUnit(String waitUnit) {
+			this.waitUnit = waitUnit;
+		}
+	}
 
 
 }

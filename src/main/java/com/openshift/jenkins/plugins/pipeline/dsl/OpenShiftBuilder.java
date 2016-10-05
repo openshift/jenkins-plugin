@@ -1,4 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftTimedStepDescriptor;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.BuildListener;
@@ -6,6 +7,7 @@ import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepMonitor;
 
+import hudson.util.ListBoxModel;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -17,29 +19,30 @@ import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuilder;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 
 public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBuilder {
 	
-    protected final String bldCfg;
-    protected String commitID;
-    protected String buildName;
-    protected String showBuildLogs;
-    protected String checkForTriggeredDeployments;
-    protected String waitTime;
-    
-    
-    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
-    @DataBoundConstructor
-    public OpenShiftBuilder(String bldCfg) {
-        this.bldCfg = bldCfg;
-    }
+	protected final String bldCfg;
+	protected String commitID;
+	protected String buildName;
+	protected String showBuildLogs;
+	protected String checkForTriggeredDeployments;
+	protected String waitTime;
+	protected String waitUnit;
 
-    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
-    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
-    // of insuring nulls are not returned for field getters
+	// Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+	@DataBoundConstructor
+	public OpenShiftBuilder(String bldCfg) {
+		this.bldCfg = bldCfg;
+	}
+
+	// generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
+	// added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence,
+	// we have introduced the generic convention (even for fields that existed in the intial incarnations of the plugin)
+	// of insuring nulls are not returned for field getters
 
 	public String getCommitID() {
 		return commitID;
@@ -78,85 +81,113 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
 	}
 	
 	public String getWaitTime() {
-		return waitTime;
+		return waitTime + waitUnit;
 	}
 	
 	@DataBoundSetter public void setWaitTime(String waitTime) {
 		this.waitTime = waitTime;
+	}
+
+	public String getWaitUnit() {
+		return waitUnit;
+	}
+
+	@DataBoundSetter public void setWaitUnit(String waitUnit) {
+		this.waitUnit = waitUnit;
 	}
 	
 	public String getWaitTime(Map<String,String> overrides) {
 		String val = getOverride(getWaitTime(), overrides);
 		if (val.length() > 0)
 			return val;
-		return Long.toString(GlobalConfig.getBuildWait());
+		return GlobalConfig.getBuildWait() + GlobalConfig.getBuildWaitUnits();
 	}
-	
-	
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftBuilder.class.getName());
+
+	private static final Logger LOGGER = Logger.getLogger(OpenShiftBuilder.class.getName());
 
 
 	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+	public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftTimedStepDescriptor {
+		private String waitUnit = "sec";
+		private String wait;
 
-        public DescriptorImpl() {
-            super(OpenShiftBuilderExecution.class);
-        }
+		public DescriptorImpl() {
+			super(OpenShiftBuilderExecution.class);
+		}
 
-        @Override
-        public String getFunctionName() {
-            return "openshiftBuild";
-        }
+		@Override
+		public String getFunctionName() {
+			return "openshiftBuild";
+		}
 
-        @Override
-        public String getDisplayName() {
-            return DISPLAY_NAME;
-        }
+		@Override
+		public String getDisplayName() {
+			return DISPLAY_NAME;
+		}
 
-        @Override
-        public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
-            	throw new IllegalArgumentException("need to specify buildConfig");
-            Object bldCfg = arguments.get("buildConfig");
-            if (bldCfg == null || bldCfg.toString().length() == 0)
-            	bldCfg = arguments.get("bldCfg");
-            if (bldCfg == null || bldCfg.toString().length() == 0)
-            	throw new IllegalArgumentException("need to specify buildConfig");
-            OpenShiftBuilder step = new OpenShiftBuilder(bldCfg.toString());
-            if(arguments.containsKey("buildName")) {
-                Object buildName = arguments.get("buildName");
-                if (buildName != null) {
-                    step.setBuildName(buildName.toString());
-                }
-            }
-            if (arguments.containsKey("checkForTriggeredDeployments")) {
-                Object checkForTriggeredDeployments = arguments.get("checkForTriggeredDeployments");
-                if (checkForTriggeredDeployments != null) {
-                    step.setCheckForTriggeredDeployments(checkForTriggeredDeployments.toString());
-                }
-            }
-            if (arguments.containsKey("commitID")) {
-                Object commitID = arguments.get("commitID");
-                if (commitID != null) {
-                    step.setCommitID(commitID.toString());
-                }
-            }
-            if (arguments.containsKey("showBuildLogs")) {
-                Object showBuildLogs = arguments.get("showBuildLogs");
-                if (showBuildLogs != null) {
-                    step.setShowBuildLogs(showBuildLogs.toString());
-                }
-            }
-            if (arguments.containsKey("waitTime")) {
-                Object waitTime = arguments.get("waitTime");
-                if (waitTime != null) {
-                    step.setWaitTime(waitTime.toString());
-                }
-            }
-            ParamVerify.updateDSLBaseStep(arguments, step);
-            return step;
-        }
-    }
+		@Override
+		public Step newInstance(Map<String, Object> arguments) throws Exception {
+			if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
+				throw new IllegalArgumentException("need to specify buildConfig");
+			Object bldCfg = arguments.get("buildConfig");
+			if (bldCfg == null || bldCfg.toString().length() == 0)
+				bldCfg = arguments.get("bldCfg");
+			if (bldCfg == null || bldCfg.toString().length() == 0)
+				throw new IllegalArgumentException("need to specify buildConfig");
+			OpenShiftBuilder step = new OpenShiftBuilder(bldCfg.toString());
+			if(arguments.containsKey("buildName")) {
+				Object buildName = arguments.get("buildName");
+				if (buildName != null) {
+					step.setBuildName(buildName.toString());
+				}
+			}
+			if (arguments.containsKey("checkForTriggeredDeployments")) {
+				Object checkForTriggeredDeployments = arguments.get("checkForTriggeredDeployments");
+				if (checkForTriggeredDeployments != null) {
+					step.setCheckForTriggeredDeployments(checkForTriggeredDeployments.toString());
+				}
+			}
+			if (arguments.containsKey("commitID")) {
+				Object commitID = arguments.get("commitID");
+				if (commitID != null) {
+					step.setCommitID(commitID.toString());
+				}
+			}
+			if (arguments.containsKey("showBuildLogs")) {
+				Object showBuildLogs = arguments.get("showBuildLogs");
+				if (showBuildLogs != null) {
+					step.setShowBuildLogs(showBuildLogs.toString());
+				}
+			}
+
+			doFillWaitArguments(arguments);
+			step.setWaitTime(wait);
+			step.setWaitUnit(waitUnit);
+
+			ParamVerify.updateDSLBaseStep(arguments, step);
+			return step;
+		}
+
+		@Override
+		public String getWait() {
+			return wait;
+		}
+
+		@Override
+		public void setWait(String wait) {
+			this.wait = wait;
+		}
+
+		@Override
+		public String getWaitUnit() {
+			return waitUnit;
+		}
+
+		@Override
+		public void setWaitUnit(String waitUnit) {
+			this.waitUnit = waitUnit;
+		}
+	}
 
 	@Override
 	public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
@@ -177,7 +208,6 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
 	@Override
 	public BuildStepMonitor getRequiredMonitorService() {
 		return null;
-	}    
-    
+	}
 }
 

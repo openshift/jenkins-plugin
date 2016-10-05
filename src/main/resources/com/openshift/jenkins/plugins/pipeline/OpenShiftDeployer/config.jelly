@@ -25,6 +25,9 @@
   <f:entry title="Deploy wait time" field="waitTime">
     <f:textbox  />
   </f:entry>
+  <f:entry title="Deploy wait units" field="waitUnit">
+    <f:select />
+  </f:entry>
   <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
     <f:booleanRadio default="false" />
   </f:entry>
