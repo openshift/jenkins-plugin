@@ -1,25 +1,23 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
-import com.openshift.jenkins.plugins.pipeline.NameValuePair;
-import hudson.Launcher;
-import hudson.model.TaskListener;
-
-import java.net.SocketTimeoutException;
-import java.util.List;
-import java.util.Map;
-
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
+import com.openshift.jenkins.plugins.pipeline.NameValuePair;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.capability.CapabilityVisitor;
 import com.openshift.restclient.capability.IStoppable;
 import com.openshift.restclient.capability.resources.IBuildTriggerable;
 import com.openshift.restclient.capability.resources.IPodLogRetrievalAsync;
-import com.openshift.restclient.capability.resources.IPodLogRetrievalAsync.Options;
-import com.openshift.restclient.capability.resources.IPodLogRetrievalAsync.IPodLogListener;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IPod;
+import hudson.Launcher;
+import hudson.model.TaskListener;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 
@@ -116,42 +114,49 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 		
 		// get internal OS Java REST Client error if access pod logs while bld is in Pending state
 		// instead of Running, Complete, or Failed
-		
+
 		IStoppable stop = null;
+
+		final AtomicBoolean needToFollow = new AtomicBoolean( follow );
+
 		while (System.currentTimeMillis() < (startTime + wait)) {
 			bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
 			bldState = bld.getStatus();
 			if (Boolean.parseBoolean(getVerbose(overrides)))
 				listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
-			
-			if (follow && bldState.equals("Running") && stop == null) {
-				final String container = pod.getContainers().iterator().next().getName();
-				stop = pod.accept(new CapabilityVisitor<IPodLogRetrievalAsync, IStoppable>() {
 
+			if (needToFollow.compareAndSet(true,false)) {
+				final String container = pod.getContainers().iterator().next().getName();
+
+				stop = pod.accept(new CapabilityVisitor<IPodLogRetrievalAsync, IStoppable>() {
 					@Override
 					public IStoppable visit(IPodLogRetrievalAsync capability) {
-						return capability.start(new IPodLogListener() {
-							
+						return capability.start(new IPodLogRetrievalAsync.IPodLogListener() {
 							@Override
 							public void onOpen() {
 							}
-							
+
 							@Override
 							public void onMessage(String message) {
 								listener.getLogger().print(message);
 							}
-							
+
 							@Override
 							public void onClose(int code, String reason) {
 							}
-						}, new Options()
+
+							@Override
+							public void onFailure(IOException e) {
+								// If follow fails, try to restart it on the next loop.
+								needToFollow.compareAndSet(false,true);
+							}
+						}, new IPodLogRetrievalAsync.Options()
 								.follow()
 								.container(container));
 					}
 				}, null);
-
 			}
-			
+
 			if (isBuildFinished(bldState))
 				break;
 							
