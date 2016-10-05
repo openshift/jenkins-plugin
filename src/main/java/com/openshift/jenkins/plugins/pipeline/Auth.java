@@ -48,12 +48,14 @@ public class Auth implements ISSLCertificateCallback {
 	public static Auth createInstance(TaskListener listener, String apiURL, Map<String, String> env) throws RuntimeException {
 		Auth auth = null;
 		File f = new File(CERT_FILE);
-		boolean skip = env.get("SKIP_TLS") != null;
-		if ((f.exists() || env.get("CA_CERT") != null) && !skip) {
+		String skipVal = env.get("SKIP_TLS");
+		String certVal = env.get("CA_CERT");
+		boolean skip = skipVal != null && !skipVal.trim().equalsIgnoreCase("false");
+		if ((f.exists() || certVal != null) && !skip) {
 			if (listener != null)
-				listener.getLogger().println("Auth - cert file exists - " + f.exists() + ", CA_CERT - " + env.get("CA_CERT") + "\n skip tls - " + env.get("SKIP_TLS"));
+				listener.getLogger().println("Auth - cert file exists - " + f.exists() + ", CA_CERT - " + certVal + "\n skip tls - " + skipVal);
 			try {
-				auth = new Auth(createCert(f, env.get("CA_CERT"), listener, apiURL), listener, skip);
+				auth = new Auth(createCert(f, certVal, listener, apiURL), listener, skip);
 			} catch (Exception e) {
 				if (listener != null)
 					e.printStackTrace(listener.getLogger());

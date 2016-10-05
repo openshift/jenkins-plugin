@@ -312,7 +312,7 @@ For the certificate, when running in the OpenShift Jenkins image, the CA certifi
 - For all steps of a given project, set a build parameter (again, of type `Text Parameter`)  named `CA_CERT` to the string needed to construct the certificate.
 - Since `Text Parameter` input fields are not available with the global key/value properties, the plug-in does not support defining certificates via a `CA_CERT` property across Jenkins projects.
 
-If you want to skip TLS verification and allow for untrusted certificates, set the named parameter `SKIP_TLS` to any value.  Since this can be done with a Jenkins `String Parameter`, you can use this at either the global or project level. 
+If you want to skip TLS verification and allow for untrusted certificates, set the named parameter `SKIP_TLS` to any value other than `false`.  Since this can be done with a Jenkins `String Parameter`, you can use this at either the global or project level. 
 
 
 ### Providing parameter values
