@@ -1,46 +1,36 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <!--
-    This jelly script is used for per-project configuration.
 
-    See global.jelly for a general discussion about jelly script.
-  -->
+  <st:include page="cluster.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />
 
-  <!--
-    Creates a text field that shows the value of the "name" property.
-    When submitted, it will be passed to the corresponding constructor parameter.
-  -->
-  <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
-    <f:textbox  />
-  </f:entry>
   <f:entry title="The name of the ImageStream for the current image tag" field="testStream">
     <f:textbox  />
   </f:entry>
+
   <f:entry title="The name of the current image tag or actual image ID" field="testTag">
     <f:textbox  />
   </f:entry>
+
   <f:entry title="The name of the ImageStream for the new image tag" field="prodStream">
     <f:textbox  />
   </f:entry>
+
   <f:entry title="The name of the new image tag" field="prodTag">
     <f:textbox  />
   </f:entry>
-  <f:entry title="The name of the project for the current image tag" field="namespace">
-    <f:textbox />
-  </f:entry>
+
   <f:entry title="The name of the project for the new image tag" field="destinationNamespace">
     <f:textbox />
   </f:entry>
-  <f:entry title="The authorization token for the default service account of the project for the current tag" field="authToken">
-    <f:textbox />
-  </f:entry>
+
   <f:entry title="The authorization token for the default service account of the project for the new tag" field="destinationAuthToken">
     <f:textbox />
   </f:entry>
-  <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
-    <f:booleanRadio default="false" />
-  </f:entry>
+
   <f:entry title="Update destination tag whenever the source tag changes" field="alias">
     <f:booleanRadio default="false" />
   </f:entry>
+
+  <st:include page="verbose.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />
+
 </j:jelly>

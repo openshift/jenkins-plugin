@@ -1,0 +1,17 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+    <f:advanced>
+
+        <f:entry title="Enable verbose output" field="verbose" help="/plugin/openshift-pipeline/help-verbose.html">
+            <f:booleanRadio default="false"/>
+        </f:entry>
+
+        <f:entry title="Operation wait time" field="waitTime" help="/plugin/openshift-pipeline/help-waitTime.html">
+            <f:textbox/>
+        </f:entry>
+
+    </f:advanced>
+
+</j:jelly>

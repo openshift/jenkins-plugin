@@ -1,41 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
-import hudson.AbortException;
-import hudson.EnvVars;
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.Computer;
-import hudson.model.BuildListener;
-import hudson.model.Run;
-import hudson.model.TaskListener;
-import io.fabric8.jenkins.openshiftsync.BuildCause;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-
-import okhttp3.Dispatcher;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-
-import org.jboss.dmr.ModelNode;
-
 import com.openshift.internal.restclient.DefaultClient;
 import com.openshift.internal.restclient.authorization.AuthorizationContext;
 import com.openshift.internal.restclient.model.DeploymentConfig;
@@ -48,16 +12,36 @@ import com.openshift.restclient.IClient;
 import com.openshift.restclient.OpenShiftException;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.http.IHttpConstants;
-//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-import com.openshift.restclient.model.IBuild;
-import com.openshift.restclient.model.IBuildConfig;
-import com.openshift.restclient.model.IDeploymentConfig;
-import com.openshift.restclient.model.IReplicationController;
-import com.openshift.restclient.model.IResource;
+import com.openshift.restclient.model.*;
 import com.openshift.restclient.model.deploy.IDeploymentImageChangeTrigger;
 import com.openshift.restclient.model.deploy.IDeploymentTrigger;
 import com.openshift.restclient.model.route.IRoute;
 import com.openshift.restclient.utils.SSLUtils;
+import hudson.AbortException;
+import hudson.EnvVars;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.*;
+import io.fabric8.jenkins.openshiftsync.BuildCause;
+import okhttp3.Dispatcher;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.jboss.dmr.ModelNode;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.X509TrustManager;
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 public interface IOpenShiftPlugin {
 	
@@ -100,7 +84,7 @@ public interface IOpenShiftPlugin {
 	default String getVerbose(Map<String,String> overrides) {
 		return getOverride(getVerbose(), overrides);
 	}
-	
+
 	Auth getAuth();
 	
 	void setAuth(Auth auth);

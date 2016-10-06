@@ -1,46 +1,32 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <!--
-    This jelly script is used for per-project configuration.
 
-    See global.jelly for a general discussion about jelly script.
-  -->
+  <st:include page="cluster.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />
 
-  <!--
-    Creates a text field that shows the value of the "name" property.
-    When submitted, it will be passed to the corresponding constructor parameter.
-  -->
-  <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
-    <f:textbox  />
-  </f:entry>
   <f:entry title="The name of the BuildConfig to trigger" field="bldCfg">
     <f:textbox  />
   </f:entry>
-  <f:entry title="The name of the project the BuildConfig is stored in" field="namespace">
-    <f:textbox  />
-  </f:entry>
-  <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
-    <f:textbox  />
-  </f:entry>
+
   <f:entry title="Specify the commit hash the build should be run from" field="commitID">
     <f:textbox  />
   </f:entry>
+
   <f:entry title="Specify environment variables for the build" field="env">
     <f:repeatableProperty field="env"  minimum="0" />
   </f:entry>
-  <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
-    <f:booleanRadio default="false" />
-  </f:entry>
+
   <f:entry title="Specify the name of a build which should be re-run" field="buildName">
     <f:textbox  />
   </f:entry>
-  <f:entry title="Build wait time" field="waitTime">
-    <f:textbox  />
-  </f:entry>
+
   <f:entry title="Pipe the build logs from OpenShift to the Jenkins console" field="showBuildLogs">
     <f:booleanRadio default="false" />
   </f:entry>
+
   <f:entry title="Verify whether any deployments triggered by this build's output fired" field="checkForTriggeredDeployments">
     <f:booleanRadio default="false" />
   </f:entry>
+
+  <st:include page="verbose-wait.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />
+
 </j:jelly>
