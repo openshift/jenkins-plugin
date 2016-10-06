@@ -181,21 +181,31 @@ Optional parameters are:
 
 The step name is "openshiftTag".  Mandatory parameters are:
 
-- "sourceStream" or "srcStream":  The ImageStream of the existing image.
+-  "sourceStream" or "srcStream":  The ImageStream of the existing image.
 
-- "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image.
+-  "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image. 
 
-- "destinationStream" or "destStream":  The ImageStream for the new tag.
+-  "destinationStream" or "destStream":  The ImageStream for the new tag. A comma delimited list can be specified.
 
-- "destinationTag" or "destTag":  The name of the new tag.
+-  "destinationTag" or "destTag":  The name of the new tag. A comma delimited list can be specified.
+
+    The following combinations are supported:
+    1. 1 destination stream and 1 destination tag   (i.e. single tag applies to single stream)
+        - `destinationStream: 'stream1', destinationTag: 'tag1'`
+    1. 1 destination stream and N destination tags   (i.e. all tags apply to the same stream)
+        - `destinationStream: 'stream1', destinationTag: 'tag1, tag2'`
+    1. 1 destination tag and N destination streams	(i.e. all streams will get the same tag)
+        - `destinationStream: 'stream1, stream2', destinationTag: 'tag1'`
+    1. N destination streams and N destination tags	(i.e. each index will be combined to form a unique stream:tag combination)
+        - `destinationStream: 'stream1, stream2', destinationTag: 'tag1, tag2'`
 
 Optional parameters are:
 
-- "alias":  Whether to update destination tag whenever the source tag changes.  Equivalent of the `--alias` option for the `oc tag` command. When false, the destination tag type is "ImageStreamImage", and when true, the destination tag type is "ImageStreamTag".
+-  "alias":  Whether to update destination tag whenever the source tag changes.  Equivalent of the `--alias` option for the `oc tag` command. When false, the destination tag type is "ImageStreamImage", and when true, the destination tag type is "ImageStreamTag".
 
-- "destinationNamespace":  The name of the project to host the destinationStream:destinationTag.  If nothing is specified, the plugin will inspect the PROJECT_NAME environment variable.
+-  "destinationNamespace":  The name of the project to host the destinationStream:destinationTag.  If nothing is specified, the plugin will use the source namespace.
 
-- "destinationAuthToken":  The authorization token for interacting with the destinationNamespace.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
+-  "destinationAuthToken":  The authorization token for interacting with the destinationNamespace.  If you do not supply a value, the plugin will assume it is running in the OpenShift Jenkins image and attempt to load the kubernetes service account token stored in that image.
 
 ####  "Verify OpenShift Build"
 

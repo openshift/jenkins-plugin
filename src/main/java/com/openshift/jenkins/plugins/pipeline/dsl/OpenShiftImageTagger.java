@@ -1,24 +1,19 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
+import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftImageTagger;
 import hudson.Extension;
-import hudson.model.Action;
-import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.Action;
+import hudson.model.BuildListener;
 import hudson.tasks.BuildStepMonitor;
-
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import com.openshift.jenkins.plugins.pipeline.ParamVerify;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftImageTagger;
-//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-
 import java.util.Collection;
 import java.util.Map;
-import java.util.logging.Logger;
-
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShiftImageTagger {
 	
@@ -30,9 +25,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     protected String destinationNamespace;
     protected String destinationAuthToken;
     protected String alias;
-    // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
-    //protected transient TokenAuthorizationStrategy destinationBearerToken;
-    
+
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftImageTagger(String srcStream, String srcTag, String destStream, String destTag) {
@@ -107,19 +100,6 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 		this.destinationAuthToken = destinationAuthToken;
 	}
 	
-/*	public TokenAuthorizationStrategy getDestinationToken() {
-		return destinationBearerToken;
-	}
-	
-	public void setDestinationToken(TokenAuthorizationStrategy token) {
-		destinationBearerToken = token;
-	}
-*/	
-	
-	
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftImageTagger.class.getName());
-
-
 	@Extension
     public static class DescriptorImpl extends AbstractStepDescriptorImpl {
 

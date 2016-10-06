@@ -1,2 +1,3 @@
-Any openshift-pipelin.hpi to be tested is copied here as `openshift-pipeline.jpi` and then incorporated into a jenkins image built via a `docker build` using the Dockerfile in the parent directory to this directory.
+Any openshift-pipeline.hpi to be tested is copied here as `openshift-pipeline.jpi` and then incorporated
+into a jenkins image built via a `docker build` using the Dockerfile in the parent directory to this directory.
 The resulting image can then be used for testing.

@@ -1,23 +1,18 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.Extension;
-import hudson.util.FormValidation;
-import hudson.model.AbstractProject;
-import hudson.tasks.Builder;
-import hudson.tasks.BuildStepDescriptor;
-import net.sf.json.JSONObject;
-
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftImageTagger;
-//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-
+import hudson.Extension;
+import hudson.model.AbstractProject;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Builder;
+import hudson.util.FormValidation;
+import net.sf.json.JSONObject;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 
 import javax.servlet.ServletException;
-
 import java.io.IOException;
-//import java.util.Map;
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShiftImageTagger {
 
@@ -29,9 +24,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     protected final String destinationNamespace;
     protected final String destinationAuthToken;
     protected final String alias;
-    // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
-//    protected transient TokenAuthorizationStrategy destinationBearerToken;
-    
+
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose, String testStream, String prodStream, String destinationNamespace, String destinationAuthToken, String alias) {
@@ -54,19 +47,39 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 		return alias;
 	}
 
-	public String getTestTag() {
+    @Deprecated
+    public String getTestTag() {
+        return testTag;
+    }
+
+	public String getSrcTag() {
 		return testTag;
 	}
 
-	public String getProdTag() {
-		return prodTag;
+    @Deprecated
+    public String getProdTag() {
+        return prodTag;
+    }
+
+    public String getDestTag() {
+        return prodTag;
 	}
-	
-	public String getTestStream() {
+
+    @Deprecated
+    public String getTestStream() {
+        return testStream;
+    }
+
+    public String getSrcStream() {
 		return testStream;
 	}
 
-	public String getProdStream() {
+    @Deprecated
+    public String getProdStream() {
+        return prodStream;
+    }
+
+    public String getDestStream() {
 		return prodStream;
 	}
 
@@ -77,15 +90,6 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 	public String getDestinationAuthToken() {
 		return this.destinationAuthToken;
 	}
-	
-/*	public TokenAuthorizationStrategy getDestinationToken() {
-		return destinationBearerToken;
-	}
-	
-	public void setDestinationToken(TokenAuthorizationStrategy token) {
-		destinationBearerToken = token;
-	}
-*/	
 	
     // Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
