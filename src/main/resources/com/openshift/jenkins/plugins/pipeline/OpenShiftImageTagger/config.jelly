@@ -24,7 +24,7 @@
   </f:entry>
 
   <f:entry title="The authorization token for the default service account of the project for the new tag" field="destinationAuthToken">
-    <f:textbox />
+    <f:password />
   </f:entry>
 
   <f:entry title="Update destination tag whenever the source tag changes" field="alias">
