@@ -50,6 +50,14 @@ public static final String CANCELLED_BUILD = "  Cancelled build \"%s\".";
 public static final String EXIT_BUILD_CANCEL = "\n\nExiting \"%s\" successfully with %d builds cancelled.";
 
 /*
+ * These messages are for the OpenShift exec implementation.
+ */
+public static final String START_EXEC = "\n\nStarting \"%s\" with project \"%s\".";
+public static final String EXIT_EXEC_BAD = "\n\nExiting \"%s\" unsuccessfully: %s";
+public static final String EXIT_EXEC_GOOD = "\n\nExiting \"%s\" successfully.";
+
+
+/*
  * These messages are for the "Create OpenShift Resource(s)" jenkins build step implemented by OpenShiftCreator
  */
 public static final String START_CREATE_OBJS = "\n\nStarting \"" + OpenShiftCreator.DISPLAY_NAME + "\" with the project \"%s\".";

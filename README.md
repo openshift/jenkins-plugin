@@ -131,6 +131,19 @@ Optional parameters are:
 
 -  "waitTime":  Time in milliseconds to wait for deployment completion.  Default is 1 minute.
 
+#### "Run OpenShift Exec"
+
+The step name is "openshiftExec".  Mandatory parameters are:
+
+-  "pod" : The name of the pod in which to execute the command.
+-  "command" :  The name of the command to run. May be specified as `command: '/usr/bin/echo'` or in a compact form including parameters as `command: [ '/usr/bin/echo', 'hello', 'world', ... ]` 
+
+Optional parameters are:
+
+- "container" : The container name in which to run the command. If not specified, the first container in the pod will be used.
+-  "arguments" : Arguments for the command. May be specified as `arguments: [ 'arg1', 'arg2', ... ]` or `arguments: [ [ value: 'arg1' ], [ value : 'arg2' ], ... ]` 
+-  "waitTime" :  Time in milliseconds to wait for deployment completion.  Default is 1 minute.
+
 #### "Create OpenShift Resource(s)"
 
 The step name is "openshiftCreateResources".  Mandatory parameters is either:
@@ -250,11 +263,11 @@ ImageStream.
 
 The step name is "openshiftImageStream". Mandatory parameters are:
 
-a) "name":  The name of the ImageStream to poll
+- "name":  The name of the ImageStream to poll
 
-b) "tag":  The tag to watch on the ImageStream
+- "tag":  The tag to watch on the ImageStream
 
-c) "namespace": The project for the ImageStream
+- "namespace": The project for the ImageStream
 
 
 ### Pipeline / Workflow support prior to version 1.0.14 of the OpenShift Pipeline Plugin 
