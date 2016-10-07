@@ -1,5 +1,9 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
+import com.openshift.jenkins.plugins.pipeline.MessageConstants;
+import com.openshift.restclient.IClient;
+import com.openshift.restclient.ResourceKind;
+import com.openshift.restclient.model.IService;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
@@ -8,23 +12,18 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Map;
 
-import com.openshift.jenkins.plugins.pipeline.MessageConstants;
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.model.IService;
-
 public interface IOpenShiftServiceVerifier extends IOpenShiftPlugin {
-	final static String DISPLAY_NAME = "Verify OpenShift Service";
+	String DISPLAY_NAME = "Verify OpenShift Service";
 	
 	default String getDisplayName() {
 		return DISPLAY_NAME;
 	}
 	
-	public String getSvcName();
+	String getSvcName();
 	
-	public String getRetryCount();
+	String getRetryCount();
 	
-	public String getRetryCount(Map<String, String> overrides);
+	String getRetryCount(Map<String, String> overrides);
 	
 	default String getSvcName(Map<String,String> overrides) {
 		return getOverride(getSvcName(), overrides);

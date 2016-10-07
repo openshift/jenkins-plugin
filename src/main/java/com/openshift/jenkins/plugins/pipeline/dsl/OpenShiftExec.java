@@ -2,7 +2,6 @@ package com.openshift.jenkins.plugins.pipeline.dsl;
 
 import com.openshift.jenkins.plugins.pipeline.Argument;
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
-import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftExec;
 import hudson.Extension;
 import hudson.model.AbstractBuild;
@@ -15,19 +14,14 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public class OpenShiftExec extends OpenShiftBaseStep implements IOpenShiftExec {
+public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftExec {
 
     protected String pod;
     protected String container;
     protected String command;
     protected List<Argument> arguments = new ArrayList<>();
-    protected String waitTime;
 
     @DataBoundConstructor
     public OpenShiftExec( String pod ) {
@@ -49,11 +43,6 @@ public class OpenShiftExec extends OpenShiftBaseStep implements IOpenShiftExec {
         this.arguments = arguments;
     }
 
-    @DataBoundSetter
-    public void setWaitTime(String waitTime) {
-        this.waitTime = waitTime;
-    }
-
     public String getPod() {
         return pod;
     }
@@ -68,17 +57,6 @@ public class OpenShiftExec extends OpenShiftBaseStep implements IOpenShiftExec {
 
     public List<Argument> getArguments() {
         return arguments;
-    }
-
-    public String getWaitTime() {
-        return waitTime;
-    }
-
-    public String getWaitTime(Map<String,String> overrides) {
-        String val = getOverride(getWaitTime(), overrides);
-        if (val.length() > 0)
-            return val;
-        return Long.toString(GlobalConfig.getBuildWait());
     }
 
 	@Extension

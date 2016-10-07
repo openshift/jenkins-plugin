@@ -1,31 +1,26 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
+import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuildVerifier;
 import hudson.Extension;
-import hudson.model.Action;
-import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.Action;
+import hudson.model.BuildListener;
 import hudson.tasks.BuildStepMonitor;
-
-import java.util.Collection;
-import java.util.Map;
-import java.util.logging.Logger;
-
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import com.openshift.jenkins.plugins.pipeline.ParamVerify;
-import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuildVerifier;
+import java.util.Collection;
+import java.util.Map;
 
-public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenShiftBuildVerifier {
+public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IOpenShiftBuildVerifier {
 
     protected final String bldCfg;
     protected String checkForTriggeredDeployments;
-    protected String waitTime;
-    
+
     @DataBoundConstructor public OpenShiftBuildVerifier(String bldCfg) {
     	this.bldCfg = bldCfg;
 	}
@@ -64,27 +59,6 @@ public class OpenShiftBuildVerifier extends OpenShiftBaseStep implements IOpenSh
 	@DataBoundSetter public void setCheckForTriggeredDeployments(String checkForTriggeredDeployments) {
 		this.checkForTriggeredDeployments = checkForTriggeredDeployments;
 	}
-	
-	@Override
-	public String getWaitTime() {
-		return waitTime;
-	}
-
-	@Override
-	public String getWaitTime(Map<String, String> overrides) {
-		String val = getOverride(getWaitTime(), overrides);
-		if (val.length() > 0)
-			return val;
-		return Long.toString(GlobalConfig.getBuildVerifyWait());
-	}
-
-	@DataBoundSetter public void setWaitTime(String waitTime) {
-		this.waitTime = waitTime;
-	}
-	
-
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftBuilder.class.getName());
-
 
 	@Extension
     public static class DescriptorImpl extends AbstractStepDescriptorImpl {

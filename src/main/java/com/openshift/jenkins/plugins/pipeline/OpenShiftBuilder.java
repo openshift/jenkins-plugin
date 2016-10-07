@@ -1,6 +1,8 @@
 package com.openshift.jenkins.plugins.pipeline;
 
 import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
+import com.openshift.jenkins.plugins.pipeline.model.ITimedOpenShiftPlugin;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuilder;
 import hudson.Extension;
 import hudson.model.AbstractProject;
@@ -15,31 +17,28 @@ import org.kohsuke.stapler.StaplerRequest;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 
-public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBuilder {
+public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShiftBuilder, ITimedOpenShiftPlugin {
 	
     protected final String bldCfg;
     protected final String commitID;
     protected final String buildName;
     protected final String showBuildLogs;
     protected final String checkForTriggeredDeployments;
-    protected final String waitTime;
     protected final List<NameValuePair> envVars;
     
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, List<NameValuePair> env, String authToken, String verbose, String commitID, String buildName, String showBuildLogs, String checkForTriggeredDeployments, String waitTime) {
-    	super(apiURL, namespace, authToken, verbose);
+    	super(apiURL, namespace, authToken, verbose, waitTime);
         this.bldCfg = bldCfg;
         this.envVars = env;
         this.commitID = commitID;
         this.buildName = buildName;
         this.showBuildLogs = showBuildLogs;
         this.checkForTriggeredDeployments = checkForTriggeredDeployments;
-        this.waitTime = waitTime;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -70,18 +69,7 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
 	public String getCheckForTriggeredDeployments() {
 		return checkForTriggeredDeployments;
 	}
-	
-	public String getWaitTime() {
-		return waitTime;
-	}
-	
-	public String getWaitTime(Map<String,String> overrides) {
-		String val = getOverride(getWaitTime(), overrides);
-		if (val.length() > 0)
-			return val;
-		return Long.toString(getDescriptor().getWait());
-	}
-	
+
 	// Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
@@ -96,9 +84,8 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-    	private long wait = GlobalConfig.BUILD_WAIT;
-    	
+    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptorValidation {
+
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -115,47 +102,12 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
             load();
         }
 
-        /**
-         * Performs on-the-fly validation of the various fields.
-         *
-         * @param value
-         *      This parameter receives the value that the user has typed.
-         * @return
-         *      Indicates the outcome of the validation. This is sent to the browser.
-         *      <p>
-         *      Note that returning {@link FormValidation#error(String)} does not
-         *      prevent the form from being saved. It just means that a message
-         *      will be displayed to the user. 
-         */
-        public FormValidation doCheckApiURL(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckApiURL(value);
-        }
 
         public FormValidation doCheckBldCfg(@QueryParameter String value)
                 throws IOException, ServletException {
         	return ParamVerify.doCheckBldCfg(value);
         }
 
-        public FormValidation doCheckNamespace(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckNamespace(value);
-        }
-        
-        public FormValidation doCheckCheckForTriggeredDeployments(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckCheckForTriggeredDeployments(value);
-        }
-        
-        public FormValidation doCheckWaitTime(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckCheckForWaitTime(value);
-        }
-        
-        public FormValidation doCheckAuthToken(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckToken(value);
-        }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
             // Indicates that this builder can be used with all kinds of project types 
@@ -169,16 +121,12 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
             return DISPLAY_NAME;
         }
         
-        public long getWait() {
-        	return wait;
-        }
-
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
-            // pull info from formData, set appropriate instance field (which should have a getter), and call save().
-        	wait = formData.getLong("wait");
-        	GlobalConfig.setBuildWait(wait);
+            // pull info from formData, set appropriate instance field
+            // (which should have a getter), and call save().
+        	GlobalConfig.setBuildWait( formData.getLong("wait") );
             save();
             return super.configure(req,formData);
         }

@@ -1,39 +1,35 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.Extension;
-import hudson.util.FormValidation;
-import hudson.model.AbstractProject;
-import hudson.tasks.Builder;
-import hudson.tasks.BuildStepDescriptor;
-import net.sf.json.JSONObject;
-
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.QueryParameter;
 
 import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeploymentVerification;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
+import hudson.Extension;
+import hudson.model.AbstractProject;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Builder;
+import hudson.util.FormValidation;
+import net.sf.json.JSONObject;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 
 import javax.servlet.ServletException;
-
 import java.io.IOException;
-import java.util.Map;
 
-public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IOpenShiftDeploymentVerification {
+public class OpenShiftDeploymentVerifier extends TimedOpenShiftBaseStep implements IOpenShiftDeploymentVerification {
 
     protected final String depCfg;
     protected final String replicaCount;
     protected final String verifyReplicaCount;
-    protected final String waitTime;
-    
+
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftDeploymentVerifier(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose, String verifyReplicaCount, String waitTime) {
-    	super(apiURL, namespace, authToken, verbose);
+    	super(apiURL, namespace, authToken, verbose, waitTime);
         this.depCfg = depCfg;
         this.replicaCount = replicaCount;
         this.verifyReplicaCount = verifyReplicaCount;
-        this.waitTime = waitTime;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -53,17 +49,6 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IO
 		return verifyReplicaCount;
 	}
 	
-	public String getWaitTime() {
-		return waitTime;
-	}
-	
-	public String getWaitTime(Map<String, String> overrides) {
-		String val = getOverride(getWaitTime(), overrides);
-		if (val.length() > 0)
-			return val;
-		return Long.toString(getDescriptor().getWait());
-	}
-	
     // Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
@@ -78,8 +63,7 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IO
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-    	private long wait = GlobalConfig.DEPLOY_VERIFY_WAIT;
+    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptorValidation {
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -96,42 +80,14 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IO
             load();
         }
 
-        /**
-         * Performs on-the-fly validation of the various fields.
-         *
-         * @param value
-         *      This parameter receives the value that the user has typed.
-         * @return
-         *      Indicates the outcome of the validation. This is sent to the browser.
-         *      <p>
-         *      Note that returning {@link FormValidation#error(String)} does not
-         *      prevent the form from being saved. It just means that a message
-         *      will be displayed to the user. 
-         */
-        public FormValidation doCheckApiURL(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckApiURL(value);
-        }
-
         public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
         	return ParamVerify.doCheckDepCfg(value);
         }
 
-        public FormValidation doCheckNamespace(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckNamespace(value);
-        }
-        
-        
         public FormValidation doCheckReplicaCount(@QueryParameter String value)
                 throws IOException, ServletException {
         	return ParamVerify.doCheckReplicaCount(value);
-        }
-
-        public FormValidation doCheckAuthToken(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckToken(value);
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
@@ -146,16 +102,12 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IO
             return DISPLAY_NAME;
         }
         
-        public long getWait() {
-        	return wait;
-        }
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
             // To persist global configuration information,
             // pull info from formData, set appropriate instance field (which should have a getter), and call save().
-        	wait = formData.getLong("wait");
-        	GlobalConfig.setDeployVerifyWait(wait);
+        	GlobalConfig.setDeployVerifyWait(formData.getLong("wait"));
             save();
             return super.configure(req,formData);
         }

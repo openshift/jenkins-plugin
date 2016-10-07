@@ -1,33 +1,32 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
-import hudson.Launcher;
-import hudson.model.TaskListener;
-
-import java.util.Map;
-
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
+import hudson.Launcher;
+import hudson.model.TaskListener;
 
-public interface IOpenShiftScaler extends IOpenShiftPlugin {
-	final static String DISPLAY_NAME = "Scale OpenShift Deployment";
+import java.util.Map;
+
+public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
+	String DISPLAY_NAME = "Scale OpenShift Deployment";
 
 	default String getDisplayName() {
 		return DISPLAY_NAME;
 	}
 	
-	public String getDepCfg();
+	String getDepCfg();
 	
-	public String getReplicaCount();
+	String getReplicaCount();
 		
-	public String getVerifyReplicaCount();
-		
-	public String getWaitTime();
-	
-	public String getWaitTime(Map<String, String> overrides);
-	
+	String getVerifyReplicaCount();
+
+	default long getDefaultWaitTime() {
+		return GlobalConfig.getScalerWait();
+	}
+
 	default String getDepCfg(Map<String,String> overrides) {
 		return getOverride(getDepCfg(), overrides);
 	}
@@ -55,7 +54,7 @@ public interface IOpenShiftScaler extends IOpenShiftPlugin {
         	// in testing with the jenkins-ci sample, the initial deploy after
         	// a build is kinda slow ... gotta wait more than one minute
         	if (chatty)
-        		listener.getLogger().println("\nOpenShiftScaler wait " + getWaitTime(overrides));
+        		listener.getLogger().println("\nOpenShiftScaler wait " + getTimeout(overrides));
         	
         	if (!checkCount)
         		listener.getLogger().println(String.format(MessageConstants.SCALING, getReplicaCount(overrides)));
@@ -64,7 +63,7 @@ public interface IOpenShiftScaler extends IOpenShiftPlugin {
         	
         	// do the oc scale ... may need to retry        	
         	boolean scaleDone = false;
-        	while (System.currentTimeMillis() < (currTime + Long.parseLong(getWaitTime(overrides)))) {
+        	while (System.currentTimeMillis() < (currTime + getTimeout(overrides))) {
         		dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
         		if (dc == null) {
 			    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));

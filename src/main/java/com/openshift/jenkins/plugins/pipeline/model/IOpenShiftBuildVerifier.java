@@ -1,5 +1,9 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
+import com.openshift.jenkins.plugins.pipeline.MessageConstants;
+import com.openshift.restclient.IClient;
+import com.openshift.restclient.ResourceKind;
+import com.openshift.restclient.model.IBuild;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
@@ -8,14 +12,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.openshift.jenkins.plugins.pipeline.MessageConstants;
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.ResourceKind;
-import com.openshift.restclient.model.IBuild;
+public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
 
-public interface IOpenShiftBuildVerifier extends IOpenShiftPlugin {
-
-	public final static String DISPLAY_NAME = "Verify OpenShift Build";
+	String DISPLAY_NAME = "Verify OpenShift Build";
 
 	default String getDisplayName() {
 		return DISPLAY_NAME;
@@ -24,11 +23,11 @@ public interface IOpenShiftBuildVerifier extends IOpenShiftPlugin {
 	String getBldCfg();
 		
 	String getCheckForTriggeredDeployments();
-		
-	String getWaitTime();
-	
-	String getWaitTime(Map<String, String> overrides);
-	
+
+	default long getDefaultWaitTime() {
+		return GlobalConfig.getBuildVerifyWait();
+	}
+
 	default String getBldCfg(Map<String,String> overrides) {
 		return getOverride(getBldCfg(), overrides);
 	}
@@ -67,7 +66,7 @@ public interface IOpenShiftBuildVerifier extends IOpenShiftPlugin {
     	
     	if (client != null) {
 			if (chatty)
-				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getWaitTime(overrides));
+				listener.getLogger().println("\nOpenShiftBuildVerifier wait " + getTimeout(overrides));
 			List<String> ids = getBuildIDs(client, overrides);
 			
 			String bldId = getLatestBuildID(ids);
@@ -77,7 +76,7 @@ public interface IOpenShiftBuildVerifier extends IOpenShiftPlugin {
 			else
 				listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY, bldId));
 				
-			return this.verifyBuild(System.currentTimeMillis(), Long.parseLong(getWaitTime(overrides)), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, overrides);
+			return this.verifyBuild(System.currentTimeMillis(), getTimeout(overrides), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, overrides);
     				        		
     	} else {
     		return false;

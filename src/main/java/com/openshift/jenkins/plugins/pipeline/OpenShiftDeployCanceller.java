@@ -1,24 +1,23 @@
 package com.openshift.jenkins.plugins.pipeline;
-import hudson.Launcher;
-import hudson.Extension;
-import hudson.util.FormValidation;
-import hudson.model.TaskListener;
-import hudson.model.AbstractProject;
-import hudson.tasks.BuildStepDescriptor;
-import hudson.tasks.Publisher;
-import net.sf.json.JSONObject;
 
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.QueryParameter;
-
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
+import hudson.Extension;
+import hudson.Launcher;
+import hudson.model.AbstractProject;
+import hudson.model.TaskListener;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Publisher;
+import hudson.util.FormValidation;
+import net.sf.json.JSONObject;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 
 import javax.servlet.ServletException;
-
 import java.io.IOException;
 import java.util.Map;
 
@@ -117,7 +116,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
+    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements IOpenShiftPluginDescriptorValidation {
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
@@ -134,36 +133,10 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
             load();
         }
 
-        /**
-         * Performs on-the-fly validation of the various fields.
-         *
-         * @param value
-         *      This parameter receives the value that the user has typed.
-         * @return
-         *      Indicates the outcome of the validation. This is sent to the browser.
-         *      <p>
-         *      Note that returning {@link FormValidation#error(String)} does not
-         *      prevent the form from being saved. It just means that a message
-         *      will be displayed to the user. 
-         */
-        public FormValidation doCheckApiURL(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckApiURL(value);
-        }
 
         public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
         	return ParamVerify.doCheckDepCfg(value);
-        }
-
-        public FormValidation doCheckNamespace(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckNamespace(value);
-        }
-        
-        public FormValidation doCheckAuthToken(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckToken(value);
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {

@@ -1,17 +1,16 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
-import hudson.Launcher;
-import hudson.model.TaskListener;
-
-import java.util.Map;
-
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
+import hudson.Launcher;
+import hudson.model.TaskListener;
 
-public interface IOpenShiftDeployer extends IOpenShiftPlugin {
+import java.util.Map;
+
+public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
 
 	final static String DISPLAY_NAME = "Trigger OpenShift Deployment";
 	
@@ -20,11 +19,11 @@ public interface IOpenShiftDeployer extends IOpenShiftPlugin {
 	}
 	
 	String getDepCfg();
-		
-	String getWaitTime();
-	
-	String getWaitTime(Map<String, String> overrides);
-	
+
+	default long getDefaultWaitTime() {
+		return GlobalConfig.getDeployWait();
+	}
+
 	default String getDepCfg(Map<String,String> overrides) {
 		return getOverride(getDepCfg(), overrides);
 	}
@@ -55,7 +54,7 @@ public interface IOpenShiftDeployer extends IOpenShiftPlugin {
     	
     	if (client != null) {
         	if (chatty)
-        		listener.getLogger().println("\nOpenShiftDeployer wait " + getWaitTime(overrides));
+        		listener.getLogger().println("\nOpenShiftDeployer wait " + getTimeout(overrides));
         	// do the oc deploy with version bump ... may need to retry
         	long currTime = System.currentTimeMillis();
         	boolean deployDone = false;
@@ -63,7 +62,7 @@ public interface IOpenShiftDeployer extends IOpenShiftPlugin {
 			String state = null;
 	    	IDeploymentConfig dc = null;
 			IReplicationController rc = null; 
-			while (System.currentTimeMillis() < (currTime + Long.parseLong(getWaitTime(overrides)))) {
+			while (System.currentTimeMillis() < (currTime + getTimeout(overrides))) {
         		dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
         		if (dc != null) {
         			if (!versionBumped) {
