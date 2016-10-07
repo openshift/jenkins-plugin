@@ -1,19 +1,9 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
 
-  <f:entry title="URL of the OpenShift api endpoint" field="apiURL">
-    <f:textbox  />
-  </f:entry>
-
-  <f:entry title="The authorization token for interacting with OpenShift" field="authToken">
-    <f:textbox  />
-  </f:entry>
+  <st:include page="cluster.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />
 
   <f:entry title="The pod in which to execute the command" field="pod">
-    <f:textbox  />
-  </f:entry>
-
-  <f:entry title="The name of the project in which the pod resides" field="namespace">
     <f:textbox  />
   </f:entry>
 
@@ -29,12 +19,7 @@
     <f:repeatableProperty field="arguments"  minimum="0" />
   </f:entry>
 
-  <f:entry title="Allow for verbose logging during this build step plug-in" field="verbose">
-    <f:booleanRadio default="false" />
-  </f:entry>
+  <st:include page="verbose-wait.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />
 
-  <f:entry title="Maximum wait time" field="waitTime">
-    <f:textbox />
-  </f:entry>
 
 </j:jelly>
