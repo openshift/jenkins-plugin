@@ -19,9 +19,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public interface IOpenShiftBuilder extends IOpenShiftPlugin {
+public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
 
-	public final static String DISPLAY_NAME = "Trigger OpenShift Build";
+	String DISPLAY_NAME = "Trigger OpenShift Build";
 	
 	default String getDisplayName() {
 		return DISPLAY_NAME;
@@ -37,10 +37,6 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 		
 	String getCheckForTriggeredDeployments();
 		
-	String getWaitTime();
-	
-	String getWaitTime(Map<String, String> overrides);
-
 	List<NameValuePair>  getEnv();
 
 	default String getCommitID(Map<String,String> overrides) {
@@ -61,6 +57,10 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
 
 	default String getCheckForTriggeredDeployments(Map<String,String> overrides) {
 		return getOverride(getCheckForTriggeredDeployments(), overrides);
+	}
+
+	default long getDefaultWaitTime() {
+		return GlobalConfig.getBuildWait();
 	}
 
 	default void applyEnvVars( IBuildTriggerable bt ) {
@@ -218,7 +218,7 @@ public interface IOpenShiftBuilder extends IOpenShiftPlugin {
     				boolean foundPod = false;
     				startTime = System.currentTimeMillis();
 					
-					long wait = Long.parseLong(getWaitTime(overrides));
+					long wait = getTimeout(overrides);
 					
 					if (chatty)
 						listener.getLogger().println("\n OpenShiftBuilder looking for build " + bldId);

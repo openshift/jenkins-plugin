@@ -1,41 +1,35 @@
 package com.openshift.jenkins.plugins.pipeline;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Map;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.servlet.ServletException;
-
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
+import com.openshift.restclient.IClient;
+import com.openshift.restclient.ResourceKind;
+import com.openshift.restclient.model.IImageStream;
 import hudson.EnvVars;
+import hudson.Extension;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.AbstractProject;
 import hudson.model.Job;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.scm.*;
+import hudson.scm.PollingResult.Change;
+import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
-
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
-import com.openshift.restclient.IClient;
-import com.openshift.restclient.ResourceKind;
-//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-import com.openshift.restclient.model.IImageStream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.servlet.ServletException;
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
 
-import hudson.Extension;
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.TaskListener;
-import hudson.model.AbstractProject;
-import hudson.model.Run;
-import hudson.scm.ChangeLogParser;
-import hudson.scm.PollingResult;
-import hudson.scm.PollingResult.Change;
-import hudson.scm.SCMDescriptor;
-import hudson.scm.SCMRevisionState;
-import hudson.scm.SCM;
-import hudson.util.FormValidation;
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 	
@@ -232,26 +226,14 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 
 
 	@Extension
-    public static class DescriptorImpl extends SCMDescriptor {
+    public static class DescriptorImpl extends SCMDescriptor implements IOpenShiftPluginDescriptorValidation {
 
         public DescriptorImpl() {
             super(OpenShiftImageStreams.class, null);
             load();
         }
 
-        public FormValidation doCheckApiURL(@QueryParameter String value)
-                throws IOException, ServletException {
-        	// with some of the paths into the Image Stream SCM, the env vars typically available for the build steps are not available,
-        	// but for now, we fall back on "https://openshift.default.svc.cluster.local" if they do not specify
-            return ParamVerify.doCheckApiURL(value);
-        }
 
-        public FormValidation doCheckNamespace(@QueryParameter String value)
-                throws IOException, ServletException {
-			// If a namespace is not specified, the default one is going to be used
-        	return ParamVerify.doCheckNamespace(value);
-        }
-        
         public FormValidation doCheckTag(@QueryParameter String value)
                 throws IOException, ServletException {
             return ParamVerify.doCheckTag(value);
@@ -262,11 +244,6 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
             return ParamVerify.doCheckImageStreamName(value);
         }
         
-        public FormValidation doCheckAuthToken(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckToken(value);
-        }
-
 		@Override
 		public String getDisplayName() {
 			return DISPLAY_NAME;
@@ -291,11 +268,6 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 		this.auth = auth;
 	}
 
-/*	@Override
-	public void setToken(TokenAuthorizationStrategy token) {
-		this.bearerToken = token;
-	}
-*/
 	@Override
 	public boolean coreLogic(Launcher launcher, TaskListener listener, Map<String,String> overrides) {
 		return false;
@@ -305,12 +277,5 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 	public Auth getAuth() {
 		return auth;
 	}
-
-/*	@Override
-	public TokenAuthorizationStrategy getToken() {
-		return bearerToken;
-	}
-*/
-
 
 }

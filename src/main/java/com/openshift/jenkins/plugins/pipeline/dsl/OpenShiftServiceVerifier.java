@@ -1,24 +1,22 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
+import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftServiceVerifier;
 import hudson.Extension;
-import hudson.model.Action;
-import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.Action;
+import hudson.model.BuildListener;
 import hudson.tasks.BuildStepMonitor;
-
-import java.util.Collection;
-import java.util.Map;
-import java.util.logging.Logger;
-
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import com.openshift.jenkins.plugins.pipeline.ParamVerify;
-import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftServiceVerifier;
+import java.util.Collection;
+import java.util.Map;
+import java.util.logging.Logger;
 
 public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpenShiftServiceVerifier {
 	

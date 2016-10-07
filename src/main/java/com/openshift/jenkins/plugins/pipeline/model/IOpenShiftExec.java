@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public interface IOpenShiftExec extends IOpenShiftPlugin {
+public interface IOpenShiftExec extends ITimedOpenShiftPlugin {
 
 	String DISPLAY_NAME = "OpenShift Exec";
 
@@ -30,13 +30,13 @@ public interface IOpenShiftExec extends IOpenShiftPlugin {
 
 	List<Argument> getArguments();
 
-	String getWaitTime();
-
 	default String getDisplayName() {
 		return DISPLAY_NAME;
 	}
 
-	String getWaitTime(Map<String, String> overrides);
+	default long getDefaultWaitTime() {
+		return GlobalConfig.getExecWait();
+	}
 
 	default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
 		listener.getLogger().println(String.format(MessageConstants.START_EXEC, DISPLAY_NAME, getNamespace(overrides)));
@@ -56,7 +56,7 @@ public interface IOpenShiftExec extends IOpenShiftPlugin {
 			return false;
 		}
 
-		int remainingWaitTime = Integer.parseInt( getWaitTime( overrides ) );
+		long remainingWaitTime = getTimeout(overrides);
 
 		final int LOOP_DELAY = 1000;
 

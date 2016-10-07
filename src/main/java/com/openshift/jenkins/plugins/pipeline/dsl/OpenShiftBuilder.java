@@ -1,36 +1,32 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 import com.openshift.jenkins.plugins.pipeline.NameValuePair;
+import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuilder;
 import hudson.Extension;
-import hudson.model.Action;
-import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.Action;
+import hudson.model.BuildListener;
 import hudson.tasks.BuildStepMonitor;
-
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import com.openshift.jenkins.plugins.pipeline.ParamVerify;
-import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuilder;
-
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 
-public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBuilder {
+public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShiftBuilder {
 	
     protected final String bldCfg;
     protected String commitID;
     protected String buildName;
     protected String showBuildLogs;
     protected String checkForTriggeredDeployments;
-    protected String waitTime;
     protected List<NameValuePair> envVars = new ArrayList<>();
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
@@ -88,25 +84,6 @@ public class OpenShiftBuilder extends OpenShiftBaseStep implements IOpenShiftBui
 		this.checkForTriggeredDeployments = checkForTriggeredDeployments;
 	}
 	
-	public String getWaitTime() {
-		return waitTime;
-	}
-	
-	@DataBoundSetter public void setWaitTime(String waitTime) {
-		this.waitTime = waitTime;
-	}
-	
-	public String getWaitTime(Map<String,String> overrides) {
-		String val = getOverride(getWaitTime(), overrides);
-		if (val.length() > 0)
-			return val;
-		return Long.toString(GlobalConfig.getBuildWait());
-	}
-	
-	
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftBuilder.class.getName());
-
-
 	@Extension
     public static class DescriptorImpl extends AbstractStepDescriptorImpl {
 

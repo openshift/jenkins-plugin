@@ -1,32 +1,28 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
+import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeploymentVerification;
 import hudson.Extension;
-import hudson.model.Action;
-import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.Action;
+import hudson.model.BuildListener;
 import hudson.tasks.BuildStepMonitor;
-
-import java.util.Collection;
-import java.util.Map;
-import java.util.logging.Logger;
-
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import com.openshift.jenkins.plugins.pipeline.ParamVerify;
-import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeploymentVerification;
+import java.util.Collection;
+import java.util.Map;
+import java.util.logging.Logger;
 
-public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IOpenShiftDeploymentVerification {
+public class OpenShiftDeploymentVerifier extends TimedOpenShiftBaseStep implements IOpenShiftDeploymentVerification {
 	
 	protected final String depCfg;
     protected String replicaCount;
     protected String verifyReplicaCount;
-	protected String waitTime;
-    
+
     @DataBoundConstructor public OpenShiftDeploymentVerifier(String depCfg) {
     	this.depCfg = depCfg;
 	}   
@@ -49,21 +45,6 @@ public class OpenShiftDeploymentVerifier extends OpenShiftBaseStep implements IO
 	
 	@DataBoundSetter public void setVerifyReplicaCount(String verifyReplicaCount) {
 		this.verifyReplicaCount = verifyReplicaCount;
-	}
-	
-	public String getWaitTime() {
-		return waitTime;
-	}
-	
-	public String getWaitTime(Map<String, String> overrides) {
-		String val = getOverride(getWaitTime(), overrides);
-		if (val.length() > 0)
-			return val;
-		return Long.toString(GlobalConfig.getDeployVerifyWait());
-	}
-	
-	@DataBoundSetter public void setWaitTime(String waitTime) {
-		this.waitTime = waitTime;
 	}
 	
 	@Override

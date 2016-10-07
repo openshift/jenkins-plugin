@@ -1,19 +1,19 @@
 package com.openshift.jenkins.plugins.pipeline;
 
-import java.io.IOException;
-import java.io.Serializable;
-
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPlugin;
-//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-
-import jenkins.tasks.SimpleBuildStep;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
-import hudson.model.TaskListener;
 import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.tasks.Builder;
+import jenkins.tasks.SimpleBuildStep;
+
+import java.io.IOException;
+import java.io.Serializable;
+
+//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
 public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildStep, Serializable, IOpenShiftPlugin {
 	
@@ -63,16 +63,6 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
 		return auth;
 	}
 	
-/*	@Override
-	public TokenAuthorizationStrategy getToken() {
-		return bearerToken;
-	}
-
-	@Override
-	public void setToken(TokenAuthorizationStrategy token) {
-		this.bearerToken = token;
-	}
-*/
 	@Override
 	public String getBaseClassName() {
 		return OpenShiftBaseStep.class.getName();

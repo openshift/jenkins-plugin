@@ -119,7 +119,7 @@ Optional parameters are:
 - "env": An array of environment variables for the build (e.g. `env : [ [ name : 'name1', value : 'value1' ], [ name : 'name2', value : 'value2' ] ]`.
 - "showBuildLogs":  Pipe the build logs from OpenShift to the Jenkins console.
 - "checkForTriggeredDeployments":  Verify whether any deployments triggered by this build's output fired.
-- "waitTime":  Time in milliseconds to wait for build completion.  Default is 5 minutes.
+- "waitTime":  Time in milliseconds to wait for build completion.  Default is 15 minutes.
 
 #### "Trigger OpenShift Deployment"
 
@@ -129,7 +129,7 @@ The step name is "openshiftDeploy".  Mandatory parameters are:
 
 Optional parameters are:
 
--  "waitTime":  Time in milliseconds to wait for deployment completion.  Default is 1 minute.
+-  "waitTime":  Time in milliseconds to wait for deployment completion.  Default is 10 minutes.
 
 #### "Run OpenShift Exec"
 
@@ -142,7 +142,7 @@ Optional parameters are:
 
 - "container" : The container name in which to run the command. If not specified, the first container in the pod will be used.
 -  "arguments" : Arguments for the command. May be specified as `arguments: [ 'arg1', 'arg2', ... ]` or `arguments: [ [ value: 'arg1' ], [ value : 'arg2' ], ... ]` 
--  "waitTime" :  Time in milliseconds to wait for deployment completion.  Default is 1 minute.
+-  "waitTime" :  Time in milliseconds to wait for deployment completion.  Default is 3 minutes.
 
 #### "Create OpenShift Resource(s)"
 
@@ -243,7 +243,7 @@ Optional parameters are:
 
 - "verifyReplicaCount":  Verify whether the specified number of replicas are up.  Specify `true` or `false`.
 
-- "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 1 minute.
+- "waitTime":  The amount of time in milliseconds to see whether the specified number of replicas have been reached.  Default is 3 minutes.
 
 ####  "Verify OpenShift Service"
 

@@ -3,6 +3,7 @@ package com.openshift.jenkins.plugins.pipeline;
 import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftApiObjHandler;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftExec;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
 import hudson.Extension;
 import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;
@@ -16,15 +17,13 @@ import org.kohsuke.stapler.StaplerRequest;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
-public class OpenShiftExec extends OpenShiftBaseStep implements IOpenShiftExec, IOpenShiftApiObjHandler {
+public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftExec, IOpenShiftApiObjHandler {
 
     protected final String pod;
     protected final String container;
     protected final String command;
     protected final List<Argument> arguments;
-    protected final String waitTime;
 
     public String getPod() {
         return pod;
@@ -42,32 +41,17 @@ public class OpenShiftExec extends OpenShiftBaseStep implements IOpenShiftExec, 
         return arguments;
     }
 
-    public String getWaitTime() {
-        return waitTime;
-    }
-
     @DataBoundConstructor
     public OpenShiftExec(String apiURL, String namespace, String authToken, String verbose, String pod, String container, String command, List<Argument>arguments, String waitTime) {
-        super( apiURL, namespace, authToken, verbose );
+        super( apiURL, namespace, authToken, verbose, waitTime );
         this.pod = pod.trim();
         this.container = container.trim();
         this.command = command;
         this.arguments = arguments;
-        this.waitTime = waitTime.trim();
-    }
-
-    // TODO: Copied from other class boilerplate, but I don't think this works. We are passing a user specified timeout string as a map key.
-    public String getWaitTime(Map<String,String> overrides) {
-        String val = getOverride(getWaitTime(), overrides);
-        if (val.length() > 0)
-            return val;
-        return Long.toString(GlobalConfig.getBuildWait());
     }
 
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-        private long wait = GlobalConfig.BUILD_WAIT;
-
+    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptorValidation {
         /**
          * In order to load the persisted global configuration, you have to
          * call load() in the constructor.
@@ -76,29 +60,9 @@ public class OpenShiftExec extends OpenShiftBaseStep implements IOpenShiftExec, 
             load();
         }
 
-        public FormValidation doCheckApiURL(@QueryParameter String value)
-                throws IOException, ServletException {
-            return ParamVerify.doCheckApiURL(value);
-        }
-
         public FormValidation doCheckBldCfg(@QueryParameter String value)
                 throws IOException, ServletException {
             return ParamVerify.doCheckBldCfg(value);
-        }
-
-        public FormValidation doCheckNamespace(@QueryParameter String value)
-                throws IOException, ServletException {
-            return ParamVerify.doCheckNamespace(value);
-        }
-
-        public FormValidation doCheckWaitTime(@QueryParameter String value)
-                throws IOException, ServletException {
-            return ParamVerify.doCheckCheckForWaitTime(value);
-        }
-
-        public FormValidation doCheckAuthToken(@QueryParameter String value)
-                throws IOException, ServletException {
-            return ParamVerify.doCheckToken(value);
         }
 
         public FormValidation doCheckPod(@QueryParameter String value)
@@ -120,16 +84,9 @@ public class OpenShiftExec extends OpenShiftBaseStep implements IOpenShiftExec, 
             return DISPLAY_NAME;
         }
 
-        public long getWait() {
-            return wait;
-        }
-
         @Override
         public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
-            // To persist global configuration information,
-            // pull info from formData, set appropriate instance field (which should have a getter), and call save().
-            wait = formData.getLong("wait");
-            GlobalConfig.setBuildWait(wait);
+            GlobalConfig.setBuildWait(formData.getLong("wait"));
             save();
             return super.configure(req,formData);
         }
