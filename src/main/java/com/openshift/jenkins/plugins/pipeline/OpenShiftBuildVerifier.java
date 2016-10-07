@@ -2,30 +2,25 @@ package com.openshift.jenkins.plugins.pipeline;
 
 import com.openshift.jenkins.plugins.pipeline.model.GlobalConfig;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuildVerifier;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
 import hudson.Extension;
-import hudson.model.AbstractProject;
-import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
-import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
 
 
 public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IOpenShiftBuildVerifier {
-	
+
     protected final String bldCfg;
     protected final String checkForTriggeredDeployments;
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String checkForTriggeredDeployments, String waitTime) {
-    	super(apiURL, namespace, authToken, verbose, waitTime);
+    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String checkForTriggeredDeployments, String waitTime, String waitUnit) {
+        super(apiURL, namespace, authToken, verbose, waitTime, waitUnit);
         this.bldCfg = bldCfg;
         this.checkForTriggeredDeployments = checkForTriggeredDeployments;
     }
@@ -35,42 +30,41 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
     // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
-	public String getBldCfg() {
-		return bldCfg;
-	}
-	
-	public String getCheckForTriggeredDeployments() {
-		return checkForTriggeredDeployments;
-	}
-	
-	// Overridden for better type safety.
+    public String getBldCfg() {
+        return bldCfg;
+    }
+
+    public String getCheckForTriggeredDeployments() {
+        return checkForTriggeredDeployments;
+    }
+
+    // Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
     @Override
     public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl)super.getDescriptor();
+        return (DescriptorImpl) super.getDescriptor();
     }
 
     /**
      * Descriptor for {@link OpenShiftBuildVerifier}. Used as a singleton.
      * The class is marked as public so that it can be accessed from views.
-     *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptorValidation {
+    public static final class DescriptorImpl extends TimedBuildStepDescriptor<Builder> {
 
         public DescriptorImpl() {
             load();
         }
 
-        public FormValidation doCheckBldCfg(@QueryParameter String value)
-                throws IOException, ServletException {
-        	return ParamVerify.doCheckBldCfg(value);
+        @Override
+        protected long getStaticDefaultWaitTime() {
+            return GlobalConfig.DEFAULT_BUILD_VERIFY_WAIT;
         }
 
-        public boolean isApplicable(Class<? extends AbstractProject> aClass) {
-            // Indicates that this builder can be used with all kinds of project types 
-            return true;
+        public FormValidation doCheckBldCfg(@QueryParameter String value)
+                throws IOException, ServletException {
+            return ParamVerify.doCheckBldCfg(value);
         }
 
         /**
@@ -79,15 +73,7 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
         public String getDisplayName() {
             return DISPLAY_NAME;
         }
-        
-        @Override
-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
-            // To persist global configuration information,
-            // pull info from formData, set appropriate instance field (which should have a getter), and call save().
-        	GlobalConfig.setBuildVerifyWait(formData.getLong("wait"));
-            save();
-            return super.configure(req,formData);
-        }
+
 
     }
 

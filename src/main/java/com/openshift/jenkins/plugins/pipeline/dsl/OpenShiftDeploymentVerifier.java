@@ -98,12 +98,7 @@ public class OpenShiftDeploymentVerifier extends TimedOpenShiftBaseStep implemen
             if (depCfg == null || depCfg.toString().length() == 0)
             	throw new IllegalArgumentException("need to specify deploymentConfig");
             OpenShiftDeploymentVerifier step = new OpenShiftDeploymentVerifier(depCfg.toString());
-            
-            if (arguments.containsKey("waitTime")) {
-            	Object waitTime = arguments.get("waitTime");
-            	if (waitTime != null)
-            		step.setWaitTime(waitTime.toString());
-            }
+
             if (arguments.containsKey("replicaCount")) {
             	Object replicaCount = arguments.get("replicaCount");
             	if (replicaCount != null)
@@ -115,7 +110,7 @@ public class OpenShiftDeploymentVerifier extends TimedOpenShiftBaseStep implemen
             		step.setVerifyReplicaCount(verifyReplicaCount.toString());
             }
             
-            ParamVerify.updateDSLBaseStep(arguments, step);
+            ParamVerify.updateTimedDSLBaseStep(arguments, step);
             return step;
         }
     }

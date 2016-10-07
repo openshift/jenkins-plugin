@@ -1,5 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.util.FormValidation;
@@ -119,7 +119,7 @@ public class OpenShiftBuildCanceller extends OpenShiftBasePostAction {
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements IOpenShiftPluginDescriptorValidation {
+    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements IOpenShiftPluginDescriptor {
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().
