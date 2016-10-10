@@ -20,114 +20,124 @@ import java.util.concurrent.TimeUnit;
 
 public interface IOpenShiftExec extends ITimedOpenShiftPlugin {
 
-	String DISPLAY_NAME = "OpenShift Exec";
+    String DISPLAY_NAME = "OpenShift Exec";
 
-	String getPod();
+    String getPod();
 
-	String getContainer();
+    String getContainer();
 
-	String getCommand();
+    String getCommand();
 
-	List<Argument> getArguments();
+    List<Argument> getArguments();
 
-	default String getDisplayName() {
-		return DISPLAY_NAME;
-	}
+    default String getDisplayName() {
+        return DISPLAY_NAME;
+    }
 
-	default long getDefaultWaitTime() {
-		return GlobalConfig.getExecWait();
-	}
+    default long getGlobalTimeoutConfiguration() {
+        return GlobalConfig.getExecWait();
+    }
 
-	default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
-		listener.getLogger().println(String.format(MessageConstants.START_EXEC, DISPLAY_NAME, getNamespace(overrides)));
-		List<String> fullCommand = new ArrayList<>();
-		fullCommand.add(getCommand());
-		getArguments().forEach( a -> fullCommand.add( a.getValue() ) );
+    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+        boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
 
-		IPodExec.Options options = new IPodExec.Options();
-		if ( !getContainer().isEmpty() ) {
-			options.container( getContainer() );
-		}
+        listener.getLogger().println(String.format(MessageConstants.START_EXEC, DISPLAY_NAME, getNamespace(overrides)));
+        List<String> fullCommand = new ArrayList<>();
+        fullCommand.add(getCommand());
+        getArguments().forEach(a -> fullCommand.add(a.getValue()));
 
-		// get oc client
-		IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-		if ( client == null ) {
-			listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to obtain rest client"));
-			return false;
-		}
+        IPodExec.Options options = new IPodExec.Options();
+        if (!getContainer().isEmpty()) {
+            options.container(getContainer());
+        }
 
-		long remainingWaitTime = getTimeout(overrides);
+        // get oc client
+        IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
+        if (client == null) {
+            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to obtain rest client"));
+            return false;
+        }
 
-		final int LOOP_DELAY = 1000;
+        long remainingWaitTime = getTimeout(listener, chatty, overrides);
 
-		IPod p = null;
-		for ( int retries = 10; p == null; retries-- ) {
-			try {
-				p = client.get( ResourceKind.POD, getPod(), getNamespace());
-			} catch ( Exception e ) {
-				if ( retries == 1 || remainingWaitTime < 0 ) {
-					listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to find pod: " + getPod()));
-					e.printStackTrace( listener.getLogger() );
-					return false;
-				}
-				try {
-					Thread.sleep( LOOP_DELAY );
-					remainingWaitTime -= LOOP_DELAY;
-				} catch ( InterruptedException ie ) {}
-			}
-		}
+        final int LOOP_DELAY = 1000;
 
-		final CountDownLatch latch = new CountDownLatch(1);
+        IPod p = null;
+        for (int retries = 10; p == null; retries--) {
+            try {
+                p = client.get(ResourceKind.POD, getPod(), getNamespace());
+            } catch (Exception e) {
+                if (retries == 1 || remainingWaitTime < 0) {
+                    listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to find pod: " + getPod()));
+                    e.printStackTrace(listener.getLogger());
+                    return false;
+                }
+                try {
+                    Thread.sleep(LOOP_DELAY);
+                    remainingWaitTime -= LOOP_DELAY;
+                } catch (InterruptedException ie) {
+                }
+            }
+        }
 
-		IStoppable exec = p.accept(new CapabilityVisitor<IPodExec, IStoppable>() {
-			@Override
-			public IStoppable visit(IPodExec capability) {
-				return capability.start( new IPodExec.IPodExecOutputListener() {
+        final CountDownLatch latch = new CountDownLatch(1);
 
-					@Override
-					public void onOpen() {
-						listener.getLogger().println( "Connection opened for exec operation" );
-					}
+        IStoppable exec = p.accept(new CapabilityVisitor<IPodExec, IStoppable>() {
+            @Override
+            public IStoppable visit(IPodExec capability) {
+                return capability.start(new IPodExec.IPodExecOutputListener() {
 
-					@Override
-					public void onStdOut(String message) {
-						listener.getLogger().println( "stdout> " + message );
-					}
+                    @Override
+                    public void onOpen() {
+                        listener.getLogger().println("Connection opened for exec operation");
+                    }
 
-					@Override
-					public void onStdErr(String message) {
-						listener.getLogger().println( "stderr> " + message );
-					}
+                    @Override
+                    public void onStdOut(String message) {
+                        listener.getLogger().println("stdout> " + message);
+                    }
 
-					@Override
-					public void onExecErr(String message) {
-						listener.error( "Error during exec: " + message );
-					}
+                    @Override
+                    public void onStdErr(String message) {
+                        listener.getLogger().println("stderr> " + message);
+                    }
 
-					@Override
-					public void onClose(int code, String reason) {
-						listener.getLogger().printf( "Connection closed for exec operation [%d]: %s\n", code, reason  );
-						latch.countDown();
-					}
+                    @Override
+                    public void onExecErr(String message) {
+                        listener.error("Error during exec: " + message);
+                    }
 
-					@Override
-					public void onFailure(IOException e) {
-						listener.error( "Failure during exec: " + e.getMessage() );
-						e.printStackTrace();
-						latch.countDown();
-					}
+                    @Override
+                    public void onClose(int code, String reason) {
+                        listener.getLogger().printf("Connection closed for exec operation [%d]: %s\n", code, reason);
+                        latch.countDown();
+                    }
 
-				}, options, fullCommand.toArray(new String[]{}) );
-			}
-		}, null);
+                    @Override
+                    public void onFailure(IOException e) {
+                        listener.error("Failure during exec: " + e.getMessage());
+                        e.printStackTrace();
+                        latch.countDown();
+                    }
 
-		try {
-			latch.await( Math.max( remainingWaitTime, 1 ), TimeUnit.MILLISECONDS );
-		} catch ( InterruptedException ie ) {}
+                }, options, fullCommand.toArray(new String[]{}));
+            }
+        }, null);
 
-		listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_GOOD, DISPLAY_NAME));
-		return true;
-	}
+        boolean success = false;
+        try {
+            success = latch.await(Math.max(remainingWaitTime, 1), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ie) {
+        }
+
+        if ( success ) {
+            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_GOOD, DISPLAY_NAME));
+        } else {
+            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Timed out waiting for process to exit"  ));
+        }
+
+        return true;
+    }
 
 
 }

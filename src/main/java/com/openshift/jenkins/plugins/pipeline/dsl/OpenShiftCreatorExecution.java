@@ -5,15 +5,14 @@ import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.TaskListener;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Run;
-
-import javax.inject.Inject;
-
+import hudson.model.TaskListener;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+
+import javax.inject.Inject;
 
 public class OpenShiftCreatorExecution extends AbstractSynchronousNonBlockingStepExecution<Void> {
 
@@ -39,10 +38,10 @@ public class OpenShiftCreatorExecution extends AbstractSynchronousNonBlockingSte
 
     @Override
     protected Void run() throws Exception {
-    	boolean success = step.doItCore(listener, envVars, runObj, null, launcher);
-    	if (!success) {
-    		throw new AbortException("\"" + step.getDescriptor().getDisplayName() + "\" failed");
-    	}
-    	return null;
+        boolean success = step.doItCore(listener, envVars, runObj, null, launcher);
+        if (!success) {
+            throw new AbortException("\"" + step.getDescriptor().getDisplayName() + "\" failed");
+        }
+        return null;
     }
 }

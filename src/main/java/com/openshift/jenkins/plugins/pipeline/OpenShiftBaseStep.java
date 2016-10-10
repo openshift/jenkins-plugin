@@ -15,8 +15,8 @@ import java.io.Serializable;
 
 //import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
-public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildStep, Serializable, IOpenShiftPlugin {
-	
+public abstract class OpenShiftBaseStep extends Builder implements SimpleBuildStep, Serializable, IOpenShiftPlugin {
+
     protected final String apiURL;
     protected final String namespace;
     protected final String authToken;
@@ -24,12 +24,12 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
     // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
     //protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
-    
+
     protected OpenShiftBaseStep(String apiURL, String namespace, String authToken, String verbose) {
-    	this.apiURL = apiURL;
-    	this.namespace = namespace;
-    	this.authToken = authToken;
-    	this.verbose = verbose;
+        this.apiURL = apiURL;
+        this.namespace = namespace;
+        this.authToken = authToken;
+        this.verbose = verbose;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -38,47 +38,47 @@ public abstract class OpenShiftBaseStep extends Builder  implements SimpleBuildS
     // of insuring nulls are not returned for field getters
 
     public String getApiURL() {
-		return apiURL;
-	}
-    
-	public String getNamespace() {
-		return namespace;
-	}
-	
-	public String getAuthToken() {
-		return authToken;
-	}
-	
+        return apiURL;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public String getAuthToken() {
+        return authToken;
+    }
+
     public String getVerbose() {
-		return verbose;
-	}
-    
+        return verbose;
+    }
+
     @Override
-	public void setAuth(Auth auth) {
-		this.auth = auth;
-	}
+    public void setAuth(Auth auth) {
+        this.auth = auth;
+    }
 
-	@Override
-	public Auth getAuth() {
-		return auth;
-	}
-	
-	@Override
-	public String getBaseClassName() {
-		return OpenShiftBaseStep.class.getName();
-	}
+    @Override
+    public Auth getAuth() {
+        return auth;
+    }
 
-	// this is the workflow plugin path
-	@Override
-	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
-			TaskListener listener) throws InterruptedException, IOException {
-		this.doIt(run, workspace, launcher, listener);
-	}
+    @Override
+    public String getBaseClassName() {
+        return OpenShiftBaseStep.class.getName();
+    }
 
-	// this is the classic jenkins build step path
-	@Override
+    // this is the workflow plugin path
+    @Override
+    public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
+                        TaskListener listener) throws InterruptedException, IOException {
+        this.doIt(run, workspace, launcher, listener);
+    }
+
+    // this is the classic jenkins build step path
+    @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
-		return this.doIt(build, launcher, listener);
+        return this.doIt(build, launcher, listener);
     }
 
 

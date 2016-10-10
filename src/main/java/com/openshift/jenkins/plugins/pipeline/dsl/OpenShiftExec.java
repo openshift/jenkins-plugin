@@ -24,7 +24,7 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
     protected List<Argument> arguments = new ArrayList<>();
 
     @DataBoundConstructor
-    public OpenShiftExec( String pod ) {
+    public OpenShiftExec(String pod) {
         this.pod = pod;
     }
 
@@ -59,7 +59,7 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
         return arguments;
     }
 
-	@Extension
+    @Extension
     public static class DescriptorImpl extends AbstractStepDescriptorImpl {
 
         public DescriptorImpl() {
@@ -76,75 +76,74 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
             return DISPLAY_NAME;
         }
 
-        private Object requiredArgument( Map<String, Object> arguments, String arg ) {
-            Object o = arguments.get( arg );
-            if ( o == null ) {
-                throw new IllegalArgumentException( "Missing required argument: " + arg );
+        private Object requiredArgument(Map<String, Object> arguments, String arg) {
+            Object o = arguments.get(arg);
+            if (o == null) {
+                throw new IllegalArgumentException("Missing required argument: " + arg);
             }
             return o;
         }
 
-        private String argumentAsString(Map<String, Object> arguments, String arg, String def ) {
-            Object o = arguments.get( arg );
-            if ( o == null ) {
+        private String argumentAsString(Map<String, Object> arguments, String arg, String def) {
+            Object o = arguments.get(arg);
+            if (o == null) {
                 return def;
             }
             return o.toString();
         }
 
-        private String argumentAsString(Map<String, Object> arguments, String arg ) throws IllegalArgumentException {
-            return requiredArgument(arguments, arg ).toString();
+        private String argumentAsString(Map<String, Object> arguments, String arg) throws IllegalArgumentException {
+            return requiredArgument(arguments, arg).toString();
         }
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            OpenShiftExec step = new OpenShiftExec( argumentAsString( arguments, "pod" ) );
-            step.setContainer( argumentAsString( arguments, "container", "" ) );
+            OpenShiftExec step = new OpenShiftExec(argumentAsString(arguments, "pod"));
+            step.setContainer(argumentAsString(arguments, "container", ""));
 
-            Object commandObject = requiredArgument( arguments, "command" );
-            if ( commandObject instanceof String ) { // command: "date"
-                step.setCommand( commandObject.toString() );
-            } else if ( commandObject instanceof List ) { // command : [ "echo", "hello", ... ]
-                List commandList = (List)commandObject;
+            Object commandObject = requiredArgument(arguments, "command");
+            if (commandObject instanceof String) { // command: "date"
+                step.setCommand(commandObject.toString());
+            } else if (commandObject instanceof List) { // command : [ "echo", "hello", ... ]
+                List commandList = (List) commandObject;
                 Iterator i = commandList.iterator();
-                if ( ! i.hasNext() ) {
-                    throw new IllegalArgumentException( "Command list cannot be empty" );
+                if (!i.hasNext()) {
+                    throw new IllegalArgumentException("Command list cannot be empty");
                 }
-                step.setCommand( i.next().toString() );
+                step.setCommand(i.next().toString());
                 List<Argument> commandArgs = new ArrayList<>();
-                while ( i.hasNext() ) {
-                    commandArgs.add( new Argument( i.next().toString() ) );
+                while (i.hasNext()) {
+                    commandArgs.add(new Argument(i.next().toString()));
                 }
                 step.setArguments(commandArgs);
             } else {
-                throw new IllegalArgumentException( "Unrecognized command syntax. It created type: " + commandObject.getClass().getName() );
+                throw new IllegalArgumentException("Unrecognized command syntax. It created type: " + commandObject.getClass().getName());
             }
 
-            Object argumentsObject = arguments.get( "arguments" );
-            if ( argumentsObject != null ) {
-                if ( argumentsObject instanceof List ) {
+            Object argumentsObject = arguments.get("arguments");
+            if (argumentsObject != null) {
+                if (argumentsObject instanceof List) {
                     List<Argument> commandArgs = new ArrayList<>();
-                    for ( Object o : (List)argumentsObject ) {
+                    for (Object o : (List) argumentsObject) {
                         String arg;
-                        if ( o instanceof Map ) {
-                            Object aObject = ((Map)o).get( "value" );
-                            if ( aObject == null ) {
-                                throw new IllegalArgumentException( "Expected value entry in arguments map: " + o.toString() );
+                        if (o instanceof Map) {
+                            Object aObject = ((Map) o).get("value");
+                            if (aObject == null) {
+                                throw new IllegalArgumentException("Expected value entry in arguments map: " + o.toString());
                             }
                             arg = aObject.toString();
                         } else {
                             arg = o.toString();
                         }
-                        commandArgs.add( new Argument( arg ) );
+                        commandArgs.add(new Argument(arg));
                     }
                     step.setArguments(commandArgs);
                 } else {
-                    throw new IllegalArgumentException( "Unrecognized arguments syntax. It created type: " + argumentsObject.getClass().getName() );
+                    throw new IllegalArgumentException("Unrecognized arguments syntax. It created type: " + argumentsObject.getClass().getName());
                 }
             }
 
-            step.setWaitTime(argumentAsString( arguments, "waitTime", null));
-            ParamVerify.updateDSLBaseStep(arguments, step);
+            ParamVerify.updateTimedDSLBaseStep(arguments, step);
             return step;
         }
 

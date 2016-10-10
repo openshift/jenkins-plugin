@@ -11,7 +11,6 @@ import hudson.tasks.BuildStepMonitor;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
 
 import java.util.Collection;
 import java.util.Map;
@@ -81,13 +80,7 @@ public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenSh
             	throw new IllegalArgumentException("need to specify deploymentConfig");
             OpenShiftDeployer step = new OpenShiftDeployer(depCfg.toString());
             
-            if (arguments.containsKey("waitTime")) {
-            	Object waitTime = arguments.get("waitTime");
-            	if (waitTime != null)
-            		step.setWaitTime(waitTime.toString());
-            }
-            
-            ParamVerify.updateDSLBaseStep(arguments, step);
+            ParamVerify.updateTimedDSLBaseStep(arguments, step);
             return step;
         }
     }

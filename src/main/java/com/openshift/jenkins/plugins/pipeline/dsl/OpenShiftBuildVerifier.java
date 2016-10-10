@@ -21,46 +21,48 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
     protected final String bldCfg;
     protected String checkForTriggeredDeployments;
 
-    @DataBoundConstructor public OpenShiftBuildVerifier(String bldCfg) {
-    	this.bldCfg = bldCfg;
-	}
+    @DataBoundConstructor
+    public OpenShiftBuildVerifier(String bldCfg) {
+        this.bldCfg = bldCfg;
+    }
 
-	@Override
-	public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-		return true;
-	}
+    @Override
+    public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
+        return true;
+    }
 
-	@Override
-	public Action getProjectAction(AbstractProject<?, ?> project) {
-		return null;
-	}
+    @Override
+    public Action getProjectAction(AbstractProject<?, ?> project) {
+        return null;
+    }
 
-	@Override
-	public Collection<? extends Action> getProjectActions(
-			AbstractProject<?, ?> project) {
-		return null;
-	}
+    @Override
+    public Collection<? extends Action> getProjectActions(
+            AbstractProject<?, ?> project) {
+        return null;
+    }
 
-	@Override
-	public BuildStepMonitor getRequiredMonitorService() {
-		return null;
-	}
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return null;
+    }
 
-	@Override
-	public String getBldCfg() {
-		return bldCfg;
-	}
+    @Override
+    public String getBldCfg() {
+        return bldCfg;
+    }
 
-	@Override
-	public String getCheckForTriggeredDeployments() {
-		return checkForTriggeredDeployments;
-	}
+    @Override
+    public String getCheckForTriggeredDeployments() {
+        return checkForTriggeredDeployments;
+    }
 
-	@DataBoundSetter public void setCheckForTriggeredDeployments(String checkForTriggeredDeployments) {
-		this.checkForTriggeredDeployments = checkForTriggeredDeployments;
-	}
+    @DataBoundSetter
+    public void setCheckForTriggeredDeployments(String checkForTriggeredDeployments) {
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments;
+    }
 
-	@Extension
+    @Extension
     public static class DescriptorImpl extends AbstractStepDescriptorImpl {
 
         public DescriptorImpl() {
@@ -80,12 +82,12 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
             if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
-            	throw new IllegalArgumentException("need to specify buildConfig");
+                throw new IllegalArgumentException("need to specify buildConfig");
             Object bldCfg = arguments.get("buildConfig");
             if (bldCfg == null || bldCfg.toString().length() == 0)
-            	bldCfg = arguments.get("bldCfg");
+                bldCfg = arguments.get("bldCfg");
             if (bldCfg == null || bldCfg.toString().length() == 0)
-            	throw new IllegalArgumentException("need to specify buildConfig");
+                throw new IllegalArgumentException("need to specify buildConfig");
             OpenShiftBuildVerifier step = new OpenShiftBuildVerifier(bldCfg.toString());
             if (arguments.containsKey("checkForTriggeredDeployments")) {
                 Object checkForTriggeredDeployments = arguments.get("checkForTriggeredDeployments");
@@ -93,13 +95,8 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
                     step.setCheckForTriggeredDeployments(checkForTriggeredDeployments.toString());
                 }
             }
-            if (arguments.containsKey("waitTime")) {
-                Object waitTime = arguments.get("waitTime");
-                if (waitTime != null) {
-                    step.setWaitTime(waitTime.toString());
-                }
-            }
-            ParamVerify.updateDSLBaseStep(arguments, step);
+
+            ParamVerify.updateTimedDSLBaseStep(arguments, step);
             return step;
         }
     }

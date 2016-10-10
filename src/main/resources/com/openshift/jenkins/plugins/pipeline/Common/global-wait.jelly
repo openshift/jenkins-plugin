@@ -1,0 +1,14 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+    <f:entry title="Default operation timeout" field="wait" help="/plugin/openshift-pipeline/help-waitTime.html">
+        <f:textbox/>
+    </f:entry>
+
+    <f:entry name="waitUnit" title="Timeout units" field="waitUnit" help="/plugin/openshift-pipeline/help-waitUnit.html" >
+        <f:select name="waitUnit">
+        </f:select>
+    </f:entry>
+
+</j:jelly>

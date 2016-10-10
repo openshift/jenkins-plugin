@@ -1,7 +1,7 @@
 package com.openshift.jenkins.plugins.pipeline;
 
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftCreator;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import hudson.Extension;
 import hudson.model.AbstractProject;
 import hudson.tasks.BuildStepDescriptor;
@@ -36,22 +36,13 @@ public class OpenShiftCreator extends OpenShiftBaseStep implements IOpenShiftCre
     	return jsonyaml;
     }
     
-
-    // Overridden for better type safety.
-    // If your plugin doesn't really define any property on Descriptor,
-    // you don't have to do this.
-    @Override
-    public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl)super.getDescriptor();
-    }
-
     /**
      * Descriptor for {@link OpenShiftCreator}. Used as a singleton.
      * The class is marked as public so that it can be accessed from views.
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptorValidation {
+    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptor {
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().

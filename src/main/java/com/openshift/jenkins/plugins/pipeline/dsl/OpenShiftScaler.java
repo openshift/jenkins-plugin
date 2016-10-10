@@ -98,19 +98,14 @@ public class OpenShiftScaler extends TimedOpenShiftBaseStep implements IOpenShif
             		throw new IllegalArgumentException("need to specif replicaCount");
             OpenShiftScaler step = new OpenShiftScaler(depCfg.toString(),
             		arguments.get("replicaCount").toString());
-            
-            if (arguments.containsKey("waitTime")) {
-            	Object waitTime = arguments.get("waitTime");
-            	if (waitTime != null)
-            		step.setWaitTime(waitTime.toString());
-            }
+
             if (arguments.containsKey("verifyReplicaCount")) {
             	Object verifyReplicaCount = arguments.get("verifyReplicaCount");
             	if (verifyReplicaCount != null)
             		step.setVerifyReplicaCount(verifyReplicaCount.toString());
             }
             
-            ParamVerify.updateDSLBaseStep(arguments, step);
+            ParamVerify.updateTimedDSLBaseStep(arguments, step);
             return step;
         }
     }

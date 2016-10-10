@@ -1,7 +1,7 @@
 package com.openshift.jenkins.plugins.pipeline;
 
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeleterLabels;
-import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptorValidation;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import hudson.Extension;
 import hudson.model.AbstractProject;
 import hudson.model.Item;
@@ -65,7 +65,7 @@ public class OpenShiftDeleterLabels extends OpenShiftBaseStep implements IOpenSh
      *
      */
     @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptorValidation {
+    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptor {
         /**
          * To persist global configuration information,
          * simply store it in a field and call save().

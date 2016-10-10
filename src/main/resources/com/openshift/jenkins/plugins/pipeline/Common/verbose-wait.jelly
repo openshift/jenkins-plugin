@@ -8,8 +8,13 @@
             <f:booleanRadio default="false"/>
         </f:entry>
 
-        <f:entry title="Operation timeout (ms)" field="waitTime" help="/plugin/openshift-pipeline/help-waitTime.html">
+        <f:entry title="Operation timeout" field="waitTime" help="/plugin/openshift-pipeline/help-waitTime.html">
             <f:textbox/>
+        </f:entry>
+
+        <f:entry name="waitUnit" title="Timeout units" field="waitUnit" help="/plugin/openshift-pipeline/help-waitUnit.html" >
+            <f:select name="waitUnit">
+            </f:select>
         </f:entry>
 
     </f:advanced>
