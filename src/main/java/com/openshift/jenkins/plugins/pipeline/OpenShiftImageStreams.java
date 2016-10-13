@@ -9,10 +9,7 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractProject;
-import hudson.model.Job;
-import hudson.model.Run;
-import hudson.model.TaskListener;
+import hudson.model.*;
 import hudson.scm.*;
 import hudson.scm.PollingResult.Change;
 import hudson.util.FormValidation;
@@ -107,10 +104,17 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
 
+        String commitId = null;
 
-        IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, getImageStreamName(overrides), getNamespace(overrides));
-        // we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
-        String commitId = isImpl.getImageId(tag);
+        String imageStream = getImageStreamName(overrides);
+        try {
+            IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStream, getNamespace(overrides));
+            // we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
+            commitId = isImpl.getImageId(tag);
+        } catch (com.openshift.restclient.NotFoundException e) {
+            if (chatty)
+                listener.getLogger().println("\n\nImageStream " + imageStream + " not found");
+        }
 
 
         if (chatty)
@@ -130,7 +134,15 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
             bldName = build.getDisplayName();
         if (chatty)
             listener.getLogger().println("\n\nOpenShiftImageStreams checkout called for " + bldName);
-        // nothing to actually check out in the classic SCM sense into the jenkins workspace
+
+        EnvVars env = build.getEnvironment(listener);
+        lastCommitId = getCommitId(listener, env);
+        if (lastCommitId == null) {
+            String imageStream = getImageStreamName(env);
+            String tag = getTag(env);
+            listener.getLogger().println(String.format(MessageConstants.SCM_IMAGESTREAM_NOT_FOUND, imageStream, tag));
+            build.getExecutor().interrupt(Result.FAILURE);
+        }
     }
 
     @Override
@@ -148,17 +160,13 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
         String commitId = lastCommitId;
 
         ImageStreamRevisionState currIMSState = null;
-        if (commitId == null) {
-            commitId = this.getCommitId(listener, build.getEnvironment(listener));
-        }
-
         if (commitId != null) {
             currIMSState = new ImageStreamRevisionState(commitId);
             listener.getLogger().println(String.format(MessageConstants.SCM_LAST_REV, currIMSState.toString()));
         } else {
+            currIMSState = new ImageStreamRevisionState("");
             listener.getLogger().println(MessageConstants.SCM_NO_REV);
         }
-
 
         return currIMSState;
     }

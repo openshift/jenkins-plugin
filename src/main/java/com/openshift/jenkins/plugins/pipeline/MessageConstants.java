@@ -137,6 +137,7 @@ public static final String SCM_NO_REV = "  No revision state has been retrieved 
 public static final String SCM_COMP = "\n\nThe \"%s\" SCM is pulling the lastest revision state from OpenShift for the image stream \"%s\" and tag \"%s\" from the project \"%s\" and storing in Jenkins.";
 public static final String SCM_CHANGE = "\n\n A revision change was found this polling cycle.";
 public static final String SCM_NO_CHANGE = "\n\n No revision change found this polling cycle.";
+public static final String SCM_IMAGESTREAM_NOT_FOUND = "\n\nCannot find the last tagged image for ImageStream %s and tag %s";
 
 /*
  * These messages are for the "Tag OpenShift Image" jenkins build step implemented by OpenShiftImageTagger
