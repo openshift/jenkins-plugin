@@ -59,6 +59,8 @@ public interface IOpenShiftPlugin {
     // to this object (e.g. build, deployment) being created.
     public static final String BUILD_URL_ANNOTATION = "openshift.io/jenkins-build-uri";
 
+    public static final String KUBERNETES_SERVICE_HOST_ENV_KEY = "KUBERNETES_SERVICE_HOST";
+
     public static final String NAMESPACE_FILE = "/run/secrets/kubernetes.io/serviceaccount/namespace";
 
     public static final String NAMESPACE_ENV_VAR = "PROJECT_NAME";
@@ -98,7 +100,7 @@ public interface IOpenShiftPlugin {
     default String getApiURL(Map<String, String> overrides) {
         String val = getOverride(getApiURL(), overrides);
         if ((val == null || val.length() == 0) && overrides != null && overrides.containsKey("KUBERNETES_SERVICE_HOST")) {
-            val = overrides.get("KUBERNETES_SERVICE_HOST");
+            val = overrides.get(KUBERNETES_SERVICE_HOST_ENV_KEY);
         }
         if (val != null && val.length() > 0 && !val.startsWith("https://"))
             val = "https://" + val;
@@ -624,89 +626,9 @@ public interface IOpenShiftPlugin {
         return annotated;
     }
 
-    default String httpGet(boolean chatty, TaskListener listener,
-                           Map<String, String> overrides, String urlString) {
-        URL url = null;
-        try {
-            url = new URL(urlString);
-        } catch (MalformedURLException e) {
-            e.printStackTrace(listener.getLogger());
-            return null;
-        }
-        // our lower level openshift-restclient-java usage here is not agreeable with the TrustManager maintained there,
-        // so we set up our own trust manager like we used to do in order to verify the server cert
-        try {
-            AuthorizationContext authContext = new AuthorizationContext(getAuthToken(overrides), null, null);
-            ResponseCodeInterceptor responseCodeInterceptor = new ResponseCodeInterceptor();
-            OpenShiftAuthenticator authenticator = new OpenShiftAuthenticator();
-            Dispatcher dispatcher = new Dispatcher();
-            DefaultClient client = (DefaultClient) this.getClient(listener, getDisplayName(), overrides);
-            OkHttpClient.Builder builder = new OkHttpClient.Builder()
-                    .addInterceptor(responseCodeInterceptor)
-                    .authenticator(authenticator)
-                    .dispatcher(dispatcher)
-                    .readTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
-                    .writeTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
-                    .connectTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
-                    .hostnameVerifier(getAuth());
-            X509TrustManager trustManager = null;
-            if (getAuth().useCert()) {
-                trustManager = Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
-            } else {
-                // so okhttp is a bit of a PITA when it comes to enforcing skip tls behavior
-                // (it should just allow you to set a null ssl socket factory given how
-                // RealConnection/Address/Route work), but stack overflow came to the rescue
-                // (http://stackoverflow.com/questions/25509296/trusting-all-certificates-with-okhttp)
-                // Create a trust manager that does not validate certificate chains
-                trustManager = new X509TrustManager() {
-                    @Override
-                    public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) throws CertificateException {
-                    }
-
-                    @Override
-                    public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) throws CertificateException {
-                    }
-
-                    @Override
-                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                        return new java.security.cert.X509Certificate[]{};
-                    }
-                };
-            }
-
-            SSLContext sslContext = null;
-            try {
-                sslContext = SSLUtils.getSSLContext(trustManager);
-            } catch (KeyManagementException e) {
-                if (chatty)
-                    e.printStackTrace(listener.getLogger());
-                return null;
-            } catch (NoSuchAlgorithmException e) {
-                if (chatty)
-                    e.printStackTrace(listener.getLogger());
-                return null;
-            }
-            builder.sslSocketFactory(sslContext.getSocketFactory(), trustManager);
-
-            OkHttpClient okClient = builder.build();
-            authContext.setClient(client);
-            responseCodeInterceptor.setClient(client);
-            authenticator.setClient(client);
-            authenticator.setOkClient(okClient);
-            Request request = client.newRequestBuilderTo(url.toString()).get().build();
-            Response result;
-            try {
-                result = okClient.newCall(request).execute();
-                String response = result.body().string();
-                return response;
-            } catch (IOException e) {
-                if (chatty)
-                    e.printStackTrace(listener.getLogger());
-            }
-            return null;
-        } finally {
-            Auth.resetLocalTrustStore();
-        }
+    default String httpGet(boolean chatty, TaskListener listener, Map<String, String> overrides, String urlString) {
+        return HttpUtils.httpGet(chatty, listener, overrides, urlString, getAuthToken(overrides), getDisplayName(),
+                (DefaultClient) this.getClient(listener, getDisplayName(), overrides), getAuth(), getApiURL(overrides));
     }
 
 }

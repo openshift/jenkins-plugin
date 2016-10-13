@@ -13,4 +13,8 @@
     <f:textbox  />
   </f:entry>
 
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection"
+    with="apiURL,authToken" />
+
+
 </j:jelly>
