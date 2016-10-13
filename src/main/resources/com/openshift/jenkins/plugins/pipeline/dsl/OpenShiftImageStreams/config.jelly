@@ -1,1 +1,16 @@
-../../OpenShiftImageStreams/config.jelly
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
+  <st:include page="cluster.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />
+
+  <f:entry title="The name of the ImageStream to monitor" field="name">
+    <f:textbox  />
+  </f:entry>
+
+  <f:entry title="The specific image tag in the ImageStream to monitor" field="tag">
+    <f:textbox  />
+  </f:entry>
+
+  <st:include page="verbose.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />
+
+</j:jelly>
