@@ -23,7 +23,7 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
 
     @DataBoundConstructor
     public OpenShiftBuildVerifier(String bldCfg) {
-        this.bldCfg = bldCfg;
+        this.bldCfg = bldCfg != null ? bldCfg.trim() : null;
     }
 
     @Override
@@ -59,7 +59,7 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
 
     @DataBoundSetter
     public void setCheckForTriggeredDeployments(String checkForTriggeredDeployments) {
-        this.checkForTriggeredDeployments = checkForTriggeredDeployments;
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments.trim() : null;
     }
 
     @Extension
@@ -84,9 +84,9 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
             if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
                 throw new IllegalArgumentException("need to specify buildConfig");
             Object bldCfg = arguments.get("buildConfig");
-            if (bldCfg == null || bldCfg.toString().length() == 0)
+            if (bldCfg == null || bldCfg.toString().trim().length() == 0)
                 bldCfg = arguments.get("bldCfg");
-            if (bldCfg == null || bldCfg.toString().length() == 0)
+            if (bldCfg == null || bldCfg.toString().trim().length() == 0)
                 throw new IllegalArgumentException("need to specify buildConfig");
             OpenShiftBuildVerifier step = new OpenShiftBuildVerifier(bldCfg.toString());
             if (arguments.containsKey("checkForTriggeredDeployments")) {

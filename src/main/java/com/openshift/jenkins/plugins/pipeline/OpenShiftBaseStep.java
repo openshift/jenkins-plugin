@@ -26,10 +26,10 @@ public abstract class OpenShiftBaseStep extends Builder implements SimpleBuildSt
     protected transient Auth auth;
 
     protected OpenShiftBaseStep(String apiURL, String namespace, String authToken, String verbose) {
-        this.apiURL = apiURL;
-        this.namespace = namespace;
-        this.authToken = authToken;
-        this.verbose = verbose;
+        this.apiURL = apiURL != null ? apiURL.trim() : null;
+        this.namespace = namespace != null ? namespace.trim() : null;
+        this.authToken = authToken != null ? authToken.trim() : null;
+        this.verbose = verbose != null ? verbose.trim() : null;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -80,6 +80,4 @@ public abstract class OpenShiftBaseStep extends Builder implements SimpleBuildSt
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
         return this.doIt(build, launcher, listener);
     }
-
-
 }

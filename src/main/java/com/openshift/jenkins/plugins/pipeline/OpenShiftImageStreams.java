@@ -53,12 +53,12 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftImageStreams(String imageStreamName, String tag, String apiURL, String namespace, String authToken, String verbose) {
-        this.imageStreamName = imageStreamName;
-        this.tag = tag;
-        this.apiURL = apiURL;
-        this.namespace = namespace;
-        this.authToken = authToken;
-        this.verbose = verbose;
+        this.imageStreamName = imageStreamName != null ? imageStreamName.trim() : null;
+        this.tag =  tag != null ? tag.trim() : null;
+        this.apiURL = apiURL != null ? apiURL.trim() : null;
+        this.namespace = namespace != null ? namespace.trim() : null;
+        this.authToken = authToken != null ? authToken.trim() : null;
+        this.verbose = verbose != null ? verbose.trim() : null;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically

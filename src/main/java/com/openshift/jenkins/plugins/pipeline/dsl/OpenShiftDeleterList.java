@@ -24,8 +24,8 @@ public class OpenShiftDeleterList extends OpenShiftBaseStep implements IOpenShif
 	protected final String keys;
 	
     @DataBoundConstructor public OpenShiftDeleterList(String types, String keys) {
-    	this.types = types;
-    	this.keys = keys;
+    	this.types = types != null ? types.trim() : null;
+    	this.keys = keys != null ? keys.trim() : null;
 	}
     
 

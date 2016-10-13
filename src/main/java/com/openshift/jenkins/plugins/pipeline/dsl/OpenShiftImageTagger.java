@@ -12,6 +12,7 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
+import javax.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.Map;
 
@@ -29,10 +30,10 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftImageTagger(String srcStream, String srcTag, String destStream, String destTag) {
-        this.srcStream = srcStream;
-        this.srcTag = srcTag;
-        this.destStream = destStream;
-        this.destTag = destTag;
+        this.srcStream = srcStream != null ? srcStream.trim() : null;
+        this.srcTag = srcTag != null ? srcTag.trim() : null;
+        this.destStream = destStream != null ? destStream.trim() : null;
+        this.destTag = destTag != null ? destTag.trim() : null;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -45,7 +46,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 	}
 
 	@DataBoundSetter public void setAlias(String alias) {
-		this.alias = alias;
+		this.alias = alias != null ? alias.trim() : null;
 	}
 	
 	@Deprecated
@@ -89,7 +90,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 	}
 	
 	@DataBoundSetter public void setDestinationNamespace(String destinationNamespace) {
-		this.destinationNamespace = destinationNamespace;
+		this.destinationNamespace = destinationNamespace != null ? destinationNamespace.trim() : null;
 	}
 	
 	public String getDestinationAuthToken() {
@@ -97,7 +98,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 	}
 	
 	@DataBoundSetter public void setDestinationAuthToken(String destinationAuthToken) {
-		this.destinationAuthToken = destinationAuthToken;
+		this.destinationAuthToken = destinationNamespace != null ? destinationAuthToken.trim() : null;
 	}
 	
 	@Extension
@@ -135,19 +136,19 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
             Object destStream = arguments.get("destinationStream");
             Object destTag = arguments.get("destinationTag");
             
-            if (srcStream == null || srcStream.toString().length() == 0)
+            if (srcStream == null || srcStream.toString().trim().length() == 0)
             	srcStream = arguments.get("srcStream");
-            if (srcTag == null || srcTag.toString().length() == 0)
+            if (srcTag == null || srcTag.toString().trim().length() == 0)
             	srcTag = arguments.get("srcTag");
-            if (destStream == null || destStream.toString().length() == 0)
+            if (destStream == null || destStream.toString().trim().length() == 0)
             	destStream = arguments.get("destStream");
-            if (destTag == null || destTag.toString().length() == 0)
+            if (destTag == null || destTag.toString().trim().length() == 0)
             	destTag = arguments.get("destTag");
             
-            if (srcStream == null || srcStream.toString().length() == 0 ||
-            	srcTag == null || srcTag.toString().length() == 0 ||
-            	destStream == null || destStream.toString().length() == 0 ||
-            	destTag == null || destTag.toString().length() == 0) 
+            if (srcStream == null || srcStream.toString().trim().length() == 0 ||
+            	srcTag == null || srcTag.toString().trim().length() == 0 ||
+            	destStream == null || destStream.toString().trim().length() == 0 ||
+            	destTag == null || destTag.toString().trim().length() == 0)
             	throw new IllegalArgumentException("need to specify sourceStream, sourceTag, destinationStream, destinationTag");
             
             OpenShiftImageTagger step = 

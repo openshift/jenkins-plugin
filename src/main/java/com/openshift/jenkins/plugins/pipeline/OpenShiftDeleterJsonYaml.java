@@ -17,14 +17,14 @@ import java.io.IOException;
 
 
 public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpenShiftDeleterJsonYaml {
-	
+
     protected final String jsonyaml;
     
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftDeleterJsonYaml(String apiURL, String namespace, String authToken, String verbose, String jsonyaml) {
-    	super(apiURL, namespace, authToken, verbose);
-    	this.jsonyaml = jsonyaml;
+        super(apiURL, namespace, authToken, verbose);
+        this.jsonyaml = jsonyaml != null ? jsonyaml.trim() : null;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -33,7 +33,7 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpen
     // of insuring nulls are not returned for field getters
 
     public String getJsonyaml() {
-    	return jsonyaml;
+        return jsonyaml;
     }
     
 
@@ -71,7 +71,7 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpen
 
         public FormValidation doCheckJsonyaml(@QueryParameter String value)
                 throws IOException, ServletException {
-        	return ParamVerify.doCheckJsonyaml(value);
+            return ParamVerify.doCheckJsonyaml(value);
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {

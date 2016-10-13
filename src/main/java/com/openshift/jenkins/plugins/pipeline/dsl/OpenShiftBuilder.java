@@ -48,7 +48,7 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
 
     @DataBoundSetter
     public void setCommitID(String commitID) {
-        this.commitID = commitID;
+        this.commitID = commitID != null ? commitID.trim() : null;
     }
 
     public String getBuildName() {
@@ -57,7 +57,7 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
 
     @DataBoundSetter
     public void setBuildName(String buildName) {
-        this.buildName = buildName;
+        this.buildName = buildName != null ? buildName.trim() : null;
     }
 
     public String getShowBuildLogs() {
@@ -66,7 +66,7 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
 
     @DataBoundSetter
     public void setShowBuildLogs(String showBuildLogs) {
-        this.showBuildLogs = showBuildLogs;
+        this.showBuildLogs = showBuildLogs != null ? showBuildLogs.trim() : null;
     }
 
     public String getBldCfg() {
@@ -88,7 +88,7 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
 
     @DataBoundSetter
     public void setCheckForTriggeredDeployments(String checkForTriggeredDeployments) {
-        this.checkForTriggeredDeployments = checkForTriggeredDeployments;
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments.trim() : null;
     }
 
     @Extension
@@ -113,9 +113,9 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
             if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
                 throw new IllegalArgumentException("need to specify buildConfig");
             Object bldCfg = arguments.get("buildConfig");
-            if (bldCfg == null || bldCfg.toString().length() == 0)
+            if (bldCfg == null || bldCfg.toString().trim().length() == 0)
                 bldCfg = arguments.get("bldCfg");
-            if (bldCfg == null || bldCfg.toString().length() == 0)
+            if (bldCfg == null || bldCfg.toString().trim().length() == 0)
                 throw new IllegalArgumentException("need to specify buildConfig");
             OpenShiftBuilder step = new OpenShiftBuilder(bldCfg.toString());
             if (arguments.containsKey("buildName")) {
@@ -156,7 +156,7 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
                         if (name == null || value == null) {
                             throw new IOException("Missing name or value in entry: " + o.toString());
                         }
-                        envs.add(new NameValuePair(name.toString(), value.toString()));
+                        envs.add(new NameValuePair(name.toString().trim(), value.toString().trim()));
                     }
                     step.setEnv(envs);
                 } catch (Throwable t) {

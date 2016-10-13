@@ -12,8 +12,8 @@ public abstract class TimedOpenShiftBasePostAction extends OpenShiftBasePostActi
 
     public TimedOpenShiftBasePostAction(String apiURL, String namespace, String authToken, String verbose, String waitTime, String waitUnit) {
         super(apiURL, namespace, authToken, verbose);
-        this.waitTime = waitTime;
-        this.waitUnit = waitUnit;
+        this.waitTime = waitTime != null ? waitTime.trim() : null;
+        this.waitUnit = waitUnit != null ? waitUnit.trim() : null;
     }
 
     final public String getWaitTime() {

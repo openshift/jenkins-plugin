@@ -17,7 +17,7 @@ import java.io.IOException;
 
 public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShiftImageTagger {
 
-	
+
     protected final String testTag;
     protected final String prodTag;
     protected final String testStream;
@@ -29,14 +29,14 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose, String testStream, String prodStream, String destinationNamespace, String destinationAuthToken, String alias) {
-    	super(apiURL, namespace, authToken, verbose);
-        this.testTag = testTag;
-        this.prodTag = prodTag;
-        this.prodStream = prodStream;
-        this.testStream = testStream;
-        this.destinationAuthToken = destinationAuthToken;
-        this.destinationNamespace = destinationNamespace;
-        this.alias = alias;
+        super(apiURL, namespace, authToken, verbose);
+        this.testTag = testTag != null ? testTag.trim() : null;
+        this.prodTag = prodTag != null ? prodTag.trim() : null;
+        this.prodStream = prodStream != null ? prodStream.trim() : null;
+        this.testStream = testStream != null ? testStream.trim() : null;
+        this.destinationAuthToken = destinationAuthToken != null ? destinationAuthToken.trim() : null;
+        this.destinationNamespace = destinationNamespace != null ? destinationNamespace.trim() : null;
+        this.alias = alias != null ? alias.trim() : null;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -44,18 +44,18 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
-	public String getAlias() {
-		return alias;
-	}
+    public String getAlias() {
+        return alias;
+    }
 
     @Deprecated
     public String getTestTag() {
         return testTag;
     }
 
-	public String getSrcTag() {
-		return testTag;
-	}
+    public String getSrcTag() {
+        return testTag;
+    }
 
     @Deprecated
     public String getProdTag() {
@@ -64,7 +64,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 
     public String getDestTag() {
         return prodTag;
-	}
+    }
 
     @Deprecated
     public String getTestStream() {
@@ -72,8 +72,8 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     }
 
     public String getSrcStream() {
-		return testStream;
-	}
+        return testStream;
+    }
 
     @Deprecated
     public String getProdStream() {
@@ -81,17 +81,17 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     }
 
     public String getDestStream() {
-		return prodStream;
-	}
+        return prodStream;
+    }
 
-	public String getDestinationNamespace() {
-		return this.destinationNamespace;
-	}
-	
-	public String getDestinationAuthToken() {
-		return this.destinationAuthToken;
-	}
-	
+    public String getDestinationNamespace() {
+        return this.destinationNamespace;
+    }
+
+    public String getDestinationAuthToken() {
+        return this.destinationAuthToken;
+    }
+
     // Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
@@ -126,7 +126,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 
         public FormValidation doCheckDestinationNamespace(@QueryParameter String value)
                 throws IOException, ServletException {
-        	// change reuse doCheckNamespace for destination namespace
+            // change reuse doCheckNamespace for destination namespace
             return ParamVerify.doCheckNamespace(value);
         }
 
@@ -152,7 +152,7 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
 
         public FormValidation doCheckDestinationAuthToken(@QueryParameter String value)
                 throws IOException, ServletException {
-        	return ParamVerify.doCheckDestTagToken(value);
+            return ParamVerify.doCheckDestTagToken(value);
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {

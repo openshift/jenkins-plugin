@@ -24,7 +24,7 @@ public class OpenShiftDeploymentVerifier extends TimedOpenShiftBaseStep implemen
     protected String verifyReplicaCount;
 
     @DataBoundConstructor public OpenShiftDeploymentVerifier(String depCfg) {
-    	this.depCfg = depCfg;
+    	this.depCfg = depCfg != null ? depCfg.trim() : null;
 	}   
     
 	public String getDepCfg() {
@@ -36,7 +36,7 @@ public class OpenShiftDeploymentVerifier extends TimedOpenShiftBaseStep implemen
 	}
 	
 	@DataBoundSetter public void setReplicaCount(String replicaCount) {
-		this.replicaCount = replicaCount;
+		this.replicaCount = replicaCount != null ? replicaCount.trim() : null;
 	}
 	
 	public String getVerifyReplicaCount() {
@@ -44,7 +44,7 @@ public class OpenShiftDeploymentVerifier extends TimedOpenShiftBaseStep implemen
 	}
 	
 	@DataBoundSetter public void setVerifyReplicaCount(String verifyReplicaCount) {
-		this.verifyReplicaCount = verifyReplicaCount;
+		this.verifyReplicaCount = verifyReplicaCount != null ? verifyReplicaCount.trim() : null;
 	}
 	
 	@Override
@@ -93,9 +93,9 @@ public class OpenShiftDeploymentVerifier extends TimedOpenShiftBaseStep implemen
             if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
             	throw new IllegalArgumentException("need to specify deploymentConfig");
             Object depCfg = arguments.get("deploymentConfig");
-            if (depCfg == null || depCfg.toString().length() == 0)
+            if (depCfg == null || depCfg.toString().trim().length() == 0)
             	depCfg = arguments.get("depCfg");
-            if (depCfg == null || depCfg.toString().length() == 0)
+            if (depCfg == null || depCfg.toString().trim().length() == 0)
             	throw new IllegalArgumentException("need to specify deploymentConfig");
             OpenShiftDeploymentVerifier step = new OpenShiftDeploymentVerifier(depCfg.toString());
 

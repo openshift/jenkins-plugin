@@ -25,9 +25,9 @@ public class OpenShiftDeleterLabels extends OpenShiftBaseStep implements IOpenSh
 	protected final String values;
 	
     @DataBoundConstructor public OpenShiftDeleterLabels(String types, String keys, String values) {
-    	this.types = types;
-    	this.keys = keys;
-    	this.values = values;
+    	this.types = types != null ? types.trim() : null;
+    	this.keys = keys != null ? keys.trim() : null;
+    	this.values = values != null ? values.trim() : null;
 	}
     
 

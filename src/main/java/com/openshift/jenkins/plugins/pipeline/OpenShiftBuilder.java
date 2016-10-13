@@ -28,12 +28,12 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
     @DataBoundConstructor
     public OpenShiftBuilder(String apiURL, String bldCfg, String namespace, List<NameValuePair> env, String authToken, String verbose, String commitID, String buildName, String showBuildLogs, String checkForTriggeredDeployments, String waitTime, String waitUnit) {
         super(apiURL, namespace, authToken, verbose, waitTime, waitUnit);
-        this.bldCfg = bldCfg;
+        this.bldCfg = bldCfg != null ? bldCfg.trim() : null;
         this.envVars = env;
-        this.commitID = commitID;
-        this.buildName = buildName;
-        this.showBuildLogs = showBuildLogs;
-        this.checkForTriggeredDeployments = checkForTriggeredDeployments;
+        this.commitID = commitID != null ? commitID.trim() : null;
+        this.buildName = buildName != null ? buildName.trim() : null;
+        this.showBuildLogs = showBuildLogs != null ? showBuildLogs.trim() : null;
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments.trim() : null;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically

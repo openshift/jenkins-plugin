@@ -27,7 +27,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
     @DataBoundConstructor
     public OpenShiftServiceVerifier(String apiURL, String svcName, String namespace, String authToken, String verbose) {
         super(apiURL, namespace, authToken, verbose);
-        this.svcName = svcName;
+        this.svcName = svcName != null ? svcName.trim() : null;
     }
 
     public String getSvcName() {
