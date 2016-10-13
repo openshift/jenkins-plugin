@@ -30,9 +30,9 @@ public class OpenShiftDeleterLabels extends OpenShiftBaseStep implements IOpenSh
 	public OpenShiftDeleterLabels(String apiURL, String namespace, String authToken,
 			String verbose, String types, String keys, String values) {
 		super(apiURL, namespace, authToken, verbose);
-		this.types = types;
-		this.keys = keys;
-		this.values = values;
+		this.types = types != null ? types.trim() : null;
+		this.keys = keys != null ? keys.trim() : null;
+		this.values = values != null ? values.trim() : null;
 	}
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically

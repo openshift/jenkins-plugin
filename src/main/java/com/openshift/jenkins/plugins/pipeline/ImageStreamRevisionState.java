@@ -9,7 +9,7 @@ public class ImageStreamRevisionState extends SCMRevisionState implements Compar
 	public ImageStreamRevisionState(String commitId) {
 		if (commitId == null)
 			throw new IllegalArgumentException("nulls not allowed");
-		this.commitId = commitId;
+		this.commitId = commitId.trim();
 	}
 
 	@Override

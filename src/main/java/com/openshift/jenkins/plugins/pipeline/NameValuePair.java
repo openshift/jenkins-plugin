@@ -14,8 +14,8 @@ public class NameValuePair extends AbstractDescribableImpl<NameValuePair> {
 
     @DataBoundConstructor
     public NameValuePair(String name, String value) {
-        this.name = name;
-        this.value = value;
+        this.name = name != null ? name.trim() : null;
+        this.value = value != null ? value.trim() : null;
     }
 
     public String getName() {

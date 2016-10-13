@@ -20,12 +20,12 @@ public abstract class TimedOpenShiftBaseStep extends OpenShiftBaseStep implement
 
     @DataBoundSetter
     final public void setWaitTime(String waitTime) {
-        this.waitTime = waitTime;
+        this.waitTime = waitTime != null ? waitTime.trim() : null;
     }
 
     @DataBoundSetter
     final public void setWaitUnit(String waitUnit) {
-        this.waitUnit = waitUnit;
+        this.waitUnit = waitUnit != null ? waitUnit.trim() : null;
     }
 
 }

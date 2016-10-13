@@ -23,7 +23,7 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpen
     protected final String jsonyaml;
     
     @DataBoundConstructor public OpenShiftDeleterJsonYaml(String jsonyaml) {
-    	this.jsonyaml = jsonyaml;
+    	this.jsonyaml = jsonyaml != null ? jsonyaml.trim() : null;
 	}
 
 	@Override
@@ -75,11 +75,11 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpen
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
         	Object jsonyaml = arguments.get("yaml");
-        	if (jsonyaml == null || jsonyaml.toString().length() == 0)
+        	if (jsonyaml == null || jsonyaml.toString().trim().length() == 0)
         		jsonyaml = arguments.get("json");
-        	if (jsonyaml == null || jsonyaml.toString().length() == 0)
+        	if (jsonyaml == null || jsonyaml.toString().trim().length() == 0)
         		jsonyaml = arguments.get("jsonyaml");
-            if (jsonyaml == null || jsonyaml.toString().length() == 0)
+            if (jsonyaml == null || jsonyaml.toString().trim().length() == 0)
             	throw new IllegalArgumentException("need to specify json or yaml");
             OpenShiftDeleterJsonYaml step = new OpenShiftDeleterJsonYaml(jsonyaml.toString());
             ParamVerify.updateDSLBaseStep(arguments, step);

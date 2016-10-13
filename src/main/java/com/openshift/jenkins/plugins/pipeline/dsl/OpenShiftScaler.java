@@ -24,8 +24,8 @@ public class OpenShiftScaler extends TimedOpenShiftBaseStep implements IOpenShif
     protected String verifyReplicaCount;
 
     @DataBoundConstructor public OpenShiftScaler(String depCfg, String replicaCount) {
-    	this.depCfg = depCfg;
-    	this.replicaCount = replicaCount;
+    	this.depCfg = depCfg != null ? depCfg.trim() : null;
+    	this.replicaCount = replicaCount != null ? replicaCount.trim() : null;
 	}   
     
 	public String getDepCfg() {
@@ -41,7 +41,7 @@ public class OpenShiftScaler extends TimedOpenShiftBaseStep implements IOpenShif
 	}
 	
 	@DataBoundSetter public void setVerifyReplicaCount(String verifyReplicaCount) {
-		this.verifyReplicaCount = verifyReplicaCount;
+		this.verifyReplicaCount = verifyReplicaCount != null ? verifyReplicaCount.trim() : null;
 	}
 	
 	@Override
@@ -90,9 +90,9 @@ public class OpenShiftScaler extends TimedOpenShiftBaseStep implements IOpenShif
             if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
             	throw new IllegalArgumentException("need to specify deploymentConfig");
             Object depCfg = arguments.get("deploymentConfig");
-            if (depCfg == null || depCfg.toString().length() == 0)
+            if (depCfg == null || depCfg.toString().trim().length() == 0)
             	depCfg = arguments.get("depCfg");
-            if (depCfg == null || depCfg.toString().length() == 0)
+            if (depCfg == null || depCfg.toString().trim().length() == 0)
             	throw new IllegalArgumentException("need to specify deploymentConfig");
             if (!arguments.containsKey("replicaCount"))
             		throw new IllegalArgumentException("need to specif replicaCount");

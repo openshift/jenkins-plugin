@@ -21,7 +21,7 @@ public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenSh
 	protected final String depCfg;
 
     @DataBoundConstructor public OpenShiftDeployer(String depCfg) {
-    	this.depCfg = depCfg;
+    	this.depCfg = depCfg != null ? depCfg.trim() : null;
 	}   
     
 	public String getDepCfg() {
@@ -74,9 +74,9 @@ public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenSh
             if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
             	throw new IllegalArgumentException("need to specify deploymentConfig");
             Object depCfg = arguments.get("deploymentConfig");
-            if (depCfg == null || depCfg.toString().length() == 0)
+            if (depCfg == null || depCfg.toString().trim().length() == 0)
             	depCfg = arguments.get("depCfg");
-            if (depCfg == null || depCfg.toString().length() == 0)
+            if (depCfg == null || depCfg.toString().trim().length() == 0)
             	throw new IllegalArgumentException("need to specify deploymentConfig");
             OpenShiftDeployer step = new OpenShiftDeployer(depCfg.toString());
             

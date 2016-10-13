@@ -32,32 +32,32 @@ public class OpenShiftImageStreams extends SCMStep {
 
     @DataBoundSetter
     public void setName(String name) {
-        this.name = name;
+        this.name = name != null ? name.trim() : null;
     }
 
     @DataBoundSetter
     public void setTag(String tag) {
-        this.tag = tag;
+        this.tag = tag != null ? tag.trim() : null;
     }
 
     @DataBoundSetter
     public void setApiURL(String apiURL) {
-        this.apiURL = apiURL;
+        this.apiURL = apiURL != null ? apiURL.trim() : null;
     }
 
     @DataBoundSetter
     public void setNamespace(String namespace) {
-        this.namespace = namespace;
+        this.namespace = apiURL != null ? namespace.trim() : null;
     }
 
     @DataBoundSetter
     public void setAuthToken(String authToken) {
-        this.authToken = authToken;
+        this.authToken = authToken != null ? authToken.trim() : null;
     }
 
     @DataBoundSetter
     public void setVerbose(String verbose) {
-        this.verbose = verbose;
+        this.verbose = verbose != null ? verbose.trim() : null;
     }
 
     public void setAuth(Auth auth) {
@@ -94,9 +94,9 @@ public class OpenShiftImageStreams extends SCMStep {
 
     @DataBoundConstructor
     public OpenShiftImageStreams (String name, String tag, String namespace) {
-        this.name = name;
-        this.tag = tag;
-        this.namespace = namespace;
+        this.name = name != null ? name.trim() : null;
+        this.tag = tag != null ? tag.trim() : null;
+        this.namespace = namespace != null ? namespace.trim() : null;
     }
 
     @Nonnull

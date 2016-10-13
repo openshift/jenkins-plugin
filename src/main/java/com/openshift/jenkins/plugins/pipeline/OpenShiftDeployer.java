@@ -19,7 +19,7 @@ public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenSh
     @DataBoundConstructor
     public OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose, String waitTime, String waitUnit) {
         super(apiURL, namespace, authToken, verbose, waitTime, waitUnit);
-        this.depCfg = depCfg;
+        this.depCfg = depCfg != null ? depCfg.trim() : null;
     }
 
     public String getDepCfg() {

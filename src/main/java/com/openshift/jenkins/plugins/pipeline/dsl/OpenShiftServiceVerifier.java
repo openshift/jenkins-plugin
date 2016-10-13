@@ -25,7 +25,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
     
     
     @DataBoundConstructor public OpenShiftServiceVerifier(String svcName) {
-    	this.svcName = svcName;
+    	this.svcName = svcName != null ? svcName.trim() : null;
 	}   
     
 	public String getSvcName() {
@@ -48,7 +48,7 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
 	}
 	
 	@DataBoundSetter public void setRetryCount(String retryCount) {
-		this.retryCount = retryCount;
+		this.retryCount = retryCount != null ? retryCount.trim() : null;
 	}
 	
 	@Override
@@ -97,9 +97,9 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
             if (!arguments.containsKey("serviceName") && !arguments.containsKey("svcName"))
             	throw new IllegalArgumentException("need to specify serviceName");
             Object svcName = arguments.get("serviceName");
-            if (svcName == null || svcName.toString().length() == 0)
+            if (svcName == null || svcName.toString().trim().length() == 0)
             	svcName = arguments.get("svcName");
-            if (svcName == null || svcName.toString().length() == 0)
+            if (svcName == null || svcName.toString().trim().length() == 0)
             	throw new IllegalArgumentException("need to specify serviceName");
             OpenShiftServiceVerifier step = new OpenShiftServiceVerifier(svcName.toString());
             

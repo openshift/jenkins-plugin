@@ -23,9 +23,9 @@ public class OpenShiftScalerPostAction extends TimedOpenShiftBasePostAction impl
     @DataBoundConstructor
     public OpenShiftScalerPostAction(String apiURL, String depCfg, String namespace, String replicaCount, String authToken, String verbose, String verifyReplicaCount, String waitTime, String waitUnit) {
         super(apiURL, namespace, authToken, verbose, waitTime, waitUnit);
-        this.depCfg = depCfg;
-        this.replicaCount = replicaCount;
-        this.verifyReplicaCount = verifyReplicaCount;
+        this.depCfg = depCfg != null ? depCfg.trim() : null;
+        this.replicaCount = replicaCount != null ? replicaCount.trim() : null;
+        this.verifyReplicaCount = verifyReplicaCount != null ? verifyReplicaCount.trim() : null;
     }
 
     public String getDepCfg() {

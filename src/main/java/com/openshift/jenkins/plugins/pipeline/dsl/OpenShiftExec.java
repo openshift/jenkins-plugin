@@ -25,17 +25,17 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
 
     @DataBoundConstructor
     public OpenShiftExec(String pod) {
-        this.pod = pod;
+        this.pod = pod != null ? pod.trim() : null;
     }
 
     @DataBoundSetter
     public void setContainer(String container) {
-        this.container = container;
+        this.container = container != null ? container.trim() : null;
     }
 
     @DataBoundSetter
     public void setCommand(String command) {
-        this.command = command;
+        this.command = command != null ? command.trim() : null;
     }
 
     @DataBoundSetter
@@ -131,9 +131,9 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
                             if (aObject == null) {
                                 throw new IllegalArgumentException("Expected value entry in arguments map: " + o.toString());
                             }
-                            arg = aObject.toString();
+                            arg = aObject.toString().trim();
                         } else {
-                            arg = o.toString();
+                            arg = o.toString().trim();
                         }
                         commandArgs.add(new Argument(arg));
                     }

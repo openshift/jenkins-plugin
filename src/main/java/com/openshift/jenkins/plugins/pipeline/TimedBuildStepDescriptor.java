@@ -63,11 +63,12 @@ public abstract class TimedBuildStepDescriptor<T extends BuildStep & Describable
     public synchronized boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
         wait = formData.getString("wait");
         waitUnit = ITimedOpenShiftPlugin.TimeoutUnit.normalize(formData.getString("waitUnit"));
-        if (wait == null || wait.trim().isEmpty()) {
+        if (wait == null || wait.isEmpty()) {
             // If someone clears the value, go back to default and use seconds
             wait = "" + getStaticDefaultWaitTime() / ITimedOpenShiftPlugin.TimeoutUnit.SECONDS.multiplier;
             waitUnit = ITimedOpenShiftPlugin.TimeoutUnit.SECONDS.name;
         }
+        wait = wait.trim();
         save();
         return true;
     }

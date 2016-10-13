@@ -41,7 +41,7 @@ public abstract class OpenShiftBaseStep extends AbstractStepImpl  implements Sim
 	}
     
     @DataBoundSetter public void setApiURL(String apiURL) {
-    	this.apiURL = apiURL;
+    	this.apiURL = apiURL != null ? apiURL.trim() : null;
     }
 
 	public String getNamespace() {
@@ -49,7 +49,7 @@ public abstract class OpenShiftBaseStep extends AbstractStepImpl  implements Sim
 	}
 	
 	@DataBoundSetter public void setNamespace(String namespace) {
-		this.namespace = namespace;
+		this.namespace = namespace != null ? namespace.trim() : null;
 	}
 	
 	public String getAuthToken() {
@@ -57,7 +57,7 @@ public abstract class OpenShiftBaseStep extends AbstractStepImpl  implements Sim
 	}
 	
 	@DataBoundSetter public void setAuthToken(String authToken) {
-		this.authToken = authToken;
+		this.authToken = authToken != null ? authToken.trim() : null;
 	}
 	
     public String getVerbose() {
@@ -65,7 +65,7 @@ public abstract class OpenShiftBaseStep extends AbstractStepImpl  implements Sim
 	}
     
     @DataBoundSetter public void setVerbose(String verbose) {
-    	this.verbose = verbose;
+    	this.verbose = verbose != null ? verbose.trim() : null;
     }
     
     @Override

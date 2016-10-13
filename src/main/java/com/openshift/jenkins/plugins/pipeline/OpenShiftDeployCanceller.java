@@ -35,7 +35,7 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
     @DataBoundConstructor
     public OpenShiftDeployCanceller(String apiURL, String depCfg, String namespace, String authToken, String verbose) {
     	super(apiURL, namespace, authToken, verbose);
-        this.depCfg = depCfg;
+        this.depCfg = depCfg != null ? depCfg.trim() : null;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically

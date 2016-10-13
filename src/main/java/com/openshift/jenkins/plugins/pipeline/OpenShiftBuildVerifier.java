@@ -21,8 +21,8 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
     @DataBoundConstructor
     public OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String checkForTriggeredDeployments, String waitTime, String waitUnit) {
         super(apiURL, namespace, authToken, verbose, waitTime, waitUnit);
-        this.bldCfg = bldCfg;
-        this.checkForTriggeredDeployments = checkForTriggeredDeployments;
+        this.bldCfg = bldCfg != null ? bldCfg.trim() : null;
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments.trim() : null;
     }
 
     // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
@@ -73,10 +73,6 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
         public String getDisplayName() {
             return DISPLAY_NAME;
         }
-
-
     }
-
-
 }
 

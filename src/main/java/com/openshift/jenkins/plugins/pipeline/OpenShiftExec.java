@@ -39,9 +39,9 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
     @DataBoundConstructor
     public OpenShiftExec(String apiURL, String namespace, String authToken, String verbose, String pod, String container, String command, List<Argument>arguments, String waitTime, String waitUnit) {
         super( apiURL, namespace, authToken, verbose, waitTime, waitUnit );
-        this.pod = pod.trim();
-        this.container = container.trim();
-        this.command = command;
+        this.pod = pod != null ? pod.trim() : null;
+        this.container = container != null ? container.trim() : null;
+        this.command = command != null ? command.trim() : null;
         this.arguments = arguments;
     }
 
