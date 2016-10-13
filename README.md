@@ -214,6 +214,8 @@ The step name is "openshiftTag".  Mandatory parameters are:
 
 Optional parameters are:
 
+- "namespace" : Namespace of the source ImageStream (If Jenkins is running within OpenShift, defaults to the namespace in which Jenkins is running).
+
 -  "alias":  Whether to update destination tag whenever the source tag changes.  Equivalent of the `--alias` option for the `oc tag` command. When false, the destination tag type is "ImageStreamImage", and when true, the destination tag type is "ImageStreamTag".
 
 -  "destinationNamespace":  The name of the project to host the destinationStream:destinationTag.  If nothing is specified, the plugin will use the source namespace.
