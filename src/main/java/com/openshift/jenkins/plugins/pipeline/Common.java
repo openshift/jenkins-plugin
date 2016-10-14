@@ -7,7 +7,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * Functionless stub class to establish a path to common
- * *.jelly files (e.g. <st:include page="cluster.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" />)
+ * *.jelly files (e.g. st:include page="cluster.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" )
  */
 public class Common  extends AbstractDescribableImpl<Common> {
 

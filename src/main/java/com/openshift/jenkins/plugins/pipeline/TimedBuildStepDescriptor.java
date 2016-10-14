@@ -18,7 +18,7 @@ import org.kohsuke.stapler.StaplerRequest;
  * 2. The descriptor will persist/restore a global wait/waitUnit for the operation type.
  * 3. Classes wishing to share the same timeout value (e.g. DSL steps) should access the timeout value through GlobalConfig.
  * 4. GlobalConfig will load the correct descriptor to read the currently configured timeout value.
- * 5. The host for the global config option must have a global.jelly for setting the value from Jenkins>Configure.
+ * 5. The host for the global config option must have a global.jelly for setting the value from Jenkins Configure.
  *      See examples like: src/main/resources/com/openshift/jenkins/plugins/pipeline/OpenShiftExec/global.jelly
  */
 public abstract class TimedBuildStepDescriptor<T extends BuildStep & Describable<T>> extends BuildStepDescriptor<T> implements IOpenShiftPluginDescriptor {
@@ -88,7 +88,7 @@ public abstract class TimedBuildStepDescriptor<T extends BuildStep & Describable
     }
 
     /**
-     * Should return the non-configurable default for this build step. This will
+     * @return Return the non-configurable default for this build step. This will
      * populate the global default wait time for the operation the first time Jenkins
      * loads this plugin. Once a global configuration with a value exists, this
      * value will no longer be used. However, this value will be re-populated if the
