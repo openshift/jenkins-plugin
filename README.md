@@ -144,6 +144,27 @@ Optional parameters are:
 -  "arguments" : Arguments for the command. May be specified as `arguments: [ 'arg1', 'arg2', ... ]` or `arguments: [ [ value: 'arg1' ], [ value : 'arg2' ], ... ]` 
 -  "waitTime" :  Time in milliseconds to wait for deployment completion.  Default is 3 minutes.
 
+The object returned exposes the following attributes:
+
+- stdout : All standard out received from the exec API.
+- stderr : All standard error received from the exec API.
+- error : A string describing any execution errors from the exec API (e.g. command not found in pod PATH).
+- failure : A string describing any low level failure to execute the exec API (e.g. protocol level errors).
+
+All attributes are empty strings by default. As the exec API delivers messages (e.g. individual lines
+of standard output), each message will be appended to the respective result attribute and followed by a linefeed.
+
+```
+    def response = openshiftExec( ... command: 'echo', arguments : [ 'hello', 'world' ] ... )
+    if ( response.error == "" && response.failure == "" ) {
+        println('Stdout: '+response.stdout.trim())
+        println('Stderr: '+response.stderr.trim())
+    } else {
+        ...
+    }
+    
+```
+
 #### "Create OpenShift Resource(s)"
 
 The step name is "openshiftCreateResources".  Mandatory parameters is either:

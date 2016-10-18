@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public interface IOpenShiftExec extends ITimedOpenShiftPlugin {
+public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExecOutputListener {
 
     String DISPLAY_NAME = "OpenShift Exec";
 
@@ -90,32 +90,38 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin {
                     @Override
                     public void onOpen() {
                         listener.getLogger().println("Connection opened for exec operation");
+                        IOpenShiftExec.this.onOpen();
                     }
 
                     @Override
                     public void onStdOut(String message) {
                         listener.getLogger().println("stdout> " + message);
+                        IOpenShiftExec.this.onStdOut(message);
                     }
 
                     @Override
                     public void onStdErr(String message) {
                         listener.getLogger().println("stderr> " + message);
+                        IOpenShiftExec.this.onStdErr(message);
                     }
 
                     @Override
                     public void onExecErr(String message) {
                         listener.error("Error during exec: " + message);
+                        IOpenShiftExec.this.onExecErr(message);
                     }
 
                     @Override
                     public void onClose(int code, String reason) {
                         listener.getLogger().printf("Connection closed for exec operation [%d]: %s\n", code, reason);
+                        IOpenShiftExec.this.onClose(code,reason);
                         latch.countDown();
                     }
 
                     @Override
                     public void onFailure(IOException e) {
                         listener.error("Failure during exec: " + e.getMessage());
+                        IOpenShiftExec.this.onFailure(e);
                         e.printStackTrace();
                         latch.countDown();
                     }
@@ -139,5 +145,16 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin {
         return true;
     }
 
+    default void onOpen() {}
+
+    default void onStdOut(String message) {}
+
+    default void onStdErr(String message) {}
+
+    default void onExecErr(String message) {}
+
+    default void onClose(int code, String reason) {}
+
+    default void onFailure(IOException e) {}
 
 }
