@@ -1,6 +1,7 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
 
+import com.cloudbees.groovy.cps.Env;
 import com.openshift.internal.restclient.DefaultClient;
 import com.openshift.internal.restclient.authorization.AuthorizationContext;
 import com.openshift.internal.restclient.okhttp.OpenShiftAuthenticator;
@@ -11,6 +12,7 @@ import com.openshift.restclient.ClientBuilder;
 import com.openshift.restclient.http.IHttpConstants;
 import com.openshift.restclient.utils.SSLUtils;
 import hudson.EnvVars;
+import hudson.model.Computer;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import okhttp3.Dispatcher;
@@ -61,13 +63,20 @@ public interface IOpenShiftPluginDescriptor {
     default FormValidation doTestConnection(@QueryParameter String apiURL, @QueryParameter String authToken) {
 
 
-        if (StringUtils.isEmpty(apiURL)) {
-            if(!EnvVars.masterEnvVars.containsKey(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY) &&
+        if (apiURL == null || StringUtils.isEmpty(apiURL)) {
+            if(EnvVars.masterEnvVars.containsKey(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY) &&
                     !StringUtils.isEmpty(EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY))) {
+                apiURL = EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY);
+
+                if(EnvVars.masterEnvVars.containsKey(IOpenShiftPlugin.KUBERNETES_SERVICE_PORT_ENV_KEY)) {
+                    apiURL = apiURL + ":" + EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_SERVICE_PORT_ENV_KEY);
+                }
+            } else if(EnvVars.masterEnvVars.containsKey(IOpenShiftPlugin.KUBERNETES_MASTER_ENV_KEY) &&
+                    !StringUtils.isEmpty(EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_MASTER_ENV_KEY))) {
+                apiURL = EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_MASTER_ENV_KEY);
+            } else {
                 return FormValidation.error("Required fields not provided");
             }
-
-            apiURL = EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY);
         }
 
         try {
@@ -91,9 +100,9 @@ public interface IOpenShiftPluginDescriptor {
 
             HttpUtils.httpGet(false, null, EnvVars.masterEnvVars, apiURL, authToken, "", client, auth, apiURL);
         } catch (MalformedURLException e ) {
-            return FormValidation.error("Connection Unsuccessful: Bad URL");
+            return FormValidation.error("Connection unsuccessful: Bad URL");
         } catch ( Exception e ) {
-            return FormValidation.error("Connection unsuccessful");
+            return FormValidation.error("Connection unsuccessful: " + e.getMessage());
         }
 
         return FormValidation.ok("Connection successful");

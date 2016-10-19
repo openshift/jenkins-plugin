@@ -1,5 +1,6 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.BuildListener;
@@ -56,7 +57,7 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpen
 
 
 	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftDeleterJsonYamlExecution.class);

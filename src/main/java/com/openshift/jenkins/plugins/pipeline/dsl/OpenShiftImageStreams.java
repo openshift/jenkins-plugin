@@ -2,6 +2,7 @@ package com.openshift.jenkins.plugins.pipeline.dsl;
 
 import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import hudson.Extension;
 import hudson.scm.SCM;
 import hudson.util.FormValidation;
@@ -113,7 +114,7 @@ public class OpenShiftImageStreams extends SCMStep {
         return scm;
     }
 
-    @Extension(optional=true) public static final class DescriptorImpl extends SCMStepDescriptor {
+    @Extension(optional=true) public static final class DescriptorImpl extends SCMStepDescriptor implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             // Fail now if dependency plugin not loaded. Descriptor.<init> will actually fail anyway, but this is just to be sure.
@@ -130,19 +131,6 @@ public class OpenShiftImageStreams extends SCMStep {
             return "OpenShift ImageStreams";
         }
 
-        public FormValidation doCheckApiURL(@QueryParameter String value)
-                throws IOException, ServletException {
-            // with some of the paths into the Image Stream SCM, the env vars typically available for the build steps are not available,
-            // but for now, we fall back on "https://openshift.default.svc.cluster.local" if they do not specify
-            return ParamVerify.doCheckApiURL(value);
-        }
-
-        public FormValidation doCheckNamespace(@QueryParameter String value)
-                throws IOException, ServletException {
-            // If a namespace is not specified, the default one is going to be used
-            return ParamVerify.doCheckNamespace(value);
-        }
-
         public FormValidation doCheckTag(@QueryParameter String value)
                 throws IOException, ServletException {
             return ParamVerify.doCheckTag(value);
@@ -151,11 +139,6 @@ public class OpenShiftImageStreams extends SCMStep {
         public FormValidation doCheckName(@QueryParameter String value)
                 throws IOException, ServletException {
             return ParamVerify.doCheckImageStreamName(value);
-        }
-
-        public FormValidation doCheckAuthToken(@QueryParameter String value)
-                throws IOException, ServletException {
-            return ParamVerify.doCheckToken(value);
         }
     }
 }

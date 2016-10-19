@@ -1,5 +1,6 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.BuildListener;
@@ -56,7 +57,7 @@ public class OpenShiftCreator extends OpenShiftBaseStep implements IOpenShiftCre
 
 
 	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftCreatorExecution.class);

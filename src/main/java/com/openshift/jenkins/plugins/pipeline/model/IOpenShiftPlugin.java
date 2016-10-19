@@ -60,6 +60,8 @@ public interface IOpenShiftPlugin {
     public static final String BUILD_URL_ANNOTATION = "openshift.io/jenkins-build-uri";
 
     public static final String KUBERNETES_SERVICE_HOST_ENV_KEY = "KUBERNETES_SERVICE_HOST";
+    public static final String KUBERNETES_SERVICE_PORT_ENV_KEY = "KUBERNETES_SERVICE_PORT";
+    public static final String KUBERNETES_MASTER_ENV_KEY = "KUBERNETES_MASTER";
 
     public static final String NAMESPACE_FILE = "/run/secrets/kubernetes.io/serviceaccount/namespace";
 
@@ -99,7 +101,7 @@ public interface IOpenShiftPlugin {
 
     default String getApiURL(Map<String, String> overrides) {
         String val = getOverride(getApiURL(), overrides);
-        if ((val == null || val.length() == 0) && overrides != null && overrides.containsKey("KUBERNETES_SERVICE_HOST")) {
+        if ((val == null || val.length() == 0) && overrides != null && overrides.containsKey(KUBERNETES_SERVICE_HOST_ENV_KEY)) {
             val = overrides.get(KUBERNETES_SERVICE_HOST_ENV_KEY);
         }
         if (val != null && val.length() > 0 && !val.startsWith("https://"))
