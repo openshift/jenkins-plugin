@@ -82,7 +82,14 @@ public interface IOpenShiftCreator extends IOpenShiftApiObjHandler {
     		for (ModelNode node : list) {
     			String path = node.get("kind").asString();
     			
-    			boolean success = this.makeRESTCall(chatty, listener, path, node, overrides);
+    			boolean success = false;
+    			try {
+    			    success = this.makeRESTCall(chatty, listener, path, node, overrides);
+    			} catch (Throwable t) {
+    			    if (chatty)
+    			        t.printStackTrace(listener.getLogger());
+    			}
+    			
     			if (!success) {
     				listener.getLogger().println(String.format(MessageConstants.FAILED_OBJ, path));
     				failed++;
@@ -94,7 +101,14 @@ public interface IOpenShiftCreator extends IOpenShiftApiObjHandler {
     	} else {
     		String path = kind;
 			
-    		boolean success = this.makeRESTCall(chatty, listener, path, resources, overrides);
+    		boolean success = false;
+    		try {
+    		    success = this.makeRESTCall(chatty, listener, path, resources, overrides);
+    		} catch (Throwable t) {
+    		    if (chatty)
+    		        t.printStackTrace(listener.getLogger());
+    		}
+    		
     		if (success) {
 				listener.getLogger().println(String.format(MessageConstants.CREATED_OBJ, path));
     			created = 1;
