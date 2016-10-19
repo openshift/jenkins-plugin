@@ -2,6 +2,7 @@ package com.openshift.jenkins.plugins.pipeline.dsl;
 
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftBuildVerifier;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import hudson.Extension;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
@@ -63,7 +64,7 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
     }
 
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftBuildVerifierExecution.class);

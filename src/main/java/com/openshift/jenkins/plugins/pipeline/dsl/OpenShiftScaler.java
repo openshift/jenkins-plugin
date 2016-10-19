@@ -1,6 +1,7 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
+import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftScaler;
 import hudson.Extension;
 import hudson.model.AbstractBuild;
@@ -69,7 +70,7 @@ public class OpenShiftScaler extends TimedOpenShiftBaseStep implements IOpenShif
 
 
 	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftScalerExecution.class);
