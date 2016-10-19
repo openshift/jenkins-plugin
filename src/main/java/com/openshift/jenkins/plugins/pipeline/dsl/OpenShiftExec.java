@@ -9,11 +9,13 @@ import hudson.model.AbstractProject;
 import hudson.model.Action;
 import hudson.model.BuildListener;
 import hudson.tasks.BuildStepMonitor;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
+import java.io.IOException;
 import java.util.*;
 
 public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftExec {
@@ -170,4 +172,63 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
         return null;
     }
 
+    private final String LF = System.getProperty("line.separator");
+
+    private StringBuffer stdOut = new StringBuffer();
+    private StringBuffer stdErr = new StringBuffer();
+    private StringBuffer errorMessage = new StringBuffer();
+    private StringBuffer failureMessage = new StringBuffer();
+
+    // Callback from coreLogic when stdout output is received by this step
+    public void onStdOut(String message) {
+        stdOut.append(message.trim() + LF);
+    }
+
+    // Callback from coreLogic when stderr output is received by this step
+    public void onStdErr(String message) {
+        stdErr.append(message.trim() + LF);
+    }
+
+    // Callback from coreLogic when the exec operation encounters an error
+    public void onExecErr(String message) {
+        errorMessage.append(message.trim() + LF);
+    }
+
+    // Callback from coreLogic when the exec operation encounters a severe error
+    public void onFailure(IOException e) {
+        failureMessage.append(e.getMessage().trim() + LF);
+    }
+
+    // The class which the DSL step receives as a return parameter
+    public class StepExecOutput implements OpenShiftExecExecution.ExecResult {
+
+        @Whitelisted
+        @Override
+        public String getStdout() {
+            return stdOut.toString();
+        }
+
+        @Whitelisted
+        @Override
+        public String getStderr() {
+            return stdErr.toString();
+        }
+
+        @Whitelisted
+        @Override
+        public String getError() {
+            return errorMessage.toString();
+        }
+
+        @Whitelisted
+        @Override
+        public String getFailure() {
+            return failureMessage.toString();
+        }
+
+    }
+
+    public OpenShiftExecExecution.ExecResult getExecResult() {
+        return new StepExecOutput();
+    }
 }

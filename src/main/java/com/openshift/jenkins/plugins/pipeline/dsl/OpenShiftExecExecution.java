@@ -9,12 +9,14 @@ import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 
 import javax.inject.Inject;
+import java.io.Serializable;
 
-public class OpenShiftExecExecution extends AbstractSynchronousNonBlockingStepExecution<Void> {
+public class OpenShiftExecExecution extends AbstractSynchronousNonBlockingStepExecution<OpenShiftExecExecution.ExecResult> {
 
     private static final long serialVersionUID = 1L;
 
@@ -37,11 +39,26 @@ public class OpenShiftExecExecution extends AbstractSynchronousNonBlockingStepEx
     private transient OpenShiftExec step;
 
     @Override
-    protected Void run() throws Exception {
-    	boolean success = step.doItCore(listener, envVars, runObj, null, launcher);
-    	if (!success) {
-    		throw new AbortException("\"" + step.getDescriptor().getDisplayName() + "\" failed");
-    	}
-    	return null;
+    protected ExecResult run() throws Exception {
+        boolean success = step.doItCore(listener, envVars, runObj, null, launcher);
+        if (!success) {
+            throw new AbortException("\"" + step.getDescriptor().getDisplayName() + "\" failed");
+        }
+        return step.getExecResult();
+    }
+
+
+    public interface ExecResult extends Serializable {
+        @Whitelisted
+        String getStdout();
+
+        @Whitelisted
+        String getStderr();
+
+        @Whitelisted
+        String getError();
+
+        @Whitelisted
+        String getFailure();
     }
 }

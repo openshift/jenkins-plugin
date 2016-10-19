@@ -7,7 +7,9 @@ import hudson.util.FormValidation;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
-public class Argument extends AbstractDescribableImpl<Argument> {
+import java.io.Serializable;
+
+public class Argument extends AbstractDescribableImpl<Argument> implements Serializable {
 
     protected final String value;
 
