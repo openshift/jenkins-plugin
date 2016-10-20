@@ -20,6 +20,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jenkins.model.Jenkins;
+
 public interface IOpenShiftPluginDescriptor {
 
     default FormValidation doCheckApiURL(@QueryParameter String value)
@@ -50,6 +52,10 @@ public interface IOpenShiftPluginDescriptor {
 
     static final Logger LOGGER = Logger.getLogger(IOpenShiftPluginDescriptor.class.getName());
     default FormValidation doTestConnection(@QueryParameter String apiURL, @QueryParameter String authToken) {
+        
+        EnvVars allOverrides = new EnvVars(EnvVars.masterEnvVars);
+        // when running outside of an openshift pod, global env vars like SKIP_TLS will not exist in master env vars
+        allOverrides.putAll(Jenkins.getInstance().getGlobalNodeProperties().get(hudson.slaves.EnvironmentVariablesNodeProperty.class).getEnvVars());
 
         if (apiURL == null || StringUtils.isEmpty(apiURL)) {
             if(EnvVars.masterEnvVars.containsKey(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY) &&
@@ -69,10 +75,10 @@ public interface IOpenShiftPluginDescriptor {
         }
 
         try {
-            authToken = Auth.deriveBearerToken(authToken, null, false, EnvVars.masterEnvVars);
+            authToken = Auth.deriveBearerToken(authToken, null, false, allOverrides);
 
-            Auth auth = Auth.createInstance(null, apiURL, EnvVars.masterEnvVars);
-
+            Auth auth = Auth.createInstance(null, apiURL, allOverrides);
+            
             DefaultClient client = (DefaultClient) new ClientBuilder(apiURL).
                     sslCertificateCallback(auth).
                     withConnectTimeout(5, TimeUnit.SECONDS).
