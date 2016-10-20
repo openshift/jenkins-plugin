@@ -5,13 +5,22 @@ import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftPluginDescriptor;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IImageStream;
+import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.*;
-import hudson.scm.*;
+import hudson.model.AbstractProject;
+import hudson.model.Job;
+import hudson.model.Result;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.scm.ChangeLogParser;
+import hudson.scm.PollingResult;
 import hudson.scm.PollingResult.Change;
+import hudson.scm.SCM;
+import hudson.scm.SCMDescriptor;
+import hudson.scm.SCMRevisionState;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
@@ -43,6 +52,7 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
     protected final String authToken;
     protected final String verbose;
     protected String lastCommitId = null;
+
     // marked transient so don't serialize these next 3 in the workflow plugin flow; constructed on per request basis
     //protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
@@ -141,7 +151,19 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
             String imageStream = getImageStreamName(env);
             String tag = getTag(env);
             listener.getLogger().println(String.format(MessageConstants.SCM_IMAGESTREAM_NOT_FOUND, imageStream, tag));
-            build.getExecutor().interrupt(Result.FAILURE);
+            // We cannot yet throw an exception here because the calling code will be interrupted and the SCM action
+            // will not be added to the build job.
+            // Just setting the build result here. An exception will be thrown in the postCheckout method.
+            build.setResult(Result.FAILURE);
+        }
+    }
+
+    @Override
+    public void postCheckout(@Nonnull Run<?, ?> build, @Nonnull Launcher launcher, @Nonnull FilePath workspace, @Nonnull TaskListener listener) throws IOException, InterruptedException {
+        if (build.getResult() == Result.FAILURE) {
+            EnvVars env = build.getEnvironment(listener);
+            String msg = String.format(MessageConstants.SCM_IMAGESTREAM_NOT_FOUND, getImageStreamName(env), getTag(env));
+            throw new AbortException(msg);
         }
     }
 
