@@ -1,36 +1,24 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
 
-import com.cloudbees.groovy.cps.Env;
 import com.openshift.internal.restclient.DefaultClient;
-import com.openshift.internal.restclient.authorization.AuthorizationContext;
-import com.openshift.internal.restclient.okhttp.OpenShiftAuthenticator;
-import com.openshift.internal.restclient.okhttp.ResponseCodeInterceptor;
 import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
 import com.openshift.restclient.ClientBuilder;
-import com.openshift.restclient.http.IHttpConstants;
-import com.openshift.restclient.utils.SSLUtils;
+
 import hudson.EnvVars;
-import hudson.model.Computer;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import okhttp3.Dispatcher;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
+
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.QueryParameter;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.X509TrustManager;
 import javax.servlet.ServletException;
+
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public interface IOpenShiftPluginDescriptor {
 
@@ -60,19 +48,20 @@ public interface IOpenShiftPluginDescriptor {
         return items;
     }
 
+    static final Logger LOGGER = Logger.getLogger(IOpenShiftPluginDescriptor.class.getName());
     default FormValidation doTestConnection(@QueryParameter String apiURL, @QueryParameter String authToken) {
-
 
         if (apiURL == null || StringUtils.isEmpty(apiURL)) {
             if(EnvVars.masterEnvVars.containsKey(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY) &&
                     !StringUtils.isEmpty(EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY))) {
-                apiURL = EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY);
+                apiURL = "https://" + EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY);
 
                 if(EnvVars.masterEnvVars.containsKey(IOpenShiftPlugin.KUBERNETES_SERVICE_PORT_ENV_KEY)) {
                     apiURL = apiURL + ":" + EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_SERVICE_PORT_ENV_KEY);
                 }
             } else if(EnvVars.masterEnvVars.containsKey(IOpenShiftPlugin.KUBERNETES_MASTER_ENV_KEY) &&
                     !StringUtils.isEmpty(EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_MASTER_ENV_KEY))) {
+                // this one already has the https:// prefix
                 apiURL = EnvVars.masterEnvVars.get(IOpenShiftPlugin.KUBERNETES_MASTER_ENV_KEY);
             } else {
                 return FormValidation.error("Required fields not provided");
@@ -80,15 +69,14 @@ public interface IOpenShiftPluginDescriptor {
         }
 
         try {
-
-            URL url = new URL(apiURL); // Test to make sure we have a good URL
+            authToken = Auth.deriveBearerToken(authToken, null, false, EnvVars.masterEnvVars);
 
             Auth auth = Auth.createInstance(null, apiURL, EnvVars.masterEnvVars);
 
             DefaultClient client = (DefaultClient) new ClientBuilder(apiURL).
                     sslCertificateCallback(auth).
                     withConnectTimeout(5, TimeUnit.SECONDS).
-                    usingToken(Auth.deriveBearerToken(authToken, null, false, EnvVars.masterEnvVars)).
+                    usingToken(authToken).
                     sslCertificate(apiURL, auth.getCert()).
                     build();
 
@@ -96,12 +84,13 @@ public interface IOpenShiftPluginDescriptor {
                 return FormValidation.error("Connection unsuccessful");
             }
 
-            client.getServerReadyStatus();
+            String status = client.getServerReadyStatus();
+            if (status == null || !status.equalsIgnoreCase("ok")) {
+                return FormValidation.error("Connection made but server status is:  " + status);
+            }
 
-            HttpUtils.httpGet(false, null, EnvVars.masterEnvVars, apiURL, authToken, "", client, auth, apiURL);
-        } catch (MalformedURLException e ) {
-            return FormValidation.error("Connection unsuccessful: Bad URL");
-        } catch ( Exception e ) {
+        } catch ( Throwable e ) {
+            LOGGER.log(Level.SEVERE, "doTestConnection", e);
             return FormValidation.error("Connection unsuccessful: " + e.getMessage());
         }
 
