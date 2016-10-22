@@ -28,7 +28,7 @@ import java.util.logging.Logger;
 
 import jenkins.model.Jenkins;
 
-public interface IOpenShiftPluginDescriptor {
+public interface IOpenShiftPluginDescriptor extends IOpenShiftParameterOverrides {
 
     default FormValidation doCheckApiURL(@QueryParameter String value)
             throws IOException, ServletException {
@@ -59,7 +59,13 @@ public interface IOpenShiftPluginDescriptor {
     default EnvVars buildEnvVars() {
         EnvVars allOverrides = new EnvVars(EnvVars.masterEnvVars);
         // when running outside of an openshift pod, global env vars like SKIP_TLS will not exist in master env vars
-        allOverrides.putAll(Jenkins.getInstance().getGlobalNodeProperties().get(hudson.slaves.EnvironmentVariablesNodeProperty.class).getEnvVars());
+        if (Jenkins.getInstance().getGlobalNodeProperties() != null) {
+            if (Jenkins.getInstance().getGlobalNodeProperties().get(hudson.slaves.EnvironmentVariablesNodeProperty.class) != null) {
+                if (Jenkins.getInstance().getGlobalNodeProperties().get(hudson.slaves.EnvironmentVariablesNodeProperty.class).getEnvVars() != null) {
+                    allOverrides.putAll(Jenkins.getInstance().getGlobalNodeProperties().get(hudson.slaves.EnvironmentVariablesNodeProperty.class).getEnvVars());
+                }
+            }
+        }
         String[] reqPieces = Stapler.getCurrentRequest().getRequestURI().split("/");
         if (reqPieces != null && reqPieces.length > 2) {
             for (Job j : Jenkins.getInstance().getAllItems(Job.class)) {
@@ -83,8 +89,6 @@ public interface IOpenShiftPluginDescriptor {
     default FormValidation doTestConnection(@QueryParameter String apiURL, @QueryParameter String authToken) {
         
         EnvVars allOverrides = buildEnvVars();
-        // when running outside of an openshift pod, global env vars like SKIP_TLS will not exist in master env vars
-        allOverrides.putAll(Jenkins.getInstance().getGlobalNodeProperties().get(hudson.slaves.EnvironmentVariablesNodeProperty.class).getEnvVars());
 
         if (apiURL == null || StringUtils.isEmpty(apiURL)) {
             if(allOverrides.containsKey(IOpenShiftPlugin.KUBERNETES_SERVICE_HOST_ENV_KEY) &&
@@ -104,14 +108,14 @@ public interface IOpenShiftPluginDescriptor {
         }
 
         try {
+                        
+            Auth auth = Auth.createInstance(null, getOverride(apiURL, allOverrides), allOverrides);
             
-            Auth auth = Auth.createInstance(null, apiURL, allOverrides);
-            
-            DefaultClient client = (DefaultClient) new ClientBuilder(apiURL).
+            DefaultClient client = (DefaultClient) new ClientBuilder(getOverride(apiURL, allOverrides)).
                     sslCertificateCallback(auth).
                     withConnectTimeout(5, TimeUnit.SECONDS).
-                    usingToken(Auth.deriveBearerToken(authToken, null, false, allOverrides)).
-                    sslCertificate(apiURL, auth.getCert()).
+                    usingToken(Auth.deriveBearerToken(getOverride(authToken, allOverrides), null, false, allOverrides)).
+                    sslCertificate(getOverride(apiURL, allOverrides), auth.getCert()).
                     build();
 
             if (client == null) {
