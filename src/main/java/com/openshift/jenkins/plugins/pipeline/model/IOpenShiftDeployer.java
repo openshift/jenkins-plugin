@@ -48,7 +48,8 @@ public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
             IReplicationController rc = null;
             long wait = getTimeout(listener, chatty, overrides);
             while (System.currentTimeMillis() < (currTime + wait)) {
-                dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
+                if (dc == null)
+                    dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
                 if (dc != null) {
                     if (!versionBumped) {
                         // allow some retry in case the dc creation request happened before this step ran
@@ -66,7 +67,7 @@ public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
                                 
                             }, null);
                             if (chatty)
-                                listener.getLogger().println("\nOpenShiftDeployer latest version now " + newdc.getLatestVersionNumber());
+                                listener.getLogger().println("\nOpenShiftDeployer latest version now " + newdc.getLatestVersionNumber() + " and was " + dc.getLatestVersionNumber());
                             versionBumped = newdc.getLatestVersionNumber() > dc.getLatestVersionNumber();
                         } catch (Throwable t) {
                             if (chatty)
