@@ -48,7 +48,7 @@ public class OpenShiftImageStreams extends SCMStep {
 
     @DataBoundSetter
     public void setNamespace(String namespace) {
-        this.namespace = apiURL != null ? namespace.trim() : null;
+        this.namespace = namespace != null ? namespace.trim() : null;
     }
 
     @DataBoundSetter
