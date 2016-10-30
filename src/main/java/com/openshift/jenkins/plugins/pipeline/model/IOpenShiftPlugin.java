@@ -350,9 +350,9 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
             listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_BAD, displayName, bldId, wait, displayState));
             return false;
         } else {
-            // calling this will annotate any RC that was created as a result of this build, with the jenkins job info.
-            boolean triggerSuccess = didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, wait, annotateRC, env);
             if (checkDeps) {
+                // calling this will annotate any RC that was created as a result of this build, with the jenkins job info.
+                boolean triggerSuccess = didAllImagesChangeIfNeeded(bldCfg, listener, chatty, client, namespace, wait, annotateRC, env);
                 if (triggerSuccess) {
                     listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_GOOD_DEPLOY_GOOD, displayName, bldId));
                     return true;
