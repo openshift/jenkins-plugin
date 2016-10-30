@@ -11,7 +11,7 @@
   </parent>
   <groupId>com.openshift.jenkins</groupId>
   <artifactId>openshift-pipeline</artifactId>
-  <version>1.0.28-SNAPSHOT</version>
+  <version>1.0.28</version>
   <packaging>hpi</packaging>
 
   <build>
@@ -171,7 +171,7 @@
     <connection>scm:git:ssh://github.com/jenkinsci/openshift-pipeline-plugin.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/jenkinsci/openshift-pipeline-plugin.git</developerConnection>
      <url>https://github.com/jenkinsci/openshift-pipeline-plugin</url>
-    <tag>HEAD</tag>
+    <tag>openshift-pipeline-1.0.28</tag>
   </scm>
   <developers>
     <developer>
