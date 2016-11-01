@@ -165,6 +165,19 @@ of standard output), each message will be appended to the respective result attr
     
 ```
 
+It should be evident from the above example that "errors" and "failures" **returned by the Exec API** 
+are exposed to the caller by the response object and do not, therefore, terminate the Jenkins 
+build. This allows the caller to programmatically handle some failure conditions.
+ 
+Other failure conditions where the API cannot be executed or its result ascertained (timeouts or 
+an inability to find the specified Pod) will be treated as fatal errors and terminate the Jenkins
+build with an error.
+
+When used as a step in a Freestyle job, the Exec operation does not distinguish between these 
+categories of failure. Since outcomes cannot be handled programmatically in a freestyle
+job, all failures will result in the termination of the Jenkins build.
+
+
 #### "Create OpenShift Resource(s)"
 
 The step name is "openshiftCreateResources".  Mandatory parameters is either:
