@@ -41,10 +41,17 @@ public class OpenShiftExecExecution extends AbstractSynchronousNonBlockingStepEx
     @Override
     protected ExecResult run() throws Exception {
         boolean success = step.doItCore(listener, envVars, runObj, null, launcher);
+        ExecResult result = step.getExecResult();
+
         if (!success) {
-            throw new AbortException("\"" + step.getDescriptor().getDisplayName() + "\" failed");
+            // If there is a failure, abort only if there is a timeout. Otherwise, return to DSL.
+            // The DSL script may check for normal errors/failures and retry.
+            if ( result.getError().isEmpty() && result.getFailure().isEmpty() ) {
+                throw new AbortException("\"" + step.getDescriptor().getDisplayName() + "\" failed");
+            }
         }
-        return step.getExecResult();
+
+        return result;
     }
 
 

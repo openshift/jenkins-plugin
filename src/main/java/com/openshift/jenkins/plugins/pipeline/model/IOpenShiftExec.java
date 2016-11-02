@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExecOutputListener {
 
@@ -82,6 +83,8 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
 
         final CountDownLatch latch = new CountDownLatch(1);
 
+        final AtomicBoolean reportError = new AtomicBoolean(false);
+
         IStoppable exec = p.accept(new CapabilityVisitor<IPodExec, IStoppable>() {
             @Override
             public IStoppable visit(IPodExec capability) {
@@ -107,6 +110,7 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
 
                     @Override
                     public void onExecErr(String message) {
+                        reportError.set(true);
                         listener.error("Error during exec: " + message);
                         IOpenShiftExec.this.onExecErr(message);
                     }
@@ -120,6 +124,7 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
 
                     @Override
                     public void onFailure(IOException e) {
+                        reportError.set(true);
                         listener.error("Failure during exec: " + e.getMessage());
                         IOpenShiftExec.this.onFailure(e);
                         e.printStackTrace();
@@ -130,19 +135,25 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
             }
         }, null);
 
-        boolean success = false;
+        boolean timeout = true;
         try {
-            success = latch.await(Math.max(remainingWaitTime, 1), TimeUnit.MILLISECONDS);
+            timeout = ! latch.await(Math.max(remainingWaitTime, 1), TimeUnit.MILLISECONDS);
         } catch (InterruptedException ie) {
         }
 
-        if ( success ) {
-            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_GOOD, DISPLAY_NAME));
-        } else {
-            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Timed out waiting for process to exit"  ));
+        if ( timeout ) {
+            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD_TIMED_OUT, DISPLAY_NAME ));
+            return false;
         }
 
-        return true;
+        if ( reportError.get() ) {
+            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD_API_ERROR, DISPLAY_NAME ));
+            return false;
+        } else {
+            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_GOOD, DISPLAY_NAME));
+            return true;
+        }
+
     }
 
     default void onOpen() {}

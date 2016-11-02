@@ -55,6 +55,8 @@ public static final String EXIT_BUILD_CANCEL = "\n\nExiting \"%s\" successfully 
 public static final String START_EXEC = "\n\nStarting \"%s\" with project \"%s\".";
 public static final String EXIT_EXEC_BAD = "\n\nExiting \"%s\" unsuccessfully: %s";
 public static final String EXIT_EXEC_GOOD = "\n\nExiting \"%s\" successfully.";
+public static final String EXIT_EXEC_BAD_TIMED_OUT = "\n\nExiting \"%s\" unsuccessfully; the api did not return in time.";
+public static final String EXIT_EXEC_BAD_API_ERROR = "\n\nExiting \"%s\" unsuccessfully; the API response included an error or failure.";
 
 
 /*
