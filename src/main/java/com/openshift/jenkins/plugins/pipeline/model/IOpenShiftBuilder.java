@@ -2,6 +2,7 @@ package com.openshift.jenkins.plugins.pipeline.model;
 
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.NameValuePair;
+import com.openshift.jenkins.plugins.pipeline.OpenShiftBuildCanceller;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.capability.CapabilityVisitor;
@@ -11,6 +12,7 @@ import com.openshift.restclient.capability.resources.IPodLogRetrievalAsync;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IPod;
+
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
@@ -108,7 +110,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
         return bld;
     }
 
-    default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String, String> overrides, long wait, boolean follow, boolean chatty, IPod pod) {
+    default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String, String> overrides, long wait, boolean follow, boolean chatty, IPod pod) throws InterruptedException {
         IBuild bld = null;
         String bldState = null;
 
@@ -163,6 +165,12 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
+                // need to throw as this indicates the step as been cancelled
+                // also attempt to cancel build on openshift side
+                OpenShiftBuildCanceller canceller = new OpenShiftBuildCanceller(getApiURL(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides), getBldCfg(overrides));
+                canceller.setAuth(getAuth());
+                canceller.coreLogic(null, listener, overrides);
+                throw e;
             }
         }
         if (stop != null)
@@ -170,7 +178,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
 
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
         boolean checkDeps = Boolean.parseBoolean(getCheckForTriggeredDeployments(overrides));
         listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));
@@ -250,6 +258,12 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
+                            // need to throw as this indicates the step as been cancelled
+                            // also attempt to cancel build on openshift side
+                            OpenShiftBuildCanceller canceller = new OpenShiftBuildCanceller(getApiURL(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides), getBldCfg(overrides));
+                            canceller.setAuth(getAuth());
+                            canceller.coreLogic(null, listener, overrides);
+                            throw e;
                         }
 
                     }

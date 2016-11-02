@@ -7,6 +7,7 @@ import com.openshift.internal.restclient.okhttp.OpenShiftAuthenticator;
 import com.openshift.internal.restclient.okhttp.ResponseCodeInterceptor;
 import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
+import com.openshift.jenkins.plugins.pipeline.OpenShiftBuildCanceller;
 import com.openshift.restclient.ClientBuilder;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.OpenShiftException;
@@ -17,6 +18,7 @@ import com.openshift.restclient.model.deploy.IDeploymentImageChangeTrigger;
 import com.openshift.restclient.model.deploy.IDeploymentTrigger;
 import com.openshift.restclient.model.route.IRoute;
 import com.openshift.restclient.utils.SSLUtils;
+
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -27,10 +29,12 @@ import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+
 import org.jboss.dmr.ModelNode;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.X509TrustManager;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -129,7 +133,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         return val;
     }
 
-    boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides);
+    boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException;
 
     default IClient getClient(TaskListener listener, String displayName, Map<String, String> overrides) {
         IClient client = new ClientBuilder(getApiURL(overrides)).
@@ -265,7 +269,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
     }
 
     //TODO leaving EnvVars env param for now ... in DSL scenario, curious of the injected contents vs. the run/build/computer contents
-    default boolean doItCore(TaskListener listener, EnvVars env, Run<?, ?> run, AbstractBuild<?, ?> build, Launcher launcher) {
+    default boolean doItCore(TaskListener listener, EnvVars env, Run<?, ?> run, AbstractBuild<?, ?> build, Launcher launcher) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose());
 
         if (run == null && build == null)
@@ -327,7 +331,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         return false;
     }
 
-    default boolean verifyBuild(long startTime, long wait, IClient client, String bldCfg, String bldId, String namespace, boolean chatty, TaskListener listener, String displayName, boolean checkDeps, boolean annotateRC, Map<String, String> env) {
+    default boolean verifyBuild(long startTime, long wait, IClient client, String bldCfg, String bldId, String namespace, boolean chatty, TaskListener listener, String displayName, boolean checkDeps, boolean annotateRC, Map<String, String> env) throws InterruptedException {
         String bldState = null;
         while (System.currentTimeMillis() < (startTime + wait)) {
             IBuild bld = client.get(ResourceKind.BUILD, bldId, namespace);
@@ -338,6 +342,12 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
+                    // need to throw as this indicates the step as been cancelled
+                    // also attempt to cancel build on openshift side
+                    OpenShiftBuildCanceller canceller = new OpenShiftBuildCanceller(getApiURL(env), getNamespace(env), getAuthToken(env), getVerbose(env), bldCfg);
+                    canceller.setAuth(getAuth());
+                    canceller.coreLogic(null, listener, env);
+                    throw e;
                 }
             } else {
                 break;
@@ -391,7 +401,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
 
     }
 
-    default boolean didICTCauseDeployment(IClient client, IDeploymentConfig dc, String imageTag, boolean chatty, TaskListener listener, long wait) {
+    default boolean didICTCauseDeployment(IClient client, IDeploymentConfig dc, String imageTag, boolean chatty, TaskListener listener, long wait) throws InterruptedException {
         long currTime = System.currentTimeMillis();
         while (System.currentTimeMillis() - (wait / 3) <= currTime) {
             dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, dc.getName(), dc.getNamespace());
@@ -401,6 +411,8 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException e) {
+                    // need to throw as this indicates the step as been cancelled
+                    throw e;
                 }
             } else {
                 if (chatty)
@@ -464,7 +476,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         }
     }
 
-    default boolean didAllImagesChangeIfNeeded(String buildConfig, TaskListener listener, boolean chatty, IClient client, String namespace, long wait, boolean annotateRC, Map<String, String> env) {
+    default boolean didAllImagesChangeIfNeeded(String buildConfig, TaskListener listener, boolean chatty, IClient client, String namespace, long wait, boolean annotateRC, Map<String, String> env) throws InterruptedException {
         if (chatty)
             listener.getLogger().println("\n checking if the build config " + buildConfig + " got the image changes it needed");
         IBuildConfig bc = client.get(ResourceKind.BUILD_CONFIG, buildConfig, namespace);

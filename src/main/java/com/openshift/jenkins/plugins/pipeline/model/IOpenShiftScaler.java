@@ -5,6 +5,7 @@ import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
+
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
@@ -39,7 +40,7 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
         return getOverride(getVerifyReplicaCount(), overrides);
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
         boolean checkCount = Boolean.parseBoolean(getVerifyReplicaCount(overrides));
         listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
@@ -105,6 +106,8 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
                     try {
                         Thread.sleep(10000);
                     } catch (InterruptedException e) {
+                        // need to throw as this indicates the step as been cancelled
+                        throw e;
                     }
                 }
             }
