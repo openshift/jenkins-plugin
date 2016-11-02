@@ -4,6 +4,7 @@ import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IBuild;
+
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
@@ -56,7 +57,7 @@ public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
         return bldId;
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
         boolean checkDeps = Boolean.parseBoolean(getCheckForTriggeredDeployments(overrides));
         listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));

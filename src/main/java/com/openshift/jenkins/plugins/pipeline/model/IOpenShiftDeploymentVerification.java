@@ -1,10 +1,12 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
+import com.openshift.jenkins.plugins.pipeline.OpenShiftDeployCanceller;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
+
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
@@ -40,7 +42,7 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
         return getOverride(getVerifyReplicaCount(), overrides);
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
         boolean checkCount = Boolean.parseBoolean(getVerifyReplicaCount(overrides));
         listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
@@ -116,6 +118,12 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
+                    // need to throw as this indicates the step as been cancelled
+                    // also attempt to cancel deploy on openshift side
+                    OpenShiftDeployCanceller canceller = new OpenShiftDeployCanceller(getApiURL(overrides), getDepCfg(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides));
+                    canceller.setAuth(getAuth());
+                    canceller.coreLogic(null, listener, overrides);
+                    throw e;
                 }
 
             }
