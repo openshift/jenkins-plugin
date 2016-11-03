@@ -45,7 +45,10 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
         listener.getLogger().println(String.format(MessageConstants.START_EXEC, DISPLAY_NAME, getNamespace(overrides)));
         List<String> fullCommand = new ArrayList<>();
         fullCommand.add(getCommand());
-        getArguments().forEach(a -> fullCommand.add(a.getValue()));
+        List<Argument> arguments = getArguments();
+        if ( arguments != null ) {
+            arguments.forEach(a -> fullCommand.add(a.getValue()));
+        }
 
         IPodExec.Options options = new IPodExec.Options();
         if (!getContainer().isEmpty()) {
