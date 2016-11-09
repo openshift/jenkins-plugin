@@ -3,6 +3,9 @@ package com.openshift.jenkins.plugins.pipeline.model;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
+import com.openshift.restclient.api.capabilities.IScalable;
+import com.openshift.restclient.apis.autoscaling.models.IScale;
+import com.openshift.restclient.capability.CapabilityVisitor;
 import com.openshift.restclient.model.IDeploymentConfig;
 import com.openshift.restclient.model.IReplicationController;
 
@@ -70,30 +73,27 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
                     return false;
                 }
 
-                if (dc.getLatestVersionNumber() > 0)
+                if (dc.getLatestVersionNumber() > 0) {
                     rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
+                    
+                    final int count = Integer.decode(getReplicaCount(overrides));
+                    scaleDone = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
 
-                if (rc == null) {
-                    //TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
-                    // measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
-                    // we refrain from adding yet 1 more config option
-                    if (getReplicaCount(overrides).equals("0")) {
-                        listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_NOOP, getDepCfg(overrides)));
-                        return true;
-                    }
-                } else {
-                    int count = Integer.decode(getReplicaCount(overrides));
-                    rc.setDesiredReplicaCount(count);
                     if (chatty)
-                        listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + getReplicaCount(overrides) + " on " + rc.getName());
-                    try {
-                        rc = client.update(rc);
+                        listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + getReplicaCount(overrides) + " on " + rc + " scaleDone " + scaleDone);
+                    
+                    if (!scaleDone) {
+                        IScale result = dc.accept(new CapabilityVisitor<IScalable, IScale>() {
+
+                            @Override
+                            public IScale visit(IScalable capability) {
+                                return capability.scaleTo(count);
+                            }
+                        }, null);
                         if (chatty)
-                            listener.getLogger().println("\nOpenShiftScaler rc returned from update current replica count " + rc.getCurrentReplicaCount() + " desired count " + rc.getDesiredReplicaCount() + " and state " + getReplicationControllerState(rc));
+                            listener.getLogger().println("\nOpenShiftScaler scale result " + result);
+                        rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null); 
                         scaleDone = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
-                    } catch (Throwable t) {
-                        if (chatty)
-                            t.printStackTrace(listener.getLogger());
                     }
                 }
 

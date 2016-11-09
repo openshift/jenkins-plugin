@@ -167,6 +167,8 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
     //TODO move to openshift-restclient-java IReplicationController
     default boolean isReplicationControllerScaledAppropriately(IReplicationController rc, boolean checkCount, int count) {
         boolean scaledAppropriately = false;
+        if (rc == null)
+            return scaledAppropriately;
         // check state, and if needed then check replica count
         if (getReplicationControllerState(rc).equalsIgnoreCase(STATE_COMPLETE)) {
             if (!checkCount) {
