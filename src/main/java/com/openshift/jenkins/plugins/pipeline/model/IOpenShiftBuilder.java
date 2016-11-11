@@ -3,23 +3,29 @@ package com.openshift.jenkins.plugins.pipeline.model;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.NameValuePair;
 import com.openshift.jenkins.plugins.pipeline.OpenShiftBuildCanceller;
+import com.openshift.jenkins.support.PodLogWatcher;
+import com.openshift.jenkins.support.ResourceWatcher;
 import com.openshift.restclient.IClient;
+import com.openshift.restclient.IOpenShiftWatchListener;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.capability.CapabilityVisitor;
 import com.openshift.restclient.capability.IStoppable;
 import com.openshift.restclient.capability.resources.IBuildTriggerable;
-import com.openshift.restclient.capability.resources.IPodLogRetrievalAsync;
 import com.openshift.restclient.model.IBuild;
 import com.openshift.restclient.model.IBuildConfig;
 import com.openshift.restclient.model.IPod;
+import com.openshift.restclient.model.IResource;
 
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
-import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang.StringUtils;
 
 public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
 
@@ -110,71 +116,46 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
         return bld;
     }
 
-    default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String, String> overrides, long wait, boolean follow, boolean chatty, IPod pod) throws InterruptedException {
-        IBuild bld = null;
-        String bldState = null;
-
+    default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String, String> overrides, long wait, boolean follow, boolean chatty, IPod pod) throws InterruptedException{
         // get internal OS Java REST Client error if access pod logs while bld is in Pending state
         // instead of Running, Complete, or Failed
+        
+        final Duration maxWait = Duration.ofMillis(wait);
+        final PodLogWatcher logWatcher = new PodLogWatcher(listener, follow, pod, startTime, maxWait);
+        IStoppable stop = logWatcher.watch();
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        final IStoppable watcher = new ResourceWatcher(startTime, maxWait, client, getNamespace(overrides), ResourceKind.BUILD, new IOpenShiftWatchListener.OpenShiftWatchListenerAdapter() {
 
-        IStoppable stop = null;
-
-        final AtomicBoolean needToFollow = new AtomicBoolean(follow);
-
-        while (System.currentTimeMillis() < (startTime + wait)) {
-            bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
-            bldState = bld.getStatus();
-            if (Boolean.parseBoolean(getVerbose(overrides)))
-                listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
-
-            if (needToFollow.compareAndSet(true, false)) {
-                final String container = pod.getContainers().iterator().next().getName();
-
-                stop = pod.accept(new CapabilityVisitor<IPodLogRetrievalAsync, IStoppable>() {
-                    @Override
-                    public IStoppable visit(IPodLogRetrievalAsync capability) {
-                        return capability.start(new IPodLogRetrievalAsync.IPodLogListener() {
-                            @Override
-                            public void onOpen() {
-                            }
-
-                            @Override
-                            public void onMessage(String message) {
-                                listener.getLogger().print(message);
-                            }
-
-                            @Override
-                            public void onClose(int code, String reason) {
-                            }
-
-                            @Override
-                            public void onFailure(IOException e) {
-                                // If follow fails, try to restart it on the next loop.
-                                needToFollow.compareAndSet(false, true);
-                            }
-                        }, new IPodLogRetrievalAsync.Options()
-                                .follow()
-                                .container(container));
-                    }
-                }, null);
+            @Override
+            public void received(IResource resource, ChangeType change) {
+                IBuild build = (IBuild)resource;
+                String bldState = build.getStatus();
+                if (Boolean.parseBoolean(getVerbose(overrides)))
+                    listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
+                if(isBuildFinished(bldState)) {
+                    latch.countDown();
+                }
             }
-
-            if (isBuildFinished(bldState))
-                break;
-
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                // need to throw as this indicates the step as been cancelled
-                // also attempt to cancel build on openshift side
-                OpenShiftBuildCanceller canceller = new OpenShiftBuildCanceller(getApiURL(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides), getBldCfg(overrides));
-                canceller.setAuth(getAuth());
-                canceller.coreLogic(null, listener, overrides);
-                throw e;
+            
+        }).watch();
+        
+        try {
+            latch.await(startTime + wait, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            // need to throw as this indicates the step as been cancelled
+            // also attempt to cancel build on openshift side
+            OpenShiftBuildCanceller canceller = new OpenShiftBuildCanceller(getApiURL(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides), getBldCfg(overrides));
+            canceller.setAuth(getAuth());
+            canceller.coreLogic(null, listener, overrides);
+            throw e;
+        }finally {
+            if(watcher != null) {
+                watcher.stop();
             }
+            if (stop != null)
+                stop.stop();
         }
-        if (stop != null)
-            stop.stop();
 
     }
 
@@ -192,7 +173,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
 
         if (client != null) {
             long startTime = System.currentTimeMillis();
-            boolean skipBC = getBuildName(overrides) != null && getBuildName(overrides).length() > 0;
+            boolean skipBC = StringUtils.isNotBlank(getBuildName(overrides));
             IBuildConfig bc = null;
             IBuild prevBld = null;
             if (!skipBC) {

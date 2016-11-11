@@ -8,6 +8,7 @@ import com.openshift.internal.restclient.okhttp.ResponseCodeInterceptor;
 import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.OpenShiftBuildCanceller;
+import com.openshift.jenkins.support.IStatusHelpers;
 import com.openshift.restclient.ClientBuilder;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.OpenShiftException;
@@ -45,9 +46,7 @@ import java.security.cert.CertificateException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-//import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
-
-public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
+public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides, IStatusHelpers {
 
     // arg1=resource type, arg2=object name
     public static final String ANNOTATION_FAILURE = "\nWARNING: Failed to annotate %s %s with job information.";
@@ -72,12 +71,6 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
     public static final String NAMESPACE_ENV_VAR = "PROJECT_NAME";
 
     public static final String NAMESPACE_SYNC_BUILD_CAUSE = "NAMESPACE_SYNC_BUILD_CAUSE";
-
-    // states of note
-    public static final String STATE_COMPLETE = "Complete";
-    public static final String STATE_CANCELLED = "Cancelled";
-    public static final String STATE_ERROR = "Error";
-    public static final String STATE_FAILED = "Failed";
 
     String getBaseClassName();
 
@@ -319,18 +312,6 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         if (!successful)
             throw new AbortException("\"" + getDisplayName() + "\" failed");
         return successful;
-    }
-
-    default boolean isBuildFinished(String bldState) {
-        if (bldState != null && (bldState.equals(STATE_COMPLETE) || bldState.equals(STATE_FAILED) || bldState.equals(STATE_ERROR) || bldState.equals(STATE_CANCELLED)))
-            return true;
-        return false;
-    }
-
-    default boolean isDeployFinished(String deployState) {
-        if (deployState != null && (deployState.equals(STATE_FAILED) || deployState.equals(STATE_COMPLETE)))
-            return true;
-        return false;
     }
 
     default boolean verifyBuild(long startTime, long wait, IClient client, String bldCfg, String bldId, String namespace, boolean chatty, TaskListener listener, String displayName, boolean checkDeps, boolean annotateRC, Map<String, String> env) throws InterruptedException {
