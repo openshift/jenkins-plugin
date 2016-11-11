@@ -95,6 +95,14 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
                         rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null); 
                         scaleDone = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
                     }
+                } else {
+                    //TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
+                    // measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
+                    // we refrain from adding yet 1 more config option
+                    if (getReplicaCount(overrides).equals("0")) {
+                        listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_NOOP, getDepCfg(overrides)));
+                        return true;
+                    }
                 }
 
 
