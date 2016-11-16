@@ -77,7 +77,7 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
                     rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
                     
                     final int count = Integer.decode(getReplicaCount(overrides));
-                    scaleDone = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
+                    scaleDone = rc.getCurrentReplicaCount() == count;
 
                     if (chatty)
                         listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + getReplicaCount(overrides) + " on " + rc + " scaleDone " + scaleDone);
