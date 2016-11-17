@@ -69,7 +69,7 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
         IPod p = null;
         for (int retries = 10; p == null; retries--) {
             try {
-                p = client.get(ResourceKind.POD, getPod(), getNamespace());
+                p = client.get(ResourceKind.POD, getPod(), getNamespace(overrides));
             } catch (Exception e) {
                 if (retries == 1 || remainingWaitTime < 0) {
                     listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to find pod: " + getPod()));
