@@ -109,25 +109,18 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
         }
         return bld;
     }
-
-    default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String, String> overrides, long wait, boolean follow, boolean chatty, IPod pod) throws InterruptedException {
-        IBuild bld = null;
-        String bldState = null;
-
-        // get internal OS Java REST Client error if access pod logs while bld is in Pending state
-        // instead of Running, Complete, or Failed
-
+    
+    default IStoppable getBuildPodLogs(IClient client, String bldId, Map<String, String> overrides, boolean chatty, TaskListener listener, AtomicBoolean needToFollow) {
         IStoppable stop = null;
+        List<IPod> pods = client.list(ResourceKind.POD, getNamespace(overrides));
+        for (IPod pod : pods) {
+            if (chatty)
+                listener.getLogger().println("\nOpenShiftBuilder found pod " + pod.getName());
 
-        final AtomicBoolean needToFollow = new AtomicBoolean(follow);
-
-        while (System.currentTimeMillis() < (startTime + wait)) {
-            bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
-            bldState = bld.getStatus();
-            if (Boolean.parseBoolean(getVerbose(overrides)))
-                listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
-
-            if (needToFollow.compareAndSet(true, false)) {
+            // build pod starts with build id
+            if (pod.getName().startsWith(bldId)) {
+                if (chatty)
+                    listener.getLogger().println("\nOpenShiftBuilder going with build pod " + pod);
                 final String container = pod.getContainers().iterator().next().getName();
 
                 stop = pod.accept(new CapabilityVisitor<IPodLogRetrievalAsync, IStoppable>() {
@@ -157,10 +150,38 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
                                 .container(container));
                     }
                 }, null);
+                break;
+            }
+        }
+        return stop;
+    }
+
+    default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String, String> overrides, long wait, boolean follow, boolean chatty) throws InterruptedException {
+        IBuild bld = null;
+        String bldState = null;
+
+        // get internal OS Java REST Client error if access pod logs while bld is in Pending state
+        // instead of Running, Complete, or Failed
+
+        IStoppable stop = null;
+
+        final AtomicBoolean needToFollow = new AtomicBoolean(follow);
+
+        while (System.currentTimeMillis() < (startTime + wait)) {
+            bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
+            bldState = bld.getStatus();
+            if (Boolean.parseBoolean(getVerbose(overrides)))
+                listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
+
+            if (needToFollow.compareAndSet(true, false)) {
+                stop = this.getBuildPodLogs(client, bldId, overrides, chatty, listener, needToFollow);
             }
 
-            if (isBuildFinished(bldState))
+            if (isBuildFinished(bldState)) {
+                if (follow && stop == null)
+                    stop = this.getBuildPodLogs(client, bldId, overrides, chatty, listener, needToFollow);
                 break;
+            }
 
             try {
                 Thread.sleep(1000);
@@ -206,6 +227,15 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
                 listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc + " buildName " + getBuildName(overrides));
 
             if (bc != null || prevBld != null) {
+                
+                // don't follow if a jenkinsfile strategy
+                //TODO until we get the restclient updated, getBuildStrategy returns null if jenkins strategy, non-null for the traditional 3
+                boolean jenkinsfileBC = bc.getBuildStrategy() == null;
+                if (chatty)
+                    listener.getLogger().println("\nOpenShiftBuilder bc strategy == jenkinsfile " + jenkinsfileBC);
+                
+                if (follow)
+                    follow = !jenkinsfileBC;
 
                 // Trigger / start build
                 IBuild bld = this.startBuild(bc, prevBld, overrides, chatty, listener, client);
@@ -223,7 +253,6 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
                     else
                         listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_PLUS_DEPLOY, bldId));
 
-                    boolean foundPod = false;
                     startTime = System.currentTimeMillis();
 
                     long wait = getTimeout(listener, chatty, overrides);
@@ -231,47 +260,8 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
                     if (chatty)
                         listener.getLogger().println("\n OpenShiftBuilder looking for build " + bldId);
 
-                    // Now find build Pod, attempt to dump the logs to the Jenkins console
-                    while (!foundPod && startTime > (System.currentTimeMillis() - wait)) {
 
-                        // fetch current list of pods ... this has proven to not be immediate in finding latest
-                        // entries when compared with say running oc from the cmd line
-                        List<IPod> pods = client.list(ResourceKind.POD, getNamespace(overrides));
-                        for (IPod pod : pods) {
-                            if (chatty)
-                                listener.getLogger().println("\nOpenShiftBuilder found pod " + pod.getName());
-
-                            // build pod starts with build id
-                            if (pod.getName().startsWith(bldId)) {
-                                foundPod = true;
-                                if (chatty)
-                                    listener.getLogger().println("\nOpenShiftBuilder found build pod " + pod);
-
-                                waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty, pod);
-
-                            }
-
-                            if (foundPod)
-                                break;
-                        }
-
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            // need to throw as this indicates the step as been cancelled
-                            // also attempt to cancel build on openshift side
-                            OpenShiftBuildCanceller canceller = new OpenShiftBuildCanceller(getApiURL(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides), getBldCfg(overrides));
-                            canceller.setAuth(getAuth());
-                            canceller.coreLogic(null, listener, overrides);
-                            throw e;
-                        }
-
-                    }
-
-                    if (!foundPod) {
-                        listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_NO_POD_OBJ, bldId));
-                        return false;
-                    }
+                    waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty);
 
                     return this.verifyBuild(startTime, wait, client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, true, overrides);
 
