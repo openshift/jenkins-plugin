@@ -573,13 +573,24 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         int latestVersion = dc.getLatestVersionNumber();
         if (latestVersion == 0)
             return null;
-        String repId = dc.getName() + "-" + latestVersion;
+        // start at the latest, but ignore newer replication controllers that are cancelled
         IReplicationController rc = null;
-        try {
-            rc = client.get(ResourceKind.REPLICATION_CONTROLLER, repId, namespace);
-        } catch (Throwable t) {
-            if (listener != null)
-                t.printStackTrace(listener.getLogger());
+        while (latestVersion > 0) {
+            String repId = dc.getName() + "-" + latestVersion;
+            try {
+                rc = client.get(ResourceKind.REPLICATION_CONTROLLER, repId, namespace);
+            } catch (Throwable t) {
+                if (listener != null)
+                    t.printStackTrace(listener.getLogger());
+            }
+            if (rc != null) {
+                if ("true".equalsIgnoreCase(rc.getAnnotation("openshift.io/deployment.cancelled"))) {
+                    rc = null;
+                    latestVersion--;
+                } else {
+                    break;
+                }
+            }
         }
         return rc;
     }
