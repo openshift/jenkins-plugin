@@ -390,8 +390,8 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
             if (trigger instanceof IDeploymentImageChangeTrigger) {
                 IDeploymentImageChangeTrigger ict = (IDeploymentImageChangeTrigger) trigger;
                 if (chatty)
-                    listener.getLogger().println("\n\n found ict " + ict.toString() + " with from " + ict.getFrom().getNameAndTag());
-                if (ict.getFrom().getNameAndTag().contains(imageTag)) {
+                    listener.getLogger().println("\n\n found ict " + ict.toString() + " with from " + ict.getFrom().getNameAndTag() + ", auto: " + ict.isAutomatic());
+                if (ict.getFrom().getNameAndTag().contains(imageTag) && ict.isAutomatic()) {
                     if (chatty)
                         listener.getLogger().println("\n\n ict  triggers off of " + imageTag);
                     return true;

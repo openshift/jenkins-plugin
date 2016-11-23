@@ -23,7 +23,7 @@ public static final String EXIT_OK = "\n\nExiting \"%s\" successfully.";
 public static final String EXIT_BUILD_BAD = "\n\nExiting \"%s\" unsuccessfully; build \"%s\" did not complete successfully within the configured timeout of \"%s\" ms; last reported status:  [%s].";
 public static final String EXIT_BUILD_GOOD_DEPLOY_BAD = "\n\nExiting \"%s\" unsuccessfully; build \"%s\" has completed with status:  [Complete]. However, not all deployments with ImageChange triggers based on this build's output triggered off of the new image.";
 public static final String EXIT_BUILD_GOOD_DEPLOY_IGNORED = "\n\nExiting \"%s\" successfully; build \"%s\" has completed with status:  [Complete].";
-public static final String EXIT_BUILD_GOOD_DEPLOY_GOOD = EXIT_BUILD_GOOD_DEPLOY_IGNORED + "  All deployments with ImageChange triggers based on this build's output triggered off of the new image.";
+public static final String EXIT_BUILD_GOOD_DEPLOY_GOOD = EXIT_BUILD_GOOD_DEPLOY_IGNORED + "  All deployments with ImageChange triggers in automatic mode based on this build's output triggered off of the new image.";
 public static final String START_BUILD_RELATED_PLUGINS = "\n\nStarting the \"%s\" step with build config \"%s\" from the project \"%s\".";
 
 /*
