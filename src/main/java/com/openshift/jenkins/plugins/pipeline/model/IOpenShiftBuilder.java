@@ -230,7 +230,14 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
                 
                 // don't follow if a jenkinsfile strategy
                 //TODO until we get the restclient updated, getBuildStrategy returns null if jenkins strategy, non-null for the traditional 3
-                boolean jenkinsfileBC = bc.getBuildStrategy() == null;
+                boolean jenkinsfileBC = false;
+                if (bc != null)
+                    jenkinsfileBC = bc.getBuildStrategy() == null;
+                else {
+                    IBuildConfig tmpBC = client.get(ResourceKind.BUILD_CONFIG, getBldCfg(overrides), getNamespace(overrides));
+                    if (tmpBC != null)
+                        jenkinsfileBC = tmpBC.getBuildStrategy() == null;
+                }
                 if (chatty)
                     listener.getLogger().println("\nOpenShiftBuilder bc strategy == jenkinsfile " + jenkinsfileBC);
                 
