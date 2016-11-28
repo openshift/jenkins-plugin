@@ -84,7 +84,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
                 bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
                     public IBuild visit(IBuildTriggerable triggerable) {
                         triggerable.setCommitId(cid);
-                        triggerable.addBuildCause("Jenkins job URI: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
+                        triggerable.addBuildCause("Jenkins job: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
                         applyEnvVars(triggerable);
                         return triggerable.trigger();
                     }
@@ -92,7 +92,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
             } else {
                 bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
                     public IBuild visit(IBuildTriggerable triggerable) {
-                        triggerable.addBuildCause("Jenkins job URI: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
+                        triggerable.addBuildCause("Jenkins job: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
                         applyEnvVars(triggerable);
                         return triggerable.trigger();
                     }
@@ -101,7 +101,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
         } else if (prevBld != null) {
             bld = prevBld.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
                 public IBuild visit(IBuildTriggerable triggerable) {
-                    triggerable.addBuildCause("Jenkins job URI: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
+                    triggerable.addBuildCause("Jenkins job: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
                     applyEnvVars(triggerable);
                     return triggerable.trigger();
                 }
