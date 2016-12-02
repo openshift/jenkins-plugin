@@ -302,7 +302,13 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         if (chatty)
             listener.getLogger().println("\n\nOpenShift Pipeline Plugin: env vars for this job:  " + overrides);
 
-        return coreLogic(launcher, listener, overrides);
+        try {
+            boolean rc = coreLogic(launcher, listener, overrides);
+            return rc;
+        } catch (Throwable t) {
+            t.printStackTrace(listener.getLogger());
+            return false;
+        }
     }
 
     public String getDisplayName();
