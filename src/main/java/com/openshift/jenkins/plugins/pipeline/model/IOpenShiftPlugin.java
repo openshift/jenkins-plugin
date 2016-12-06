@@ -6,6 +6,7 @@ import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.okhttp.OpenShiftAuthenticator;
 import com.openshift.internal.restclient.okhttp.ResponseCodeInterceptor;
 import com.openshift.jenkins.plugins.pipeline.Auth;
+import com.openshift.jenkins.plugins.pipeline.JenkinsServletFilter;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.OpenShiftBuildCanceller;
 import com.openshift.restclient.ClientBuilder;
@@ -245,6 +246,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         String buildNum = overrides.get(BUILD_NUMBER);
         // we check for null but these should always be there from a jenkins api guarantee perspective
         if (jobName != null && buildNum != null) {
+            jobName = jobName.replace(" ", "%20");
             IClient client = getClient(listener, getDisplayName(), overrides);
             List<IRoute> routes = new ArrayList<IRoute>();
             try {
@@ -262,11 +264,14 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
                     break;
                 }
             }
+            
+            if (!overrides.containsKey(BUILD_URL_ENV_KEY))
+                overrides.put(BUILD_URL_ENV_KEY, JenkinsServletFilter.getJenkinsRootURL() + "job/" + jobName + "/" + buildNum + "/");
         } else {
             if (chatty)
                 listener.getLogger().printf("\n missing jenkins job/build info: job %s build %s \n", jobName, buildNum);
         }
-
+        
         return overrides;
     }
 
