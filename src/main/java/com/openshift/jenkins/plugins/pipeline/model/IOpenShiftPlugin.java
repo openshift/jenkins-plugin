@@ -6,7 +6,6 @@ import com.openshift.internal.restclient.model.DeploymentConfig;
 import com.openshift.internal.restclient.okhttp.OpenShiftAuthenticator;
 import com.openshift.internal.restclient.okhttp.ResponseCodeInterceptor;
 import com.openshift.jenkins.plugins.pipeline.Auth;
-import com.openshift.jenkins.plugins.pipeline.JenkinsServletFilter;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.OpenShiftBuildCanceller;
 import com.openshift.restclient.ClientBuilder;
@@ -45,6 +44,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+
+import jenkins.model.Jenkins;
 
 //import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
@@ -266,7 +267,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
             }
             
             if (!overrides.containsKey(BUILD_URL_ENV_KEY))
-                overrides.put(BUILD_URL_ENV_KEY, JenkinsServletFilter.getJenkinsRootURL() + "job/" + jobName + "/" + buildNum + "/");
+                overrides.put(BUILD_URL_ENV_KEY, Jenkins.getInstance().getRootUrl() + "job/" + jobName + "/" + buildNum + "/");
         } else {
             if (chatty)
                 listener.getLogger().printf("\n missing jenkins job/build info: job %s build %s \n", jobName, buildNum);
