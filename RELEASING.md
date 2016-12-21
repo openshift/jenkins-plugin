@@ -12,18 +12,14 @@ To cut a new release of this plugin, first perform a `git clone` of [https://git
 1. Change directories into `openshift-pipeline-plugin`, and run `git remote add upstream git://github.com/openshift/jenkins-plugin`
 1. Then pull the latest changes from [https://github.com/openshift/jenkins-plugin](https://github.com/openshift/jenkins-plugin) with the following:
 
-	$ git checkout master
-	
-	$ git fetch upstream
-	
-	$ git fetch upstream --tags
-	
-	$ git rebase upstream/master
-	
-	$ git push origin master
-	
+```
+	$ git checkout master	
+	$ git fetch upstream	
+	$ git fetch upstream --tags	
+	$ git rebase upstream/master	
+	$ git push origin master	
 	$ git push origin --tags
-
+```
 
 ## Submit the new release to the Jenkins organization
 
