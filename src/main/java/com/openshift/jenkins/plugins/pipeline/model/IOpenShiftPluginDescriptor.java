@@ -111,12 +111,16 @@ public interface IOpenShiftPluginDescriptor extends IOpenShiftParameterOverrides
                         
             Auth auth = Auth.createInstance(null, getOverride(apiURL, allOverrides), allOverrides);
             
-            DefaultClient client = (DefaultClient) new ClientBuilder(getOverride(apiURL, allOverrides)).
+            ClientBuilder cb = new ClientBuilder(getOverride(apiURL, allOverrides)).
                     sslCertificateCallback(auth).
                     withConnectTimeout(5, TimeUnit.SECONDS).
                     usingToken(Auth.deriveBearerToken(getOverride(authToken, allOverrides), null, false, allOverrides)).
-                    sslCertificate(getOverride(apiURL, allOverrides), auth.getCert()).
-                    build();
+                    sslCertificate(getOverride(apiURL, allOverrides), auth.getCert());
+            
+            if (auth.useCert())
+                cb.sslCertCallbackWithDefaultHostnameVerifier(true);
+            
+            DefaultClient client = (DefaultClient) cb.build();
 
             if (client == null) {
                 return FormValidation.error("Connection unsuccessful");

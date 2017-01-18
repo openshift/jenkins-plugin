@@ -136,25 +136,20 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
     }
 
     boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException;
-
+    
     default IClient getClient(TaskListener listener, String displayName, Map<String, String> overrides) {
-        IClient client = new ClientBuilder(getApiURL(overrides)).
-                sslCertificateCallback(getAuth()).
-                usingToken(Auth.deriveBearerToken(getAuthToken(overrides), listener, Boolean.getBoolean(getVerbose(overrides)), overrides)).
-                sslCertificate(getApiURL(overrides), getAuth().getCert()).
-                build();
-        if (client == null) {
-            listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
-        }
-        return client;
+        return this.getClient(listener, displayName, overrides, Auth.deriveBearerToken(getAuthToken(overrides), listener, Boolean.getBoolean(getVerbose(overrides)), overrides));
     }
 
     default IClient getClient(TaskListener listener, String displayName, Map<String, String> overrides, String token) {
-        IClient client = new ClientBuilder(getApiURL(overrides)).
-                sslCertificateCallback(getAuth()).
+        Auth auth = getAuth();
+        ClientBuilder cb = new ClientBuilder(getApiURL(overrides)).
+                sslCertificateCallback(auth).
                 usingToken(token).
-                sslCertificate(getApiURL(overrides), getAuth().getCert()).
-                build();
+                sslCertificate(getApiURL(overrides), auth.getCert());
+        if (auth.useCert())
+            cb.sslCertCallbackWithDefaultHostnameVerifier(true);
+        IClient client = cb.build();
         if (client == null) {
             listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
         }
@@ -665,8 +660,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
                     .dispatcher(dispatcher)
                     .readTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
                     .writeTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
-                    .connectTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS)
-                    .hostnameVerifier(getAuth());
+                    .connectTimeout(IHttpConstants.DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS);
             X509TrustManager trustManager = null;
             if (getAuth().useCert()) {
                 trustManager = Auth.createLocalTrustStore(getAuth(), getApiURL(overrides));
