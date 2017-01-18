@@ -40,7 +40,7 @@ public interface IOpenShiftServiceVerifier extends IOpenShiftPlugin {
         if (client != null) {
             // get Service
             IService svc = client.get(ResourceKind.SERVICE, getSvcName(overrides), getNamespace(overrides));
-            String ip = svc.getPortalIP();
+            String ip = svc.getClusterIP();
             int port = svc.getPort();
             spec = ip + ":" + port;
             int tryCount = 0;
