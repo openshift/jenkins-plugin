@@ -16,6 +16,7 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
@@ -24,13 +25,12 @@ import javax.net.ssl.X509TrustManager;
 
 import com.openshift.restclient.ISSLCertificateCallback;
 
-import hudson.EnvVars;
-import hudson.model.AbstractBuild;
-import hudson.model.Run;
 import hudson.model.TaskListener;
 
 
 public class Auth implements ISSLCertificateCallback {
+    static final Logger LOGGER = Logger.getLogger(Auth.class.getName());
+    
 	private static final String AUTH_FILE = "/run/secrets/kubernetes.io/serviceaccount/token";
 	private static final String CERT_FILE = "/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 	public static final String CERT_ARG = " --certificate-authority=/run/secrets/kubernetes.io/serviceaccount/ca.crt ";
@@ -70,9 +70,7 @@ public class Auth implements ISSLCertificateCallback {
 		return auth;
 	}
 	
-	// let's only use the local trust store within a calling method, so callers will sync on Auth, get the store
-	// and then reset ... assumption that the sync cost impact is tolerable
-	
+	// we use a local trust store when we have to make direct http get's and bypass the openshift-restclient-java
 	public static X509TrustManager createLocalTrustStore(Auth auth, String apiURL) {
 		if (auth.useCert()) {
 			try {
@@ -110,7 +108,6 @@ public class Auth implements ISSLCertificateCallback {
 		x509TrustManager = null;
 	}
 	
-	@Override
 	public boolean allowCertificate(final X509Certificate[] certificateChain) {
 		// this will be called if the trustManager.checkServerTrusted call fails in openshift-restclient-java;
 		// we are in this path for the "handle untrusted certifcates" or "skip tls verify" path
@@ -125,6 +122,7 @@ public class Auth implements ISSLCertificateCallback {
 			return true;
 		}
 
+	    // we use a local trust store when we have to make direct http get's and bypass the openshift-restclient-java
 		if (x509TrustManager != null) {
 			try {
 				x509TrustManager.checkServerTrusted(certificateChain, "RSA");
@@ -146,12 +144,22 @@ public class Auth implements ISSLCertificateCallback {
 	}
 	
 
-	@Override
 	public boolean allowHostname(String hostname, SSLSession sslSession) {
-		//mimic SSLCertificateCallback implementation from jbosstools-openshift repo - we can noop
-		//also lines up with what was observed in k8s jennkins plugin
-		return true;
+	    // while the old openshift-restclient ISSLCertificateCallback method still has an allowHostname,
+	    // we added support there so that we could seed the underlying okhttp3 code to use its default
+	    // hostname verifier; as such, this method should only be called if we are in skip tls mode, in 
+	    // which case we will bypass the okhttp3 hostname verification (it does not have a skip tls options)
+	    if (listener != null)
+	        listener.getLogger().println("Auth - allowHostname getting called, skip tls is " + skipTls);
+	    if (skipTls)
+	        return true;
+	    else {
+	        // should not be getting called if skip tls is false ... err on side of safety, refuse the hostname
+            LOGGER.info("allowHostname getting called but we are not skipping tls; returning false; investigate openshift-restclient-java and okhttp3");
+            return false;
+	    }
 	}
+	
 	public boolean useCert() {
 		return cert != null && !skipTls;
 	}
