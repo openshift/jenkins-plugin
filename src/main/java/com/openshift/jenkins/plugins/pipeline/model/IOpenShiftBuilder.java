@@ -173,7 +173,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
             if (Boolean.parseBoolean(getVerbose(overrides)))
                 listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
 
-            if (needToFollow.compareAndSet(true, false)) {
+            if (isBuildRunning(bldState) && needToFollow.compareAndSet(true, false)) {
                 stop = this.getBuildPodLogs(client, bldId, overrides, chatty, listener, needToFollow);
             }
 

@@ -76,6 +76,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
     public static final String NAMESPACE_SYNC_BUILD_CAUSE = "NAMESPACE_SYNC_BUILD_CAUSE";
 
     // states of note
+    public static final String STATE_RUNNING = "Running";
     public static final String STATE_COMPLETE = "Complete";
     public static final String STATE_CANCELLED = "Cancelled";
     public static final String STATE_ERROR = "Error";
@@ -326,6 +327,12 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         if (!successful)
             throw new AbortException("\"" + getDisplayName() + "\" failed");
         return successful;
+    }
+    
+    default boolean isBuildRunning(String bldState) {
+        if (bldState != null && (bldState.equals(STATE_RUNNING)))
+            return true;
+        return false;
     }
 
     default boolean isBuildFinished(String bldState) {
