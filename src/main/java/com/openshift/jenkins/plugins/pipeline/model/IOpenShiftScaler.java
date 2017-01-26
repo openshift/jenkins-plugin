@@ -13,6 +13,7 @@ import hudson.Launcher;
 import hudson.model.TaskListener;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
     String DISPLAY_NAME = "Scale OpenShift Deployment";
@@ -54,7 +55,7 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
         if (client != null) {
             IReplicationController rc = null;
             IDeploymentConfig dc = null;
-            long currTime = System.currentTimeMillis();
+            long currTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
             // in testing with the jenkins-ci sample, the initial deploy after
             // a build is kinda slow ... gotta wait more than one minute
 
@@ -66,7 +67,7 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
             // do the oc scale ... may need to retry
             boolean scaleDone = false;
             long wait = getTimeout(listener, chatty, overrides);
-            while (System.currentTimeMillis() < (currTime + wait)) {
+            while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (currTime + wait)) {
                 dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
                 if (dc == null) {
                     listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));

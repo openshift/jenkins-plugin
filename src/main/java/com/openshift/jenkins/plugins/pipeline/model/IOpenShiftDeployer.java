@@ -13,6 +13,7 @@ import hudson.Launcher;
 import hudson.model.TaskListener;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
 
@@ -40,7 +41,7 @@ public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
 
         if (client != null) {
-            long currTime = System.currentTimeMillis();
+            long currTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
             boolean deployDone = false;
             boolean versionBumped = false;
             String state = null;
@@ -48,7 +49,7 @@ public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
             IDeploymentConfig newdc = null;
             IReplicationController rc = null;
             long wait = getTimeout(listener, chatty, overrides);
-            while (System.currentTimeMillis() < (currTime + wait)) {
+            while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (currTime + wait)) {
                 if (dc == null)
                     dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
                 if (dc != null) {
