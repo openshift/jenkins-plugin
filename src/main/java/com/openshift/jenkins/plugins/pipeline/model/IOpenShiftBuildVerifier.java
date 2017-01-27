@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
 
@@ -78,7 +79,7 @@ public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
                 listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY, bldId));
             }
 
-            return this.verifyBuild(System.currentTimeMillis(), getTimeout(listener, chatty, overrides), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, overrides);
+            return this.verifyBuild(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()), getTimeout(listener, chatty, overrides), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, overrides);
 
         } else {
             return false;

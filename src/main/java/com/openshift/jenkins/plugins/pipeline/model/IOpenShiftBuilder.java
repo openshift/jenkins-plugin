@@ -19,6 +19,7 @@ import hudson.model.TaskListener;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
@@ -167,7 +168,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
 
         final AtomicBoolean needToFollow = new AtomicBoolean(follow);
 
-        while (System.currentTimeMillis() < (startTime + wait)) {
+        while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (startTime + wait)) {
             bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
             bldState = bld.getStatus();
             if (Boolean.parseBoolean(getVerbose(overrides)))
@@ -212,7 +213,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
 
         if (client != null) {
-            long startTime = System.currentTimeMillis();
+            long startTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
             boolean skipBC = getBuildName(overrides) != null && getBuildName(overrides).length() > 0;
             IBuildConfig bc = null;
             IBuild prevBld = null;
@@ -260,7 +261,7 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
                     else
                         listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_PLUS_DEPLOY, bldId));
 
-                    startTime = System.currentTimeMillis();
+                    startTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
                     long wait = getTimeout(listener, chatty, overrides);
 

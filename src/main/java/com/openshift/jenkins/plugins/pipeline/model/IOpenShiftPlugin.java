@@ -349,7 +349,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
 
     default boolean verifyBuild(long startTime, long wait, IClient client, String bldCfg, String bldId, String namespace, boolean chatty, TaskListener listener, String displayName, boolean checkDeps, boolean annotateRC, Map<String, String> env) throws InterruptedException {
         String bldState = null;
-        while (System.currentTimeMillis() < (startTime + wait)) {
+        while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (startTime + wait)) {
             IBuild bld = client.get(ResourceKind.BUILD, bldId, namespace);
             bldState = bld.getStatus();
             if (chatty)
@@ -418,8 +418,8 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
     }
 
     default boolean didICTCauseDeployment(IClient client, IDeploymentConfig dc, String imageTag, boolean chatty, TaskListener listener, long wait) throws InterruptedException {
-        long currTime = System.currentTimeMillis();
-        while (System.currentTimeMillis() - (wait / 3) <= currTime) {
+        long currTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+        while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - (wait / 3) <= currTime) {
             dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, dc.getName(), dc.getNamespace());
             if (!dc.didImageTrigger(imageTag)) {
                 if (chatty)

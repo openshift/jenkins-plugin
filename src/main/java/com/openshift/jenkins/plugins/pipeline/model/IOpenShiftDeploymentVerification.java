@@ -11,6 +11,7 @@ import hudson.Launcher;
 import hudson.model.TaskListener;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin {
 
@@ -65,12 +66,12 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
             // confirm the deployment has kicked in from completed build;
             // in testing with the jenkins-ci sample, the initial deploy after
             // a build is kinda slow ... gotta wait more than one minute
-            long currTime = System.currentTimeMillis();
+            long currTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
             String state = null;
             String depId = null;
             boolean scaledAppropriately = false;
             long wait = getTimeout(listener, chatty, overrides);
-            while (System.currentTimeMillis() < (currTime + wait)) {
+            while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (currTime + wait)) {
                 // refresh dc first
                 IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
 
