@@ -113,7 +113,6 @@ public interface IOpenShiftPluginDescriptor extends IOpenShiftParameterOverrides
             
             ClientBuilder cb = new ClientBuilder(getOverride(apiURL, allOverrides)).
                     sslCertificateCallback(auth).
-                    withConnectTimeout(5, TimeUnit.SECONDS).
                     usingToken(Auth.deriveBearerToken(getOverride(authToken, allOverrides), null, false, allOverrides)).
                     sslCertificate(getOverride(apiURL, allOverrides), auth.getCert());
             
