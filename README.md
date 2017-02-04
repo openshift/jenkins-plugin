@@ -23,7 +23,7 @@ official releases of this plugin.
 
 For each of those two repositories, this README represents the most technical and up to date description of this plugin's features.  For reference, the associated wiki page for this plugin on the Jenkins site is [here](https://wiki.jenkins-ci.org/display/JENKINS/OpenShift+Pipeline+Plugin).  The most important piece of information on that page will be the indication of the latest officially released version of this plugin.
 
-Some Jenkins job examples which use this plugin and illustrate typical Jenkins / OpenShift intergration flows can be found at:
+Some Jenkins job examples which use this plugin and illustrate typical Jenkins / OpenShift integration flows can be found at:
 - https://github.com/openshift/origin/blob/master/examples/jenkins/README.md
 - https://github.com/openshift/origin/blob/master/examples/jenkins/pipeline/README.md
 
@@ -87,13 +87,13 @@ A few Jenkins "post-build action" implementations are also provided, which you c
 Starting with version 1.0.14 of the OpenShift Pipeline Plugin, the "build steps" are now accessible via the Jenkins Pipeline Plugin Step API for creating DSL extensions for the Pipeline Plugin.
 This Pipeline DSL is the replacement for the Java object instantiation within the Pipeline Groovy scripts noted below.
 
-For each of the DSLs, you can still instantiate the various steps and assign to a variable, however you no longer need to pass it to the `step` method (execution will commence immediately after the step is created).  That would like the following example:
+For each of the DSLs, you can still instantiate the various steps and assign to a variable, however you no longer need to pass it to the `step` method (execution will commence immediately after the step is created).  This is shown in the following example:
 
 `def builder = openshiftBuild buildConfig: 'frontend'`
 
 NOTE:  the Pipeline Plugin "Snippet Generator" creates Groovy of this form.
 
-You can, however, also create the step without assigning it to a variable, and allow the automatic execution to commence.  That would like like the following example:
+You can also create the step without assigning it to a variable and allow the automatic execution to commence.  This is shown in the following example:
 
 `openshiftBuild(buildConfig: 'frontend')`
 
