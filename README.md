@@ -15,6 +15,17 @@ This omission stems from the fact that there is no single OpenShift server side 
 in porting that logic to the plugin, we currently recommend that if `oc new-app` functionality is desired in your Jenkins jobs, either use the OpenShift Jenkins image, where the `oc` binary
 is already provided and can be invoked from your Jenkins jobs, or if you are not using the OpenShift Jenkins image, include the `oc` binary in your Jenkins installation.
 
+NOTE: With the above two notes in mind, since this plugin was first envisioned and created, the rapid evolution of both Jenkins (including Pipelines and the introduction of Global Tool Configuration in Jenkins V2) and OpenShift have had an effect on how to best provide OpenShift integration from Jenkins jobs.  The advantages of not requiring the `oc` binary to be included in the Jenkins path have been largely mitigated.  The cost of porting `oc` REST interactions to Java is non-trivial.  And the lack of functionality with client side logic in addition to REST flows, such as seen with `oc new-app` or binary builds, is more of a detriment.
+
+To that end, the new experimental [OpenShift Client Plugin for Jenkins](https://github.com/openshift/jenkins-client-plugin) is now offered as a technical preview and is included in the OpenShift Jenkins images on Centos (docker.io/openshift/jenkins-1-centos7:latest and docker.io/openshift/jenkins-2-centos7:latest). The plugin is also available from the Jenkins Update Center.  Envisioned as the long term direction for OpenShift integration from Jenkins jobs, among the features provided are:
+
+- A Fluent sytled syntax for use in Jenkins Pipelines
+- Use of and exposure to any option available with `oc`
+- Integration with Jenkins Credentials and Clusters (more features which have solidified since this repository's plugin first arrived)
+- Continued support for classic Jenkins Freestyle jobs
+
+Certainly feel free to continue and read about this plugin, but please check out the new plugin at your discretion.
+
 NOTE:  This plugin requires JDK 1.8, based on its maven dependency openshift-restclient-java.
 
 The documentation and code at [https://github.com/openshift/jenkins-plugin](https://github.com/openshift/jenkins-plugin) always hosts the very latest version, including possibly pre-released versions that are still under test.
