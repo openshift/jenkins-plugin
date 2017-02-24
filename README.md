@@ -350,9 +350,9 @@ For example, in the case of the `test` project, the specific command will be:  `
 
 If that project is also where Jenkins is running out of, and hence you are using the OpenShift Jenkins image (https://github.com/openshift/jenkins), then the bearer authorization token associated with that service account is already made available to the plugin (mounted into the container Jenkins is running in at "/run/secrets/kubernetes.io/serviceaccount/token").  So you don't need to specify it in the various build step config panels.
 
-Next, in the case of "Tag OpenShift Image", you could potentially wish to access two projects (the source and destination image streams can be in different projects with `oc tag`).  If so, the service accounts for each project (and ther associated tokens) need `edit` access to the other project.  
+Next, in the case of "Tag OpenShift Image", you could potentially wish to access two projects (the source and destination image streams can be in different projects with `oc tag`).  If so, then either the service account token which Jenkins is running under, the "source" token, needs edit access to both projects, or you need to supply an additional token (most likely a service account in the second project) with edit access to the second/destination project and at least view access to the first/source project.
 
-Consider the scenario where the source image stream is in the project `test` and the destination image stream is in project `test2`.  Then you will want to run these two commands:
+Consider the scenario where the source image stream is in the project `test` and the destination image stream is in project `test2`.  Then try these two commands:
 
 -  `oc policy add-role-to-user edit system:serviceaccount:test:<service account name> -n test2`
 -  `oc policy add-role-to-user edit system:serviceaccount:test2:<service account name> -n test`
