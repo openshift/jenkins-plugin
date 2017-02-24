@@ -344,9 +344,9 @@ As a point of reference, here are the Java classes for each of the Jenkins "buil
 
 ### Authorization
 
-In order for this plugin to operate against OpenShift resources, the OpenShift service account for the project(s) being operated against will need to have the necessary role and permissions.  In particular, you will need to add the `edit` role to the `default` service account in the project those resources are located in.  
+In order for this plugin to operate against OpenShift resources, the OpenShift service account for the project(s) being operated against will need to have the necessary role and permissions.  In particular, you will need to add the `edit` role to the service account in the project those resources are located in.  
 
-For example, in the case of the `test` project, the specific command will be:  `oc policy add-role-to-user edit system:serviceaccount:test:default`
+For example, in the case of the `test` project, the specific command will be:  `oc policy add-role-to-user edit system:serviceaccount:test:<service account name>`
 
 If that project is also where Jenkins is running out of, and hence you are using the OpenShift Jenkins image (https://github.com/openshift/jenkins), then the bearer authorization token associated with that service account is already made available to the plugin (mounted into the container Jenkins is running in at "/run/secrets/kubernetes.io/serviceaccount/token").  So you don't need to specify it in the various build step config panels.
 
@@ -354,8 +354,8 @@ Next, in the case of "Tag OpenShift Image", you could potentially wish to access
 
 Consider the scenario where the source image stream is in the project `test` and the destination image stream is in project `test2`.  Then you will want to run these two commands:
 
--  `oc policy add-role-to-user edit system:serviceaccount:test:default -n test2`
--  `oc policy add-role-to-user edit system:serviceaccount:test2:default -n test`
+-  `oc policy add-role-to-user edit system:serviceaccount:test:<service account name> -n test2`
+-  `oc policy add-role-to-user edit system:serviceaccount:test2:<service account name> -n test`
 
 A similar situation also applies for creating or deleting resources via JSON/YAML.  A namespace/project which differs from the namespace set for the build step could be specified for any of the resources in the JSON/YAML.  If so, similar `oc policy` invocations
 to add the edit role for any of those namespaces listed in the JSON/YAML will be needed.
