@@ -137,7 +137,7 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
                 return true;
             } else {
                 if (checkCount)
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_VERIFY_BAD_REPLICAS_BAD, DISPLAY_NAME, depId, getReplicaCount(overrides)));
+                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_VERIFY_BAD_REPLICAS_BAD, DISPLAY_NAME, depId, state, getReplicaCount(overrides)));
                 else
                     listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, depId, state));
                 return false;
