@@ -13,6 +13,9 @@ import hudson.model.ParameterDefinition;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.QueryParameter;
@@ -22,7 +25,6 @@ import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -129,10 +131,19 @@ public interface IOpenShiftPluginDescriptor extends IOpenShiftParameterOverrides
             if (status == null || !status.equalsIgnoreCase("ok")) {
                 return FormValidation.error("Connection made but server status is:  " + status);
             }
+            
+            // the ready status is good for verifying the apiURL, but not for a bad token;
+            // making this REST call against the api server to validate the token
+            Request request = client.newRequestBuilderTo(getOverride(apiURL, allOverrides) + "/apis")
+                    .get()
+                    .build();
+            Response result = client.adapt(OkHttpClient.class).newCall(request).execute();
 
         } catch ( Throwable e ) {
             LOGGER.log(Level.SEVERE, "doTestConnection", e);
-            return FormValidation.error("Connection unsuccessful: " + e.getMessage());
+            //note, the UnauthorizedException from the restclient/okhttp3 had a misleading suggestion of using Basic authentication,
+            // so going with just the exception's class name
+            return FormValidation.error("Connection unsuccessful: " + e.getClass().getName());
         }
 
         return FormValidation.ok("Connection successful");
