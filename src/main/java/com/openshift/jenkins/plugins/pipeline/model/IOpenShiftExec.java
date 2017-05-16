@@ -8,6 +8,7 @@ import com.openshift.restclient.api.capabilities.IPodExec;
 import com.openshift.restclient.capability.CapabilityVisitor;
 import com.openshift.restclient.capability.IStoppable;
 import com.openshift.restclient.model.IPod;
+
 import hudson.Launcher;
 import hudson.model.TaskListener;
 
@@ -24,12 +25,32 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
     String DISPLAY_NAME = "OpenShift Exec";
 
     String getPod();
+    
+    default String getPod(Map<String, String> overrides) {
+        return getOverride(getPod(), overrides);
+    }
 
     String getContainer();
+    
+    default String getContainer(Map<String, String> overrides) {
+        return getOverride(getContainer(), overrides);
+    }
 
     String getCommand();
+    
+    default String getCommand(Map<String, String> overrides) {
+        return getOverride(getCommand(), overrides);
+    }
 
     List<Argument> getArguments();
+    
+    default List<Argument> getArguments(Map<String, String> overrides) {
+        List<Argument> subs = new ArrayList<Argument>();
+        List<Argument> args = getArguments();
+        if (args != null)
+            args.forEach(a -> subs.add(new Argument(getOverride(a.getValue(),overrides))));
+        return subs;
+    }
 
     default String getDisplayName() {
         return DISPLAY_NAME;
@@ -44,15 +65,15 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
 
         listener.getLogger().println(String.format(MessageConstants.START_EXEC, DISPLAY_NAME, getNamespace(overrides)));
         List<String> fullCommand = new ArrayList<>();
-        fullCommand.add(getCommand());
-        List<Argument> arguments = getArguments();
+        fullCommand.add(getCommand(overrides));
+        List<Argument> arguments = getArguments(overrides);
         if ( arguments != null ) {
             arguments.forEach(a -> fullCommand.add(a.getValue()));
         }
 
         IPodExec.Options options = new IPodExec.Options();
-        if (!getContainer().isEmpty()) {
-            options.container(getContainer());
+        if (!getContainer(overrides).isEmpty()) {
+            options.container(getContainer(overrides));
         }
 
         // get oc client
@@ -69,10 +90,10 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
         IPod p = null;
         for (int retries = 10; p == null; retries--) {
             try {
-                p = client.get(ResourceKind.POD, getPod(), getNamespace(overrides));
+                p = client.get(ResourceKind.POD, getPod(overrides), getNamespace(overrides));
             } catch (Exception e) {
                 if (retries == 1 || remainingWaitTime < 0) {
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to find pod: " + getPod()));
+                    listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to find pod: " + getPod(overrides)));
                     e.printStackTrace(listener.getLogger());
                     return false;
                 }
