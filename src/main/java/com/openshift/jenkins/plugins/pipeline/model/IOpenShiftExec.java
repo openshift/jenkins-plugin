@@ -1,7 +1,9 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
 import com.openshift.jenkins.plugins.pipeline.Argument;
+import com.openshift.jenkins.plugins.pipeline.Auth;
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
+import com.openshift.restclient.ClientBuilder;
 import com.openshift.restclient.IClient;
 import com.openshift.restclient.ResourceKind;
 import com.openshift.restclient.api.capabilities.IPodExec;
@@ -58,6 +60,39 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
 
     default long getGlobalTimeoutConfiguration() {
         return GlobalConfig.getExecWait();
+    }
+    
+    default IClient getClient(TaskListener listener, String displayName, Map<String, String> overrides, String token) {
+        Auth auth = getAuth();
+        ClientBuilder cb = null;
+        long timeoutInMS = this.getTimeout(listener, Boolean.parseBoolean(getVerbose(overrides)), overrides);
+        if (timeoutInMS > Integer.MAX_VALUE) {
+            int timeoutInMin = (int) (timeoutInMS / 60000);
+            cb = new ClientBuilder(getApiURL(overrides)).
+                    sslCertificateCallback(auth).
+                    withReadTimeout(timeoutInMin, TimeUnit.MINUTES).
+                    withWriteTimeout(timeoutInMin, TimeUnit.MINUTES).
+                    withConnectTimeout(timeoutInMin, TimeUnit.MINUTES).
+                    usingToken(token).
+                    sslCertificate(getApiURL(overrides), auth.getCert());
+        } else {
+            cb = new ClientBuilder(getApiURL(overrides)).
+                    sslCertificateCallback(auth).
+                    withReadTimeout((int)timeoutInMS, TimeUnit.MILLISECONDS).
+                    withWriteTimeout((int)timeoutInMS, TimeUnit.MILLISECONDS).
+                    withConnectTimeout((int)timeoutInMS, TimeUnit.MILLISECONDS).
+                    usingToken(token).
+                    sslCertificate(getApiURL(overrides), auth.getCert());
+        }
+        
+        if (auth.useCert())
+            cb.sslCertCallbackWithDefaultHostnameVerifier(true);
+        IClient client = cb.build();
+        if (client == null) {
+            listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
+        }
+        return client;
+        
     }
 
     default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
