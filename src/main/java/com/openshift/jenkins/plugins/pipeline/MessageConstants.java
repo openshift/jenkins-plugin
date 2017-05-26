@@ -159,4 +159,10 @@ public static final String EXIT_SERVICE_VERIFY_BAD = "\n\nExiting \"%s\" unsucce
 public static final String SOCKET_TIMEOUT = " a socket level communication timeout to \"%s\" occurred.";
 public static final String HTTP_ERR = " the HTTP level communication error \"%s\" for \"%s\" occurred.";
 
+/*
+ * These messages are centered around restclient retry
+ */
+public static final String RETRY = "\nAn exception occurred invoking a REST operation against the OpenShift master.  The operation will be retried.  Exception message \"%s\".";
+public static final String GIVE_UP_RETRY = "\nAfter a few retries, giving up invoking the REST operation against the OpenShift master.  Final exception message \"%s\".";
+
 }

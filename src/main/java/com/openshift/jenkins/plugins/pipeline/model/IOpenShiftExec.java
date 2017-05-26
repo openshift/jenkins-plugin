@@ -91,7 +91,7 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
         if (client == null) {
             listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
         }
-        return client;
+        return new RetryIClient(client, listener);
         
     }
 

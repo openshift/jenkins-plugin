@@ -154,7 +154,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         if (client == null) {
             listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
         }
-        return client;
+        return new RetryIClient(client, listener);
     }
 
     //TODO move to openshift-restclient-java IReplicationController
@@ -660,7 +660,8 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
             ResponseCodeInterceptor responseCodeInterceptor = new ResponseCodeInterceptor();
             OpenShiftAuthenticator authenticator = new OpenShiftAuthenticator();
             Dispatcher dispatcher = new Dispatcher();
-            DefaultClient client = (DefaultClient) this.getClient(listener, getDisplayName(), overrides);
+            RetryIClient iclient = (RetryIClient) this.getClient(listener, getDisplayName(), overrides);
+            DefaultClient client = iclient.getDefaultClient();
             OkHttpClient.Builder builder = new OkHttpClient.Builder()
                     .addInterceptor(responseCodeInterceptor)
                     .authenticator(authenticator)
