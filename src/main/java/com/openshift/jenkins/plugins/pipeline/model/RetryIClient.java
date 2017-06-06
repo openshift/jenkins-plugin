@@ -48,6 +48,13 @@ public class RetryIClient implements IClient {
         } else {
             ose = (OpenShiftException)t;
         }
+        // rc=409, conflict, object modified currently does not have a special case exception in
+        // the rest client; for now, look for the expected text in the message
+        if (ose.getMessage().contains("409") && ose.getMessage().contains("response code"))
+            throw ose;
+        if (ose.getCause() != null && ose.getCause().getMessage().contains("409") && ose.getCause().getMessage().contains("response code"))
+            throw ose;
+        
         listener.getLogger().println(String.format(MessageConstants.RETRY, t.getMessage()));
         try {
             Thread.sleep(1000);
