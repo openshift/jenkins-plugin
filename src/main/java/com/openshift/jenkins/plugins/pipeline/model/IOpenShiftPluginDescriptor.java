@@ -24,6 +24,7 @@ import org.kohsuke.stapler.Stapler;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
+import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -116,7 +117,7 @@ public interface IOpenShiftPluginDescriptor extends IOpenShiftParameterOverrides
             ClientBuilder cb = new ClientBuilder(getOverride(apiURL, allOverrides)).
                     sslCertificateCallback(auth).
                     usingToken(Auth.deriveBearerToken(getOverride(authToken, allOverrides), null, false, allOverrides)).
-                    sslCertificate(getOverride(apiURL, allOverrides), auth.getCert());
+                    sslCertificateCollection(getOverride(apiURL, allOverrides), auth.getCerts());
             
             if (auth.useCert())
                 cb.sslCertCallbackWithDefaultHostnameVerifier(true);
