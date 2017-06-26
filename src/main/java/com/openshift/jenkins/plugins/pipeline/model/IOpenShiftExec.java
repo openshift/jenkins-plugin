@@ -15,6 +15,7 @@ import hudson.Launcher;
 import hudson.model.TaskListener;
 
 import java.io.IOException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +75,7 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
                     withWriteTimeout(timeoutInMin, TimeUnit.MINUTES).
                     withConnectTimeout(timeoutInMin, TimeUnit.MINUTES).
                     usingToken(token).
-                    sslCertificate(getApiURL(overrides), auth.getCert());
+                    sslCertificateCollection(getApiURL(overrides), auth.getCerts());
         } else {
             cb = new ClientBuilder(getApiURL(overrides)).
                     sslCertificateCallback(auth).
@@ -82,7 +83,7 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
                     withWriteTimeout((int)timeoutInMS, TimeUnit.MILLISECONDS).
                     withConnectTimeout((int)timeoutInMS, TimeUnit.MILLISECONDS).
                     usingToken(token).
-                    sslCertificate(getApiURL(overrides), auth.getCert());
+                    sslCertificateCollection(getApiURL(overrides), auth.getCerts());
         }
         
         if (auth.useCert())

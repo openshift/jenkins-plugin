@@ -42,6 +42,7 @@ import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -147,7 +148,7 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
         ClientBuilder cb = new ClientBuilder(getApiURL(overrides)).
                 sslCertificateCallback(auth).
                 usingToken(token).
-                sslCertificate(getApiURL(overrides), auth.getCert());
+                sslCertificateCollection(getApiURL(overrides), auth.getCerts());
         if (auth.useCert())
             cb.sslCertCallbackWithDefaultHostnameVerifier(true);
         IClient client = cb.build();

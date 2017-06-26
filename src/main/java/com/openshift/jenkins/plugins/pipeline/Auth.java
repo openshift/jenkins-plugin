@@ -15,6 +15,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -35,12 +36,12 @@ public class Auth implements ISSLCertificateCallback {
 	private static final String CERT_FILE = "/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 	public static final String CERT_ARG = " --certificate-authority=/run/secrets/kubernetes.io/serviceaccount/ca.crt ";
 	
-	private X509Certificate cert = null;
+	private Collection<X509Certificate> certs = null;
 	private boolean skipTls = false;
 	private TaskListener listener = null;
 	private static X509TrustManager x509TrustManager;
-	private Auth(X509Certificate cert, TaskListener listener, boolean skipTls) {
-		this.cert = cert;
+	private Auth(Collection<X509Certificate> certs, TaskListener listener, boolean skipTls) {
+		this.certs = certs;
 		this.listener = listener;
 		this.skipTls = skipTls;
 	}
@@ -74,15 +75,19 @@ public class Auth implements ISSLCertificateCallback {
 	public static X509TrustManager createLocalTrustStore(Auth auth, String apiURL) {
 		if (auth.useCert()) {
 			try {
-				auth.getCert().checkValidity();
+			    ((X509Certificate) auth.getCerts().toArray()[0]).checkValidity();
 				if (auth.listener != null) {
-					auth.listener.getLogger().println("Auth - x509 created cert is " + auth.getCert().toString());
+					auth.listener.getLogger().println("Auth - x509 created cert is " + auth.getCerts().toArray()[0].toString());
 				}
 		        URI uri = new URI(apiURL);
 				KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
 				// need this load to initialize the key store, and allow for the subsequent set certificate entry
 				ks.load(null, null);
-				ks.setCertificateEntry(uri.toASCIIString(), auth.getCert());
+				int i = 0;
+				for (X509Certificate cert : auth.getCerts()) {
+				    ks.setCertificateEntry(uri.toASCIIString() + i, cert);
+				    i++;
+				}
 				TrustManagerFactory tmfactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
 				tmfactory.init(ks);
 				x509TrustManager = null;
@@ -161,11 +166,11 @@ public class Auth implements ISSLCertificateCallback {
 	}
 	
 	public boolean useCert() {
-		return cert != null && !skipTls;
+		return certs != null && certs.size() > 0 && !skipTls;
 	}
 	
-	public X509Certificate getCert() {
-		return cert;
+	public Collection<X509Certificate> getCerts() {
+		return certs;
 	}
 	
 	public static String pullTokenFromFile(File f, TaskListener listener) {
@@ -370,14 +375,20 @@ public class Auth implements ISSLCertificateCallback {
         return null;
     }
 
-    private static X509Certificate createCert(File caCertFile, String certString, TaskListener listener, String apiURL) throws Exception {
+    private static Collection<X509Certificate> createCert(File caCertFile, String certString, TaskListener listener, String apiURL) throws Exception {
     	if (listener != null && certString != null) {
     		listener.getLogger().println("Auth - using user inputted cert string");
     	}
-    	InputStream pemInputStream = getInputStreamFromDataOrFile(certString, caCertFile);
-		CertificateFactory certFactory = CertificateFactory.getInstance("X509");
-		X509Certificate cert = (X509Certificate) certFactory.generateCertificate(pemInputStream);
-		return cert;        
+    	InputStream pemInputStream = null;
+    	try {
+            pemInputStream = getInputStreamFromDataOrFile(certString, caCertFile);
+            CertificateFactory certFactory = CertificateFactory.getInstance("X509");
+            return (Collection<X509Certificate>) certFactory.generateCertificates(pemInputStream);
+    	} finally {
+    	    if (pemInputStream != null) {
+    	        pemInputStream.close();
+    	    }
+    	}
     }
 	
 }
