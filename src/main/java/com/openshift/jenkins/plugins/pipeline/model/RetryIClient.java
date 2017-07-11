@@ -273,4 +273,14 @@ public class RetryIClient implements IClient {
         return new RetryIClient(client.clone(), listener);
     }
 
+    @Override
+    public String getKubernetesMasterVersion() {
+        return client.getKubernetesMasterVersion();
+    }
+
+    @Override
+    public String getOpenshiftMasterVersion() {
+        return client.getOpenshiftMasterVersion();
+    }
+
 }
