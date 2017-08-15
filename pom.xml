@@ -41,6 +41,13 @@
           <nohelp>true</nohelp>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.jenkins-ci.tools</groupId>
+        <artifactId>maven-hpi-plugin</artifactId>
+        <configuration>
+            <pluginFirstClassLoader>true</pluginFirstClassLoader>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
   
