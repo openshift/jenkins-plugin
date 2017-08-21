@@ -18,9 +18,9 @@ import com.openshift.restclient.model.IResource;
 
 public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
 	
-	default String fetchApiJsonFromApiServer(boolean chatty, TaskListener listener, 
-    		Map<String,String> overrides, String apiDomain) {
-		return httpGet(chatty, listener, overrides, this.getApiURL(overrides) + "/swaggerapi/" + apiDomain + "/v1");
+    default String fetchApiJsonFromApiServer(boolean chatty, TaskListener listener, 
+        Map<String,String> overrides, String apiDomain) {
+        return httpGet(chatty, listener, overrides, this.getApiURL(overrides) + "/swaggerapi" + apiDomain + "/v1");
     }
     
     default void importJsonOfApiTypes(boolean chatty, TaskListener listener, 
