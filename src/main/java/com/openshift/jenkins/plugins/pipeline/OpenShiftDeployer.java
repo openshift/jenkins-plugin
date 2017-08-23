@@ -11,13 +11,16 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.servlet.ServletException;
 import java.io.IOException;
 
-public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenShiftDeployer {
+public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements
+        IOpenShiftDeployer {
 
     protected final String depCfg;
 
-    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+    // Fields in config.jelly must match the parameter names in the
+    // "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeployer(String apiURL, String depCfg, String namespace, String authToken, String verbose, String waitTime, String waitUnit) {
+    public OpenShiftDeployer(String apiURL, String depCfg, String namespace,
+            String authToken, String verbose, String waitTime, String waitUnit) {
         super(apiURL, namespace, authToken, verbose, waitTime, waitUnit);
         this.depCfg = depCfg != null ? depCfg.trim() : null;
     }
@@ -27,11 +30,14 @@ public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenSh
     }
 
     /**
-     * Descriptor for {@link OpenShiftDeployer}. Used as a singleton.
-     * The class is marked as public so that it can be accessed from views.
+     * Descriptor for {@link OpenShiftDeployer}. Used as a singleton. The class
+     * is marked as public so that it can be accessed from views.
      */
-    @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends TimedBuildStepDescriptor<Builder> {
+    @Extension
+    // This indicates to Jenkins that this is an implementation of an extension
+    // point.
+    public static final class DescriptorImpl extends
+            TimedBuildStepDescriptor<Builder> {
 
         public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
@@ -52,4 +58,3 @@ public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenSh
     }
 
 }
-

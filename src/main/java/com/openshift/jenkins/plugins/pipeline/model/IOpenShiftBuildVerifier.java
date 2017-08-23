@@ -38,8 +38,10 @@ public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
         return getOverride(getCheckForTriggeredDeployments(), overrides);
     }
 
-    default List<String> getBuildIDs(IClient client, Map<String, String> overrides) {
-        List<IBuild> blds = client.list(ResourceKind.BUILD, getNamespace(overrides));
+    default List<String> getBuildIDs(IClient client,
+            Map<String, String> overrides) {
+        List<IBuild> blds = client.list(ResourceKind.BUILD,
+                getNamespace(overrides));
         List<String> ids = new ArrayList<String>();
         for (IBuild bld : blds) {
             if (bld.getName().startsWith(getBldCfg(overrides))) {
@@ -58,15 +60,18 @@ public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
         return bldId;
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-        boolean checkDeps = Boolean.parseBoolean(getCheckForTriggeredDeployments(overrides));
-        listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));
+        boolean checkDeps = Boolean
+                .parseBoolean(getCheckForTriggeredDeployments(overrides));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_BUILD_RELATED_PLUGINS,
+                        DISPLAY_NAME, getBldCfg(overrides),
+                        getNamespace(overrides)));
 
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-
-
 
         if (client != null) {
             List<String> ids = getBuildIDs(client, overrides);
@@ -74,12 +79,26 @@ public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
             String bldId = getLatestBuildID(ids);
 
             if (!checkDeps) {
-                listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE, bldId));
+                listener.getLogger()
+                        .println(
+                                String.format(
+                                        MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE,
+                                        bldId));
             } else {
-                listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY, bldId));
+                listener.getLogger()
+                        .println(
+                                String.format(
+                                        MessageConstants.WAITING_ON_BUILD_STARTED_ELSEWHERE_PLUS_DEPLOY,
+                                        bldId));
             }
 
-            return this.verifyBuild(TimeUnit.NANOSECONDS.toMillis(System.nanoTime()), getTimeout(listener, chatty, overrides), client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, false, overrides);
+            return this
+                    .verifyBuild(
+                            TimeUnit.NANOSECONDS.toMillis(System.nanoTime()),
+                            getTimeout(listener, chatty, overrides), client,
+                            getBldCfg(overrides), bldId,
+                            getNamespace(overrides), chatty, listener,
+                            DISPLAY_NAME, checkDeps, false, overrides);
 
         } else {
             return false;

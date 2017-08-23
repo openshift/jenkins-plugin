@@ -6,10 +6,11 @@ import hudson.model.Descriptor;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
- * Functionless stub class to establish a path to common
- * *.jelly files (e.g. st:include page="cluster.jelly" class="com.openshift.jenkins.plugins.pipeline.Common" )
+ * Functionless stub class to establish a path to common *.jelly files (e.g.
+ * st:include page="cluster.jelly"
+ * class="com.openshift.jenkins.plugins.pipeline.Common" )
  */
-public class Common  extends AbstractDescribableImpl<Common> {
+public class Common extends AbstractDescribableImpl<Common> {
 
     @DataBoundConstructor
     public Common() {

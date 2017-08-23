@@ -17,7 +17,8 @@ import org.kohsuke.stapler.DataBoundSetter;
 import java.util.Collection;
 import java.util.Map;
 
-public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IOpenShiftBuildVerifier {
+public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements
+        IOpenShiftBuildVerifier {
 
     protected final String bldCfg;
     protected String checkForTriggeredDeployments;
@@ -59,12 +60,15 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
     }
 
     @DataBoundSetter
-    public void setCheckForTriggeredDeployments(String checkForTriggeredDeployments) {
-        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments.trim() : null;
+    public void setCheckForTriggeredDeployments(
+            String checkForTriggeredDeployments) {
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments
+                .trim() : null;
     }
 
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftBuildVerifierExecution.class);
@@ -82,18 +86,24 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
-                throw new IllegalArgumentException("need to specify buildConfig");
+            if (!arguments.containsKey("buildConfig")
+                    && !arguments.containsKey("bldCfg"))
+                throw new IllegalArgumentException(
+                        "need to specify buildConfig");
             Object bldCfg = arguments.get("buildConfig");
             if (bldCfg == null || bldCfg.toString().trim().length() == 0)
                 bldCfg = arguments.get("bldCfg");
             if (bldCfg == null || bldCfg.toString().trim().length() == 0)
-                throw new IllegalArgumentException("need to specify buildConfig");
-            OpenShiftBuildVerifier step = new OpenShiftBuildVerifier(bldCfg.toString());
+                throw new IllegalArgumentException(
+                        "need to specify buildConfig");
+            OpenShiftBuildVerifier step = new OpenShiftBuildVerifier(
+                    bldCfg.toString());
             if (arguments.containsKey("checkForTriggeredDeployments")) {
-                Object checkForTriggeredDeployments = arguments.get("checkForTriggeredDeployments");
+                Object checkForTriggeredDeployments = arguments
+                        .get("checkForTriggeredDeployments");
                 if (checkForTriggeredDeployments != null) {
-                    step.setCheckForTriggeredDeployments(checkForTriggeredDeployments.toString());
+                    step.setCheckForTriggeredDeployments(checkForTriggeredDeployments
+                            .toString());
                 }
             }
 

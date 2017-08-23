@@ -23,35 +23,37 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExecOutputListener {
+public interface IOpenShiftExec extends ITimedOpenShiftPlugin,
+        IPodExec.IPodExecOutputListener {
 
     String DISPLAY_NAME = "OpenShift Exec";
 
     String getPod();
-    
+
     default String getPod(Map<String, String> overrides) {
         return getOverride(getPod(), overrides);
     }
 
     String getContainer();
-    
+
     default String getContainer(Map<String, String> overrides) {
         return getOverride(getContainer(), overrides);
     }
 
     String getCommand();
-    
+
     default String getCommand(Map<String, String> overrides) {
         return getOverride(getCommand(), overrides);
     }
 
     List<Argument> getArguments();
-    
+
     default List<Argument> getArguments(Map<String, String> overrides) {
         List<Argument> subs = new ArrayList<Argument>();
         List<Argument> args = getArguments();
         if (args != null)
-            args.forEach(a -> subs.add(new Argument(getOverride(a.getValue(),overrides))));
+            args.forEach(a -> subs.add(new Argument(getOverride(a.getValue(),
+                    overrides))));
         return subs;
     }
 
@@ -62,48 +64,58 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
     default long getGlobalTimeoutConfiguration() {
         return GlobalConfig.getExecWait();
     }
-    
-    default IClient getClient(TaskListener listener, String displayName, Map<String, String> overrides, String token) {
+
+    default IClient getClient(TaskListener listener, String displayName,
+            Map<String, String> overrides, String token) {
         Auth auth = getAuth();
         ClientBuilder cb = null;
-        long timeoutInMS = this.getTimeout(listener, Boolean.parseBoolean(getVerbose(overrides)), overrides);
+        long timeoutInMS = this.getTimeout(listener,
+                Boolean.parseBoolean(getVerbose(overrides)), overrides);
         if (timeoutInMS > Integer.MAX_VALUE) {
             int timeoutInMin = (int) (timeoutInMS / 60000);
-            cb = new ClientBuilder(getApiURL(overrides)).
-                    sslCertificateCallback(auth).
-                    withReadTimeout(timeoutInMin, TimeUnit.MINUTES).
-                    withWriteTimeout(timeoutInMin, TimeUnit.MINUTES).
-                    withConnectTimeout(timeoutInMin, TimeUnit.MINUTES).
-                    usingToken(token).
-                    sslCertificateCollection(getApiURL(overrides), auth.getCerts());
+            cb = new ClientBuilder(getApiURL(overrides))
+                    .sslCertificateCallback(auth)
+                    .withReadTimeout(timeoutInMin, TimeUnit.MINUTES)
+                    .withWriteTimeout(timeoutInMin, TimeUnit.MINUTES)
+                    .withConnectTimeout(timeoutInMin, TimeUnit.MINUTES)
+                    .usingToken(token)
+                    .sslCertificateCollection(getApiURL(overrides),
+                            auth.getCerts());
         } else {
-            cb = new ClientBuilder(getApiURL(overrides)).
-                    sslCertificateCallback(auth).
-                    withReadTimeout((int)timeoutInMS, TimeUnit.MILLISECONDS).
-                    withWriteTimeout((int)timeoutInMS, TimeUnit.MILLISECONDS).
-                    withConnectTimeout((int)timeoutInMS, TimeUnit.MILLISECONDS).
-                    usingToken(token).
-                    sslCertificateCollection(getApiURL(overrides), auth.getCerts());
+            cb = new ClientBuilder(getApiURL(overrides))
+                    .sslCertificateCallback(auth)
+                    .withReadTimeout((int) timeoutInMS, TimeUnit.MILLISECONDS)
+                    .withWriteTimeout((int) timeoutInMS, TimeUnit.MILLISECONDS)
+                    .withConnectTimeout((int) timeoutInMS,
+                            TimeUnit.MILLISECONDS)
+                    .usingToken(token)
+                    .sslCertificateCollection(getApiURL(overrides),
+                            auth.getCerts());
         }
-        
+
         if (auth.useCert())
             cb.sslCertCallbackWithDefaultHostnameVerifier(true);
         IClient client = cb.build();
         if (client == null) {
-            listener.getLogger().println(String.format(MessageConstants.CANNOT_GET_CLIENT, displayName, getApiURL(overrides)));
+            listener.getLogger().println(
+                    String.format(MessageConstants.CANNOT_GET_CLIENT,
+                            displayName, getApiURL(overrides)));
         }
         return new RetryIClient(client, listener);
-        
+
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
 
-        listener.getLogger().println(String.format(MessageConstants.START_EXEC, DISPLAY_NAME, getNamespace(overrides)));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_EXEC, DISPLAY_NAME,
+                        getNamespace(overrides)));
         List<String> fullCommand = new ArrayList<>();
         fullCommand.add(getCommand(overrides));
         List<Argument> arguments = getArguments(overrides);
-        if ( arguments != null ) {
+        if (arguments != null) {
             arguments.forEach(a -> fullCommand.add(a.getValue()));
         }
 
@@ -115,7 +127,9 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
         if (client == null) {
-            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to obtain rest client"));
+            listener.getLogger().println(
+                    String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME,
+                            "Unable to obtain rest client"));
             return false;
         }
 
@@ -126,10 +140,14 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
         IPod p = null;
         for (int retries = 10; p == null; retries--) {
             try {
-                p = client.get(ResourceKind.POD, getPod(overrides), getNamespace(overrides));
+                p = client.get(ResourceKind.POD, getPod(overrides),
+                        getNamespace(overrides));
             } catch (Exception e) {
                 if (retries == 1 || remainingWaitTime < 0) {
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD, DISPLAY_NAME, "Unable to find pod: " + getPod(overrides)));
+                    listener.getLogger().println(
+                            String.format(MessageConstants.EXIT_EXEC_BAD,
+                                    DISPLAY_NAME, "Unable to find pod: "
+                                            + getPod(overrides)));
                     e.printStackTrace(listener.getLogger());
                     return false;
                 }
@@ -145,87 +163,113 @@ public interface IOpenShiftExec extends ITimedOpenShiftPlugin, IPodExec.IPodExec
 
         final AtomicBoolean reportError = new AtomicBoolean(false);
 
-        IStoppable exec = p.accept(new CapabilityVisitor<IPodExec, IStoppable>() {
-            @Override
-            public IStoppable visit(IPodExec capability) {
-                return capability.start(new IPodExec.IPodExecOutputListener() {
-
+        IStoppable exec = p.accept(
+                new CapabilityVisitor<IPodExec, IStoppable>() {
                     @Override
-                    public void onOpen() {
-                        listener.getLogger().println("Connection opened for exec operation");
-                        IOpenShiftExec.this.onOpen();
-                    }
+                    public IStoppable visit(IPodExec capability) {
+                        return capability.start(
+                                new IPodExec.IPodExecOutputListener() {
 
-                    @Override
-                    public void onStdOut(String message) {
-                        listener.getLogger().println("stdout> " + message);
-                        IOpenShiftExec.this.onStdOut(message);
-                    }
+                                    @Override
+                                    public void onOpen() {
+                                        listener.getLogger()
+                                                .println(
+                                                        "Connection opened for exec operation");
+                                        IOpenShiftExec.this.onOpen();
+                                    }
 
-                    @Override
-                    public void onStdErr(String message) {
-                        listener.getLogger().println("stderr> " + message);
-                        IOpenShiftExec.this.onStdErr(message);
-                    }
+                                    @Override
+                                    public void onStdOut(String message) {
+                                        listener.getLogger().println(
+                                                "stdout> " + message);
+                                        IOpenShiftExec.this.onStdOut(message);
+                                    }
 
-                    @Override
-                    public void onExecErr(String message) {
-                        reportError.set(true);
-                        listener.error("Error during exec: " + message);
-                        IOpenShiftExec.this.onExecErr(message);
-                    }
+                                    @Override
+                                    public void onStdErr(String message) {
+                                        listener.getLogger().println(
+                                                "stderr> " + message);
+                                        IOpenShiftExec.this.onStdErr(message);
+                                    }
 
-                    @Override
-                    public void onClose(int code, String reason) {
-                        listener.getLogger().printf("Connection closed for exec operation [%d]: %s\n", code, reason);
-                        IOpenShiftExec.this.onClose(code,reason);
-                        latch.countDown();
-                    }
+                                    @Override
+                                    public void onExecErr(String message) {
+                                        reportError.set(true);
+                                        listener.error("Error during exec: "
+                                                + message);
+                                        IOpenShiftExec.this.onExecErr(message);
+                                    }
 
-                    @Override
-                    public void onFailure(IOException e) {
-                        reportError.set(true);
-                        listener.error("Failure during exec: " + e.getMessage());
-                        IOpenShiftExec.this.onFailure(e);
-                        e.printStackTrace();
-                        latch.countDown();
-                    }
+                                    @Override
+                                    public void onClose(int code, String reason) {
+                                        listener.getLogger()
+                                                .printf("Connection closed for exec operation [%d]: %s\n",
+                                                        code, reason);
+                                        IOpenShiftExec.this.onClose(code,
+                                                reason);
+                                        latch.countDown();
+                                    }
 
-                }, options, fullCommand.toArray(new String[]{}));
-            }
-        }, null);
+                                    @Override
+                                    public void onFailure(IOException e) {
+                                        reportError.set(true);
+                                        listener.error("Failure during exec: "
+                                                + e.getMessage());
+                                        IOpenShiftExec.this.onFailure(e);
+                                        e.printStackTrace();
+                                        latch.countDown();
+                                    }
+
+                                }, options, fullCommand
+                                        .toArray(new String[] {}));
+                    }
+                }, null);
 
         boolean timeout = true;
         try {
-            timeout = ! latch.await(Math.max(remainingWaitTime, 1), TimeUnit.MILLISECONDS);
+            timeout = !latch.await(Math.max(remainingWaitTime, 1),
+                    TimeUnit.MILLISECONDS);
         } catch (InterruptedException ie) {
         }
 
-        if ( timeout ) {
-            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD_TIMED_OUT, DISPLAY_NAME ));
+        if (timeout) {
+            listener.getLogger().println(
+                    String.format(MessageConstants.EXIT_EXEC_BAD_TIMED_OUT,
+                            DISPLAY_NAME));
             return false;
         }
 
-        if ( reportError.get() ) {
-            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_BAD_API_ERROR, DISPLAY_NAME ));
+        if (reportError.get()) {
+            listener.getLogger().println(
+                    String.format(MessageConstants.EXIT_EXEC_BAD_API_ERROR,
+                            DISPLAY_NAME));
             return false;
         } else {
-            listener.getLogger().println(String.format(MessageConstants.EXIT_EXEC_GOOD, DISPLAY_NAME));
+            listener.getLogger()
+                    .println(
+                            String.format(MessageConstants.EXIT_EXEC_GOOD,
+                                    DISPLAY_NAME));
             return true;
         }
 
     }
 
-    default void onOpen() {}
+    default void onOpen() {
+    }
 
-    default void onStdOut(String message) {}
+    default void onStdOut(String message) {
+    }
 
-    default void onStdErr(String message) {}
+    default void onStdErr(String message) {
+    }
 
-    default void onExecErr(String message) {}
+    default void onExecErr(String message) {
+    }
 
-    default void onClose(int code, String reason) {}
+    default void onClose(int code, String reason) {
+    }
 
-    default void onFailure(IOException e) {}
+    default void onFailure(IOException e) {
+    }
 
 }

@@ -11,23 +11,31 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.servlet.ServletException;
 import java.io.IOException;
 
-
-public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IOpenShiftBuildVerifier {
+public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements
+        IOpenShiftBuildVerifier {
 
     protected final String bldCfg;
     protected final String checkForTriggeredDeployments;
 
-    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+    // Fields in config.jelly must match the parameter names in the
+    // "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftBuildVerifier(String apiURL, String bldCfg, String namespace, String authToken, String verbose, String checkForTriggeredDeployments, String waitTime, String waitUnit) {
+    public OpenShiftBuildVerifier(String apiURL, String bldCfg,
+            String namespace, String authToken, String verbose,
+            String checkForTriggeredDeployments, String waitTime,
+            String waitUnit) {
         super(apiURL, namespace, authToken, verbose, waitTime, waitUnit);
         this.bldCfg = bldCfg != null ? bldCfg.trim() : null;
-        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments.trim() : null;
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments
+                .trim() : null;
     }
 
-    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
-    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
+    // generically speaking, Jenkins will always pass in non-null field values.
+    // However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get
+    // null for the new fields. Hence,
+    // we have introduced the generic convention (even for fields that existed
+    // in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
     public String getBldCfg() {
@@ -47,11 +55,14 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
     }
 
     /**
-     * Descriptor for {@link OpenShiftBuildVerifier}. Used as a singleton.
-     * The class is marked as public so that it can be accessed from views.
+     * Descriptor for {@link OpenShiftBuildVerifier}. Used as a singleton. The
+     * class is marked as public so that it can be accessed from views.
      */
-    @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends TimedBuildStepDescriptor<Builder> {
+    @Extension
+    // This indicates to Jenkins that this is an implementation of an extension
+    // point.
+    public static final class DescriptorImpl extends
+            TimedBuildStepDescriptor<Builder> {
 
         public DescriptorImpl() {
             load();
@@ -75,4 +86,3 @@ public class OpenShiftBuildVerifier extends TimedOpenShiftBaseStep implements IO
         }
     }
 }
-

@@ -33,9 +33,13 @@ public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
         return getOverride(getDepCfg(), overrides);
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-        listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS,
+                        DISPLAY_NAME, getDepCfg(overrides),
+                        getNamespace(overrides)));
 
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
@@ -51,26 +55,36 @@ public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
             long wait = getTimeout(listener, chatty, overrides);
             while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (currTime + wait)) {
                 if (dc == null)
-                    dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
+                    dc = client.get(ResourceKind.DEPLOYMENT_CONFIG,
+                            getDepCfg(overrides), getNamespace(overrides));
                 if (dc != null) {
                     if (!versionBumped) {
-                        // allow some retry in case the dc creation request happened before this step ran
+                        // allow some retry in case the dc creation request
+                        // happened before this step ran
                         try {
                             final String dcName = dc.getName();
-                            newdc = dc.accept(new CapabilityVisitor<IDeploymentTriggerable, IDeploymentConfig>() {
+                            newdc = dc
+                                    .accept(new CapabilityVisitor<IDeploymentTriggerable, IDeploymentConfig>() {
 
-                                @Override
-                                public IDeploymentConfig visit(IDeploymentTriggerable triggerable) {
-                                    triggerable.setForce(true);
-                                    triggerable.setLatest(true);
-                                    triggerable.setResourceName(dcName);
-                                    return triggerable.trigger();
-                                }
-                                
-                            }, null);
+                                        @Override
+                                        public IDeploymentConfig visit(
+                                                IDeploymentTriggerable triggerable) {
+                                            triggerable.setForce(true);
+                                            triggerable.setLatest(true);
+                                            triggerable.setResourceName(dcName);
+                                            return triggerable.trigger();
+                                        }
+
+                                    }, null);
                             if (chatty)
-                                listener.getLogger().println("\nOpenShiftDeployer latest version now " + newdc.getLatestVersionNumber() + " and was " + dc.getLatestVersionNumber());
-                            versionBumped = newdc.getLatestVersionNumber() > dc.getLatestVersionNumber();
+                                listener.getLogger()
+                                        .println(
+                                                "\nOpenShiftDeployer latest version now "
+                                                        + newdc.getLatestVersionNumber()
+                                                        + " and was "
+                                                        + dc.getLatestVersionNumber());
+                            versionBumped = newdc.getLatestVersionNumber() > dc
+                                    .getLatestVersionNumber();
                         } catch (Throwable t) {
                             if (chatty)
                                 t.printStackTrace(listener.getLogger());
@@ -78,15 +92,25 @@ public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
                     }
 
                     try {
-                        rc = getLatestReplicationController(newdc, getNamespace(overrides), client, chatty ? listener : null);
+                        rc = getLatestReplicationController(newdc,
+                                getNamespace(overrides), client,
+                                chatty ? listener : null);
                         if (chatty)
-                            listener.getLogger().println("\nOpenShiftDeployer returned rep ctrl " + rc);
+                            listener.getLogger().println(
+                                    "\nOpenShiftDeployer returned rep ctrl "
+                                            + rc);
                         if (rc != null) {
-                            annotateJobInfoToResource(client, listener, chatty, overrides, rc);
+                            annotateJobInfoToResource(client, listener, chatty,
+                                    overrides, rc);
                             state = this.getReplicationControllerState(rc);
                             if (this.isDeployFinished(state)) {
                                 if (state.equalsIgnoreCase(STATE_FAILED)) {
-                                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, rc.getName(), state));
+                                    listener.getLogger()
+                                            .println(
+                                                    String.format(
+                                                            MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD,
+                                                            DISPLAY_NAME,
+                                                            rc.getName(), state));
                                     return false;
                                 }
                                 if (state.equalsIgnoreCase(STATE_COMPLETE)) {
@@ -94,50 +118,73 @@ public interface IOpenShiftDeployer extends ITimedOpenShiftPlugin {
                                 }
                             } else {
                                 if (chatty)
-                                    listener.getLogger().println("\nOpenShiftDeploy current phase " + state);
+                                    listener.getLogger().println(
+                                            "\nOpenShiftDeploy current phase "
+                                                    + state);
                             }
                         } else {
                             if (chatty)
-                                listener.getLogger().println("\nOpenShiftDeploy no rc for latest version yet");
+                                listener.getLogger()
+                                        .println(
+                                                "\nOpenShiftDeploy no rc for latest version yet");
                         }
                     } catch (Throwable t) {
                         if (chatty)
                             t.printStackTrace(listener.getLogger());
                     }
 
-
                     if (deployDone) {
                         break;
                     } else {
                         if (chatty)
-                            listener.getLogger().println("\nOpenShiftDeployer wait 10 seconds, then try oc deploy again");
+                            listener.getLogger()
+                                    .println(
+                                            "\nOpenShiftDeployer wait 10 seconds, then try oc deploy again");
                         try {
                             Thread.sleep(10000);
                         } catch (InterruptedException e) {
-                            // need to throw as this indicates the step as been cancelled
+                            // need to throw as this indicates the step as been
+                            // cancelled
                             // also attempt to cancel deploy on openshift side
-                            OpenShiftDeployCanceller canceller = new OpenShiftDeployCanceller(getApiURL(overrides), getDepCfg(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides));
+                            OpenShiftDeployCanceller canceller = new OpenShiftDeployCanceller(
+                                    getApiURL(overrides), getDepCfg(overrides),
+                                    getNamespace(overrides),
+                                    getAuthToken(overrides),
+                                    getVerbose(overrides));
                             canceller.setAuth(getAuth());
                             canceller.coreLogic(null, listener, overrides);
                             throw e;
                         }
                     }
 
-
                 }
             }
 
             if (!deployDone) {
                 if (newdc != null)
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_TRIGGER_TIMED_OUT, DISPLAY_NAME, (rc != null ? rc.getName() : "<deployment not found>"), state));
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_TRIGGER_TIMED_OUT,
+                                            DISPLAY_NAME,
+                                            (rc != null ? rc.getName()
+                                                    : "<deployment not found>"),
+                                            state));
                 else
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG,
+                                            DISPLAY_NAME, getDepCfg(overrides)));
                 return false;
             }
 
-            listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_GOOD_REPLICAS_IGNORED, DISPLAY_NAME, rc.getName()));
+            listener.getLogger()
+                    .println(
+                            String.format(
+                                    MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_GOOD_REPLICAS_IGNORED,
+                                    DISPLAY_NAME, rc.getName()));
             return true;
-
 
         } else {
             return false;

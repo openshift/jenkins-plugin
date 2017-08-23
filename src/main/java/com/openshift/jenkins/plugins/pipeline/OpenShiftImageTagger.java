@@ -15,8 +15,8 @@ import org.kohsuke.stapler.StaplerRequest;
 import javax.servlet.ServletException;
 import java.io.IOException;
 
-public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShiftImageTagger {
-
+public class OpenShiftImageTagger extends OpenShiftBaseStep implements
+        IOpenShiftImageTagger {
 
     protected final String testTag;
     protected final String prodTag;
@@ -26,22 +26,31 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     protected final String destinationAuthToken;
     protected final String alias;
 
-    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+    // Fields in config.jelly must match the parameter names in the
+    // "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag, String namespace, String authToken, String verbose, String testStream, String prodStream, String destinationNamespace, String destinationAuthToken, String alias) {
+    public OpenShiftImageTagger(String apiURL, String testTag, String prodTag,
+            String namespace, String authToken, String verbose,
+            String testStream, String prodStream, String destinationNamespace,
+            String destinationAuthToken, String alias) {
         super(apiURL, namespace, authToken, verbose);
         this.testTag = testTag != null ? testTag.trim() : null;
         this.prodTag = prodTag != null ? prodTag.trim() : null;
         this.prodStream = prodStream != null ? prodStream.trim() : null;
         this.testStream = testStream != null ? testStream.trim() : null;
-        this.destinationAuthToken = destinationAuthToken != null ? destinationAuthToken.trim() : null;
-        this.destinationNamespace = destinationNamespace != null ? destinationNamespace.trim() : null;
+        this.destinationAuthToken = destinationAuthToken != null ? destinationAuthToken
+                .trim() : null;
+        this.destinationNamespace = destinationNamespace != null ? destinationNamespace
+                .trim() : null;
         this.alias = alias != null ? alias.trim() : null;
     }
 
-    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
-    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
+    // generically speaking, Jenkins will always pass in non-null field values.
+    // However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get
+    // null for the new fields. Hence,
+    // we have introduced the generic convention (even for fields that existed
+    // in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
     public String getAlias() {
@@ -97,35 +106,38 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
     // you don't have to do this.
     @Override
     public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl)super.getDescriptor();
+        return (DescriptorImpl) super.getDescriptor();
     }
 
     /**
-     * Descriptor for {@link OpenShiftImageTagger}. Used as a singleton.
-     * The class is marked as public so that it can be accessed from views.
+     * Descriptor for {@link OpenShiftImageTagger}. Used as a singleton. The
+     * class is marked as public so that it can be accessed from views.
      *
      */
-    @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptor {
+    @Extension
+    // This indicates to Jenkins that this is an implementation of an extension
+    // point.
+    public static final class DescriptorImpl extends
+            BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptor {
         /**
-         * To persist global configuration information,
-         * simply store it in a field and call save().
+         * To persist global configuration information, simply store it in a
+         * field and call save().
          *
          * <p>
          * If you don't want fields to be persisted, use <tt>transient</tt>.
          */
 
         /**
-         * In order to load the persisted global configuration, you have to 
-         * call load() in the constructor.
+         * In order to load the persisted global configuration, you have to call
+         * load() in the constructor.
          */
         public DescriptorImpl() {
             load();
         }
 
-
-        public FormValidation doCheckDestinationNamespace(@QueryParameter String value)
-                throws IOException, ServletException {
+        public FormValidation doCheckDestinationNamespace(
+                @QueryParameter String value) throws IOException,
+                ServletException {
             // change reuse doCheckNamespace for destination namespace
             return ParamVerify.doCheckNamespace(value);
         }
@@ -150,13 +162,15 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
             return ParamVerify.doCheckProdStream(value);
         }
 
-        public FormValidation doCheckDestinationAuthToken(@QueryParameter String value)
-                throws IOException, ServletException {
+        public FormValidation doCheckDestinationAuthToken(
+                @QueryParameter String value) throws IOException,
+                ServletException {
             return ParamVerify.doCheckDestTagToken(value);
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
-            // Indicates that this builder can be used with all kinds of project types 
+            // Indicates that this builder can be used with all kinds of project
+            // types
             return true;
         }
 
@@ -168,14 +182,15 @@ public class OpenShiftImageTagger extends OpenShiftBaseStep implements IOpenShif
         }
 
         @Override
-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+        public boolean configure(StaplerRequest req, JSONObject formData)
+                throws FormException {
             // To persist global configuration information,
-            // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+            // pull info from formData, set appropriate instance field (which
+            // should have a getter), and call save().
             save();
-            return super.configure(req,formData);
+            return super.configure(req, formData);
         }
 
     }
 
 }
-

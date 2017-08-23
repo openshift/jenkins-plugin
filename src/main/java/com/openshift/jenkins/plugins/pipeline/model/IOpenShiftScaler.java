@@ -44,10 +44,15 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
         return getOverride(getVerifyReplicaCount(), overrides);
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-        boolean checkCount = Boolean.parseBoolean(getVerifyReplicaCount(overrides));
-        listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
+        boolean checkCount = Boolean
+                .parseBoolean(getVerifyReplicaCount(overrides));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS,
+                        DISPLAY_NAME, getDepCfg(overrides),
+                        getNamespace(overrides)));
 
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
@@ -60,62 +65,91 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
             // a build is kinda slow ... gotta wait more than one minute
 
             if (!checkCount)
-                listener.getLogger().println(String.format(MessageConstants.SCALING, getReplicaCount(overrides)));
+                listener.getLogger().println(
+                        String.format(MessageConstants.SCALING,
+                                getReplicaCount(overrides)));
             else
-                listener.getLogger().println(String.format(MessageConstants.SCALING_PLUS_REPLICA_CHECK, getReplicaCount(overrides)));
+                listener.getLogger().println(
+                        String.format(
+                                MessageConstants.SCALING_PLUS_REPLICA_CHECK,
+                                getReplicaCount(overrides)));
 
             // do the oc scale ... may need to retry
             boolean scaleDone = false;
             long wait = getTimeout(listener, chatty, overrides);
             while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (currTime + wait)) {
-                dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
+                dc = client.get(ResourceKind.DEPLOYMENT_CONFIG,
+                        getDepCfg(overrides), getNamespace(overrides));
                 if (dc == null) {
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG,
+                                            DISPLAY_NAME, getDepCfg(overrides)));
                     return false;
                 }
 
                 if (dc.getLatestVersionNumber() > 0) {
-                    rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
-                    
-                    final int count = Integer.decode(getReplicaCount(overrides));
+                    rc = getLatestReplicationController(dc,
+                            getNamespace(overrides), client, chatty ? listener
+                                    : null);
+
+                    final int count = Integer
+                            .decode(getReplicaCount(overrides));
                     scaleDone = rc.getCurrentReplicaCount() == count;
 
                     if (chatty)
-                        listener.getLogger().println("\nOpenShiftScaler setting desired replica count of " + getReplicaCount(overrides) + " on " + rc + " scaleDone " + scaleDone);
-                    
-                    if (!scaleDone) {
-                        IScale result = dc.accept(new CapabilityVisitor<IScalable, IScale>() {
+                        listener.getLogger().println(
+                                "\nOpenShiftScaler setting desired replica count of "
+                                        + getReplicaCount(overrides) + " on "
+                                        + rc + " scaleDone " + scaleDone);
 
-                            @Override
-                            public IScale visit(IScalable capability) {
-                                return capability.scaleTo(count);
-                            }
-                        }, null);
+                    if (!scaleDone) {
+                        IScale result = dc.accept(
+                                new CapabilityVisitor<IScalable, IScale>() {
+
+                                    @Override
+                                    public IScale visit(IScalable capability) {
+                                        return capability.scaleTo(count);
+                                    }
+                                }, null);
                         if (chatty)
-                            listener.getLogger().println("\nOpenShiftScaler scale result " + result);
-                        rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null); 
-                        scaleDone = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
+                            listener.getLogger().println(
+                                    "\nOpenShiftScaler scale result " + result);
+                        rc = getLatestReplicationController(dc,
+                                getNamespace(overrides), client,
+                                chatty ? listener : null);
+                        scaleDone = this
+                                .isReplicationControllerScaledAppropriately(rc,
+                                        checkCount, count);
                     }
                 } else {
-                    //TODO if not found, and we are scaling down to zero, don't consider an error - this may be safety
-                    // measure to scale down if exits ... perhaps we make this behavior configurable over time, but for now.
+                    // TODO if not found, and we are scaling down to zero, don't
+                    // consider an error - this may be safety
+                    // measure to scale down if exits ... perhaps we make this
+                    // behavior configurable over time, but for now.
                     // we refrain from adding yet 1 more config option
                     if (getReplicaCount(overrides).equals("0")) {
-                        listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_NOOP, getDepCfg(overrides)));
+                        listener.getLogger().println(
+                                String.format(
+                                        MessageConstants.EXIT_SCALING_NOOP,
+                                        getDepCfg(overrides)));
                         return true;
                     }
                 }
-
 
                 if (scaleDone) {
                     break;
                 } else {
                     if (chatty)
-                        listener.getLogger().println("\nOpenShiftScaler will wait 10 seconds, then try to scale again");
+                        listener.getLogger()
+                                .println(
+                                        "\nOpenShiftScaler will wait 10 seconds, then try to scale again");
                     try {
                         Thread.sleep(10000);
                     } catch (InterruptedException e) {
-                        // need to throw as this indicates the step as been cancelled
+                        // need to throw as this indicates the step as been
+                        // cancelled
                         throw e;
                     }
                 }
@@ -123,17 +157,31 @@ public interface IOpenShiftScaler extends ITimedOpenShiftPlugin {
 
             if (!scaleDone) {
                 if (!checkCount) {
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_BAD, getApiURL(overrides)));
+                    listener.getLogger().println(
+                            String.format(MessageConstants.EXIT_SCALING_BAD,
+                                    getApiURL(overrides)));
                 } else {
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_TIMED_OUT, (rc != null ? rc.getName() : "<deployment not found>"), getReplicaCount(overrides)));
+                    listener.getLogger().println(
+                            String.format(
+                                    MessageConstants.EXIT_SCALING_TIMED_OUT,
+                                    (rc != null ? rc.getName()
+                                            : "<deployment not found>"),
+                                    getReplicaCount(overrides)));
                 }
                 return false;
             }
 
             if (!checkCount)
-                listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_GOOD, rc.getName()));
+                listener.getLogger().println(
+                        String.format(MessageConstants.EXIT_SCALING_GOOD,
+                                rc.getName()));
             else
-                listener.getLogger().println(String.format(MessageConstants.EXIT_SCALING_GOOD_REPLICAS_GOOD, rc.getName(), getReplicaCount(overrides)));
+                listener.getLogger()
+                        .println(
+                                String.format(
+                                        MessageConstants.EXIT_SCALING_GOOD_REPLICAS_GOOD,
+                                        rc.getName(),
+                                        getReplicaCount(overrides)));
             return true;
 
         } else {

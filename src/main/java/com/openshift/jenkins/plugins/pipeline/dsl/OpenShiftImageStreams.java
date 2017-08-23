@@ -20,7 +20,6 @@ import java.io.IOException;
  */
 public class OpenShiftImageStreams extends SCMStep {
 
-
     protected String name;
     protected String tag;
     protected String apiURL;
@@ -94,7 +93,7 @@ public class OpenShiftImageStreams extends SCMStep {
     }
 
     @DataBoundConstructor
-    public OpenShiftImageStreams (String name, String tag, String namespace) {
+    public OpenShiftImageStreams(String name, String tag, String namespace) {
         this.name = name != null ? name.trim() : null;
         this.tag = tag != null ? tag.trim() : null;
         this.namespace = namespace != null ? namespace.trim() : null;
@@ -104,21 +103,20 @@ public class OpenShiftImageStreams extends SCMStep {
     @Override
     protected SCM createSCM() {
         com.openshift.jenkins.plugins.pipeline.OpenShiftImageStreams scm = new com.openshift.jenkins.plugins.pipeline.OpenShiftImageStreams(
-                name,
-                tag,
-                apiURL,
-                namespace,
-                authToken,
-                verbose);
+                name, tag, apiURL, namespace, authToken, verbose);
         scm.setAuth(auth);
         return scm;
     }
 
-    @Extension(optional=true) public static final class DescriptorImpl extends SCMStepDescriptor implements IOpenShiftPluginDescriptor {
+    @Extension(optional = true)
+    public static final class DescriptorImpl extends SCMStepDescriptor
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
-            // Fail now if dependency plugin not loaded. Descriptor.<init> will actually fail anyway, but this is just to be sure.
-            com.openshift.jenkins.plugins.pipeline.OpenShiftImageStreams.class.hashCode();
+            // Fail now if dependency plugin not loaded. Descriptor.<init> will
+            // actually fail anyway, but this is just to be sure.
+            com.openshift.jenkins.plugins.pipeline.OpenShiftImageStreams.class
+                    .hashCode();
         }
 
         @Override

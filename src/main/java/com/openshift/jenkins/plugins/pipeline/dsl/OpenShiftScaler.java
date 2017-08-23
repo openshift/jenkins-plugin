@@ -18,59 +18,64 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.logging.Logger;
 
-public class OpenShiftScaler extends TimedOpenShiftBaseStep implements IOpenShiftScaler {
-	
-	protected final String depCfg;
+public class OpenShiftScaler extends TimedOpenShiftBaseStep implements
+        IOpenShiftScaler {
+
+    protected final String depCfg;
     protected final String replicaCount;
     protected String verifyReplicaCount;
 
-    @DataBoundConstructor public OpenShiftScaler(String depCfg, String replicaCount) {
-    	this.depCfg = depCfg != null ? depCfg.trim() : null;
-    	this.replicaCount = replicaCount != null ? replicaCount.trim() : null;
-	}   
-    
-	public String getDepCfg() {
-		return depCfg;
-	}
+    @DataBoundConstructor
+    public OpenShiftScaler(String depCfg, String replicaCount) {
+        this.depCfg = depCfg != null ? depCfg.trim() : null;
+        this.replicaCount = replicaCount != null ? replicaCount.trim() : null;
+    }
 
-	public String getReplicaCount() {
-		return replicaCount;
-	}
-	
-	public String getVerifyReplicaCount() {
-		return verifyReplicaCount;
-	}
-	
-	@DataBoundSetter public void setVerifyReplicaCount(String verifyReplicaCount) {
-		this.verifyReplicaCount = verifyReplicaCount != null ? verifyReplicaCount.trim() : null;
-	}
-	
-	@Override
-	public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-		return true;
-	}
+    public String getDepCfg() {
+        return depCfg;
+    }
 
-	@Override
-	public Action getProjectAction(AbstractProject<?, ?> project) {
-		return null;
-	}
+    public String getReplicaCount() {
+        return replicaCount;
+    }
 
-	@Override
-	public Collection<? extends Action> getProjectActions(
-			AbstractProject<?, ?> project) {
-		return null;
-	}
+    public String getVerifyReplicaCount() {
+        return verifyReplicaCount;
+    }
 
-	@Override
-	public BuildStepMonitor getRequiredMonitorService() {
-		return null;
-	}
+    @DataBoundSetter
+    public void setVerifyReplicaCount(String verifyReplicaCount) {
+        this.verifyReplicaCount = verifyReplicaCount != null ? verifyReplicaCount
+                .trim() : null;
+    }
 
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftScaler.class.getName());
+    @Override
+    public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
+        return true;
+    }
 
+    @Override
+    public Action getProjectAction(AbstractProject<?, ?> project) {
+        return null;
+    }
 
-	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
+    @Override
+    public Collection<? extends Action> getProjectActions(
+            AbstractProject<?, ?> project) {
+        return null;
+    }
+
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return null;
+    }
+
+    private static final Logger LOGGER = Logger.getLogger(OpenShiftScaler.class
+            .getName());
+
+    @Extension
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftScalerExecution.class);
@@ -88,28 +93,31 @@ public class OpenShiftScaler extends TimedOpenShiftBaseStep implements IOpenShif
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
-            	throw new IllegalArgumentException("need to specify deploymentConfig");
+            if (!arguments.containsKey("deploymentConfig")
+                    && !arguments.containsKey("depCfg"))
+                throw new IllegalArgumentException(
+                        "need to specify deploymentConfig");
             Object depCfg = arguments.get("deploymentConfig");
             if (depCfg == null || depCfg.toString().trim().length() == 0)
-            	depCfg = arguments.get("depCfg");
+                depCfg = arguments.get("depCfg");
             if (depCfg == null || depCfg.toString().trim().length() == 0)
-            	throw new IllegalArgumentException("need to specify deploymentConfig");
+                throw new IllegalArgumentException(
+                        "need to specify deploymentConfig");
             if (!arguments.containsKey("replicaCount"))
-            		throw new IllegalArgumentException("need to specif replicaCount");
+                throw new IllegalArgumentException(
+                        "need to specif replicaCount");
             OpenShiftScaler step = new OpenShiftScaler(depCfg.toString(),
-            		arguments.get("replicaCount").toString());
+                    arguments.get("replicaCount").toString());
 
             if (arguments.containsKey("verifyReplicaCount")) {
-            	Object verifyReplicaCount = arguments.get("verifyReplicaCount");
-            	if (verifyReplicaCount != null)
-            		step.setVerifyReplicaCount(verifyReplicaCount.toString());
+                Object verifyReplicaCount = arguments.get("verifyReplicaCount");
+                if (verifyReplicaCount != null)
+                    step.setVerifyReplicaCount(verifyReplicaCount.toString());
             }
-            
+
             ParamVerify.updateTimedDSLBaseStep(arguments, step);
             return step;
         }
     }
-
 
 }

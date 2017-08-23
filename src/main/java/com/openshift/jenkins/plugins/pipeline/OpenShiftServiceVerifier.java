@@ -17,15 +17,17 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Map;
 
-public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpenShiftServiceVerifier {
+public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements
+        IOpenShiftServiceVerifier {
 
     protected final String svcName;
     protected String retryCount;
 
-
-    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+    // Fields in config.jelly must match the parameter names in the
+    // "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftServiceVerifier(String apiURL, String svcName, String namespace, String authToken, String verbose) {
+    public OpenShiftServiceVerifier(String apiURL, String svcName,
+            String namespace, String authToken, String verbose) {
         super(apiURL, namespace, authToken, verbose);
         this.svcName = svcName != null ? svcName.trim() : null;
     }
@@ -51,11 +53,14 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
     }
 
     /**
-     * Descriptor for {@link OpenShiftServiceVerifier}. Used as a singleton.
-     * The class is marked as public so that it can be accessed from views.
+     * Descriptor for {@link OpenShiftServiceVerifier}. Used as a singleton. The
+     * class is marked as public so that it can be accessed from views.
      */
-    @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptor {
+    @Extension
+    // This indicates to Jenkins that this is an implementation of an extension
+    // point.
+    public static final class DescriptorImpl extends
+            BuildStepDescriptor<Builder> implements IOpenShiftPluginDescriptor {
         private int retry = GlobalConfig.DEFAULT_SERVICE_VERIFY_RETRY;
 
         public DescriptorImpl() {
@@ -68,7 +73,8 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
-            // Indicates that this builder can be used with all kinds of project types 
+            // Indicates that this builder can be used with all kinds of project
+            // types
             return true;
         }
 
@@ -84,7 +90,8 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
         }
 
         @Override
-        public synchronized boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+        public synchronized boolean configure(StaplerRequest req,
+                JSONObject formData) throws FormException {
             retry = formData.getInt("retry");
             save();
             return super.configure(req, formData);
@@ -96,4 +103,3 @@ public class OpenShiftServiceVerifier extends OpenShiftBaseStep implements IOpen
     }
 
 }
-

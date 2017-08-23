@@ -29,33 +29,39 @@ import com.openshift.restclient.model.IResource;
 import com.openshift.restclient.model.JSONSerializeable;
 
 public class RetryIClient implements IClient {
-    
+
     private static int MAX_RETRY = 3;
 
     private final IClient client;
     private final TaskListener listener;
-    
-    private OpenShiftException handleError(Throwable t, Object call) throws OpenShiftException {
+
+    private OpenShiftException handleError(Throwable t, Object call)
+            throws OpenShiftException {
         OpenShiftException ose = null;
-        if ((t instanceof BadRequestException) ||
-            (t instanceof ResourceForbiddenException) ||
-            (t instanceof UnauthorizedException) ||
-            (t instanceof NotFoundException)) {
-            throw (OpenShiftException)t;                    
+        if ((t instanceof BadRequestException)
+                || (t instanceof ResourceForbiddenException)
+                || (t instanceof UnauthorizedException)
+                || (t instanceof NotFoundException)) {
+            throw (OpenShiftException) t;
         }
         if (!(t instanceof OpenShiftException)) {
             ose = new OpenShiftException(t, "retry", call);
         } else {
-            ose = (OpenShiftException)t;
+            ose = (OpenShiftException) t;
         }
-        // rc=409, conflict, object modified currently does not have a special case exception in
+        // rc=409, conflict, object modified currently does not have a special
+        // case exception in
         // the rest client; for now, look for the expected text in the message
-        if (ose.getMessage().contains("409") && ose.getMessage().contains("response code"))
+        if (ose.getMessage().contains("409")
+                && ose.getMessage().contains("response code"))
             throw ose;
-        if (ose.getCause() != null && ose.getCause().getMessage().contains("409") && ose.getCause().getMessage().contains("response code"))
+        if (ose.getCause() != null
+                && ose.getCause().getMessage().contains("409")
+                && ose.getCause().getMessage().contains("response code"))
             throw ose;
-        
-        listener.getLogger().println(String.format(MessageConstants.RETRY, t.getMessage()));
+
+        listener.getLogger().println(
+                String.format(MessageConstants.RETRY, t.getMessage()));
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
@@ -63,7 +69,7 @@ public class RetryIClient implements IClient {
         }
         return ose;
     }
-    
+
     private Object retry(Callable<Object> call) throws OpenShiftException {
         int retryCount = 0;
         OpenShiftException ose = null;
@@ -77,12 +83,16 @@ public class RetryIClient implements IClient {
             }
         }
         if (ose.getCause() != null)
-            listener.getLogger().println(String.format(MessageConstants.GIVE_UP_RETRY, ose.getCause().getMessage()));
-        else 
-            listener.getLogger().println(String.format(MessageConstants.GIVE_UP_RETRY, ose.getMessage()));
+            listener.getLogger().println(
+                    String.format(MessageConstants.GIVE_UP_RETRY, ose
+                            .getCause().getMessage()));
+        else
+            listener.getLogger().println(
+                    String.format(MessageConstants.GIVE_UP_RETRY,
+                            ose.getMessage()));
         throw ose;
     }
-    
+
     private void retry(Runnable call) throws OpenShiftException {
         int retryCount = 0;
         OpenShiftException ose = null;
@@ -96,21 +106,26 @@ public class RetryIClient implements IClient {
             }
         }
         if (ose.getCause() != null)
-            listener.getLogger().println(String.format(MessageConstants.GIVE_UP_RETRY, ose.getCause().getMessage()));
-        else 
-            listener.getLogger().println(String.format(MessageConstants.GIVE_UP_RETRY, ose.getMessage()));
+            listener.getLogger().println(
+                    String.format(MessageConstants.GIVE_UP_RETRY, ose
+                            .getCause().getMessage()));
+        else
+            listener.getLogger().println(
+                    String.format(MessageConstants.GIVE_UP_RETRY,
+                            ose.getMessage()));
         throw ose;
     }
-    
+
     public RetryIClient(IClient c, TaskListener l) {
         client = c;
         listener = l;
     }
-    
-    // some of the error handling, core request building, and auth retrieval in restclient needs the impl class ... 
+
+    // some of the error handling, core request building, and auth retrieval in
+    // restclient needs the impl class ...
     // does not come into play with actual REST interactions
     public DefaultClient getDefaultClient() {
-        return (DefaultClient)client;
+        return (DefaultClient) client;
     }
 
     @Override
@@ -192,12 +207,14 @@ public class RetryIClient implements IClient {
     @Override
     public <T extends IResource> T create(String kind, String namespace,
             String name, String subresource, IResource payload) {
-        return (T) retry(() -> client.create(kind, namespace, name, subresource, payload));
+        return (T) retry(() -> client.create(kind, namespace, name,
+                subresource, payload));
     }
 
     @Override
     public Collection<IResource> create(IList list, String namespace) {
-        return (Collection<IResource>) retry(() -> client.create(list, namespace));
+        return (Collection<IResource>) retry(() -> client.create(list,
+                namespace));
     }
 
     @Override
@@ -213,21 +230,24 @@ public class RetryIClient implements IClient {
     @Override
     public <T extends IResource> T execute(String httpMethod, String kind,
             String namespace, String name, String subresource, IResource payload) {
-        return (T) retry(() -> client.execute(httpMethod, kind, namespace, name, subresource, payload));
+        return (T) retry(() -> client.execute(httpMethod, kind, namespace,
+                name, subresource, payload));
     }
 
     @Override
     public <T extends IResource> T execute(String httpMethod, String kind,
             String namespace, String name, String subresource,
             IResource payload, Map<String, String> params) {
-        return (T) retry(() -> client.execute(httpMethod, kind, namespace, name, subresource, payload, params));
+        return (T) retry(() -> client.execute(httpMethod, kind, namespace,
+                name, subresource, payload, params));
     }
 
     @Override
     public <T extends IResource> T execute(String httpMethod, String kind,
             String namespace, String name, String subresource,
             IResource payload, String subcontext) {
-        return (T) retry(() -> client.execute(httpMethod, kind, namespace, name, subresource, payload, subcontext));
+        return (T) retry(() -> client.execute(httpMethod, kind, namespace,
+                name, subresource, payload, subcontext));
     }
 
     @Override
@@ -235,7 +255,8 @@ public class RetryIClient implements IClient {
             String namespace, String name, String subresource,
             String subContext, JSONSerializeable payload,
             Map<String, String> params) {
-        return (T) retry(() -> client.execute(factory, httpMethod, kind, namespace, name, subresource, subContext, payload, params));
+        return (T) retry(() -> client.execute(factory, httpMethod, kind,
+                namespace, name, subresource, subContext, payload, params));
     }
 
     @Override

@@ -14,7 +14,8 @@ public interface IOpenShiftParameterOverrides {
 
     default String getOverride(String key, Map<String, String> overrides) {
         String val = pruneKey(key);
-        // try override when the key is the entire parameter ... we don't just use
+        // try override when the key is the entire parameter ... we don't just
+        // use
         // replaceMacro cause we also support PARM with $ or ${}
         if (overrides != null && overrides.containsKey(val)) {
             val = overrides.get(val);

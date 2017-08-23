@@ -43,10 +43,15 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
         return getOverride(getVerifyReplicaCount(), overrides);
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-        boolean checkCount = Boolean.parseBoolean(getVerifyReplicaCount(overrides));
-        listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));
+        boolean checkCount = Boolean
+                .parseBoolean(getVerifyReplicaCount(overrides));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS,
+                        DISPLAY_NAME, getDepCfg(overrides),
+                        getNamespace(overrides)));
 
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
@@ -54,14 +59,21 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
         if (client != null) {
             // explicitly set replica count, save that
             int count = -1;
-            if (checkCount && getReplicaCount(overrides) != null && getReplicaCount(overrides).length() > 0)
+            if (checkCount && getReplicaCount(overrides) != null
+                    && getReplicaCount(overrides).length() > 0)
                 count = Integer.parseInt(getReplicaCount(overrides));
 
-
             if (!checkCount)
-                listener.getLogger().println(String.format(MessageConstants.WAITING_ON_DEPLOY, getDepCfg(overrides)));
+                listener.getLogger().println(
+                        String.format(MessageConstants.WAITING_ON_DEPLOY,
+                                getDepCfg(overrides)));
             else
-                listener.getLogger().println(String.format(MessageConstants.WAITING_ON_DEPLOY_PLUS_REPLICAS, getDepCfg(overrides), getReplicaCount(overrides)));
+                listener.getLogger()
+                        .println(
+                                String.format(
+                                        MessageConstants.WAITING_ON_DEPLOY_PLUS_REPLICAS,
+                                        getDepCfg(overrides),
+                                        getReplicaCount(overrides)));
 
             // confirm the deployment has kicked in from completed build;
             // in testing with the jenkins-ci sample, the initial deploy after
@@ -73,7 +85,9 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
             long wait = getTimeout(listener, chatty, overrides);
             while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (currTime + wait)) {
                 // refresh dc first
-                IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
+                IDeploymentConfig dc = client.get(
+                        ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides),
+                        getNamespace(overrides));
 
                 if (dc != null) {
                     // if replicaCount not set, get it from config
@@ -81,47 +95,81 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
                         count = dc.getReplicas();
 
                     if (chatty)
-                        listener.getLogger().println("\nOpenShiftDeploymentVerifier latest version:  " + dc.getLatestVersionNumber());
+                        listener.getLogger().println(
+                                "\nOpenShiftDeploymentVerifier latest version:  "
+                                        + dc.getLatestVersionNumber());
 
-                    IReplicationController rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
+                    IReplicationController rc = getLatestReplicationController(
+                            dc, getNamespace(overrides), client,
+                            chatty ? listener : null);
 
                     if (rc != null) {
                         if (chatty)
-                            listener.getLogger().println("\nOpenShiftDeploymentVerifier current rc " + rc);
+                            listener.getLogger().println(
+                                    "\nOpenShiftDeploymentVerifier current rc "
+                                            + rc);
                         state = this.getReplicationControllerState(rc);
                         if (this.isDeployFinished(state)) {
                             depId = rc.getName();
                             // first check state
                             if (state.equalsIgnoreCase(STATE_FAILED)) {
-                                listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, getDepCfg(overrides), state));
+                                listener.getLogger()
+                                        .println(
+                                                String.format(
+                                                        MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD,
+                                                        DISPLAY_NAME,
+                                                        getDepCfg(overrides),
+                                                        state));
                                 return false;
                             }
                             if (chatty)
-                                listener.getLogger().println("\nOpenShiftDeploymentVerifier rc current count " + rc.getCurrentReplicaCount() + " rc desired count " + rc.getDesiredReplicaCount() + " step verification amount " + count + " current state " + state + " and check count " + checkCount);
+                                listener.getLogger().println(
+                                        "\nOpenShiftDeploymentVerifier rc current count "
+                                                + rc.getCurrentReplicaCount()
+                                                + " rc desired count "
+                                                + rc.getDesiredReplicaCount()
+                                                + " step verification amount "
+                                                + count + " current state "
+                                                + state + " and check count "
+                                                + checkCount);
 
-                            scaledAppropriately = this.isReplicationControllerScaledAppropriately(rc, checkCount, count);
+                            scaledAppropriately = this
+                                    .isReplicationControllerScaledAppropriately(
+                                            rc, checkCount, count);
                             if (scaledAppropriately)
                                 break;
                         } else {
                             if (chatty)
-                                listener.getLogger().println("\nOpenShiftDeploymentVerifier current phase " + state);
+                                listener.getLogger().println(
+                                        "\nOpenShiftDeploymentVerifier current phase "
+                                                + state);
                         }
 
                     } else {
                         if (chatty)
-                            listener.getLogger().println("\nOpenShiftDeploymenVerifier no rc for latest version yet");
+                            listener.getLogger()
+                                    .println(
+                                            "\nOpenShiftDeploymenVerifier no rc for latest version yet");
                     }
                 } else {
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG,
+                                            DISPLAY_NAME, getDepCfg(overrides)));
                     return false;
                 }
 
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    // need to throw as this indicates the step as been cancelled
+                    // need to throw as this indicates the step as been
+                    // cancelled
                     // also attempt to cancel deploy on openshift side
-                    OpenShiftDeployCanceller canceller = new OpenShiftDeployCanceller(getApiURL(overrides), getDepCfg(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides));
+                    OpenShiftDeployCanceller canceller = new OpenShiftDeployCanceller(
+                            getApiURL(overrides), getDepCfg(overrides),
+                            getNamespace(overrides), getAuthToken(overrides),
+                            getVerbose(overrides));
                     canceller.setAuth(getAuth());
                     canceller.coreLogic(null, listener, overrides);
                     throw e;
@@ -131,18 +179,34 @@ public interface IOpenShiftDeploymentVerification extends ITimedOpenShiftPlugin 
 
             if (scaledAppropriately) {
                 if (!checkCount)
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_GOOD_REPLICAS_IGNORED, DISPLAY_NAME, depId));
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_GOOD_REPLICAS_IGNORED,
+                                            DISPLAY_NAME, depId));
                 else
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_VERIFY_GOOD_REPLICAS_GOOD, DISPLAY_NAME, depId, count));
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_VERIFY_GOOD_REPLICAS_GOOD,
+                                            DISPLAY_NAME, depId, count));
                 return true;
             } else {
                 if (checkCount)
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_VERIFY_BAD_REPLICAS_BAD, DISPLAY_NAME, depId, state, getReplicaCount(overrides)));
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_VERIFY_BAD_REPLICAS_BAD,
+                                            DISPLAY_NAME, depId, state,
+                                            getReplicaCount(overrides)));
                 else
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD, DISPLAY_NAME, depId, state));
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_BAD,
+                                            DISPLAY_NAME, depId, state));
                 return false;
             }
-
 
         } else {
             return false;

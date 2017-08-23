@@ -29,9 +29,13 @@ public interface IOpenShiftServiceVerifier extends IOpenShiftPlugin {
         return getOverride(getSvcName(), overrides);
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-        listener.getLogger().println(String.format(MessageConstants.START_SERVICE_VERIFY, DISPLAY_NAME, getSvcName(overrides), getNamespace(overrides)));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_SERVICE_VERIFY,
+                        DISPLAY_NAME, getSvcName(overrides),
+                        getNamespace(overrides)));
 
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
@@ -39,27 +43,37 @@ public interface IOpenShiftServiceVerifier extends IOpenShiftPlugin {
 
         if (client != null) {
             // get Service
-            IService svc = client.get(ResourceKind.SERVICE, getSvcName(overrides), getNamespace(overrides));
+            IService svc = client.get(ResourceKind.SERVICE,
+                    getSvcName(overrides), getNamespace(overrides));
             String ip = svc.getClusterIP();
             int port = svc.getPort();
             spec = ip + ":" + port;
             int tryCount = 0;
             if (chatty)
-                listener.getLogger().println("\nOpenShiftServiceVerifier retry " + getRetryCount(overrides));
-            listener.getLogger().println(String.format(MessageConstants.SERVICE_CONNECTING, spec));
+                listener.getLogger().println(
+                        "\nOpenShiftServiceVerifier retry "
+                                + getRetryCount(overrides));
+            listener.getLogger().println(
+                    String.format(MessageConstants.SERVICE_CONNECTING, spec));
             while (tryCount < Integer.parseInt(getRetryCount(overrides))) {
                 tryCount++;
                 if (chatty)
-                    listener.getLogger().println("\nOpenShiftServiceVerifier attempt connect to " + spec + " attempt " + tryCount);
+                    listener.getLogger().println(
+                            "\nOpenShiftServiceVerifier attempt connect to "
+                                    + spec + " attempt " + tryCount);
                 InetSocketAddress address = new InetSocketAddress(ip, port);
                 Socket socket = null;
                 try {
                     socket = new Socket();
                     socket.connect(address, 2500);
-                    listener.getLogger().println(String.format(MessageConstants.EXIT_SERVICE_VERIFY_GOOD, DISPLAY_NAME, spec));
+                    listener.getLogger().println(
+                            String.format(
+                                    MessageConstants.EXIT_SERVICE_VERIFY_GOOD,
+                                    DISPLAY_NAME, spec));
                     return true;
                 } catch (IOException e) {
-                    if (chatty) e.printStackTrace(listener.getLogger());
+                    if (chatty)
+                        e.printStackTrace(listener.getLogger());
                     try {
                         Thread.sleep(2500);
                     } catch (InterruptedException e1) {
@@ -74,12 +88,13 @@ public interface IOpenShiftServiceVerifier extends IOpenShiftPlugin {
                 }
             }
 
-
         } else {
             return false;
         }
 
-        listener.getLogger().println(String.format(MessageConstants.EXIT_SERVICE_VERIFY_BAD, DISPLAY_NAME, spec));
+        listener.getLogger().println(
+                String.format(MessageConstants.EXIT_SERVICE_VERIFY_BAD,
+                        DISPLAY_NAME, spec));
 
         return false;
     }

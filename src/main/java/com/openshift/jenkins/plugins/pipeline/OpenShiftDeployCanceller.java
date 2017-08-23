@@ -23,124 +23,159 @@ import java.util.Map;
 
 public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
 
-	protected static final String DISPLAY_NAME = "Cancel OpenShift Deployment";
-	
-	public String getDisplayName() {
-		return DISPLAY_NAME;
-	}
-	
-	protected final String depCfg;
-    
-    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+    protected static final String DISPLAY_NAME = "Cancel OpenShift Deployment";
+
+    public String getDisplayName() {
+        return DISPLAY_NAME;
+    }
+
+    protected final String depCfg;
+
+    // Fields in config.jelly must match the parameter names in the
+    // "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftDeployCanceller(String apiURL, String depCfg, String namespace, String authToken, String verbose) {
-    	super(apiURL, namespace, authToken, verbose);
+    public OpenShiftDeployCanceller(String apiURL, String depCfg,
+            String namespace, String authToken, String verbose) {
+        super(apiURL, namespace, authToken, verbose);
         this.depCfg = depCfg != null ? depCfg.trim() : null;
     }
 
-    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
-    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
+    // generically speaking, Jenkins will always pass in non-null field values.
+    // However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get
+    // null for the new fields. Hence,
+    // we have introduced the generic convention (even for fields that existed
+    // in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
-	public String getDepCfg() {
-		return depCfg;
-	}
+    public String getDepCfg() {
+        return depCfg;
+    }
 
-	public String getDepCfg(Map<String,String> overrides) {
-		return getOverride(getDepCfg(), overrides);
-	}
-	
-	@Override
-	public boolean coreLogic(Launcher launcher, TaskListener listener, Map<String,String> overrides) {
+    public String getDepCfg(Map<String, String> overrides) {
+        return getOverride(getDepCfg(), overrides);
+    }
 
-    	listener.getLogger().println(String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS, DISPLAY_NAME, getDepCfg(overrides), getNamespace(overrides)));		
-		
-    	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-    	
-    	if (client != null) {
-    		IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG, getDepCfg(overrides), getNamespace(overrides));
-    		
-    		if (dc == null) {
-		    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG, DISPLAY_NAME, getDepCfg(overrides)));
-    			return false;
-    		}
-			
-    		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-			IReplicationController rc = getLatestReplicationController(dc, getNamespace(overrides), client, chatty ? listener : null);
-				
-			if (rc != null) {
-				String state = this.getReplicationControllerState(rc);
-        		if (state.equalsIgnoreCase(STATE_FAILED) || state.equalsIgnoreCase(STATE_COMPLETE) || state.equalsIgnoreCase(STATE_CANCELLED)) {
-        	    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_NOOP, rc.getName(), state));
-        			return true;
-        		}
-        		
-        		rc.setAnnotation("openshift.io/deployment.cancelled", "true");
-        		rc.setAnnotation("openshift.io/deployment.status-reason", "The deployment was cancelled by the user");
-				
-        		client.update(rc);
-        		
-    	    	listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_DIDIT, rc.getName()));
-        		return true;
-			} else {
-				if (dc.getLatestVersionNumber() > 0) {
-					listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_CANCEL_BAD_NO_REPCTR, getDepCfg(overrides)));
-					return false;
-				} else {
-					listener.getLogger().println(String.format(MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_NO_REPCTR, getDepCfg(overrides)));
-					return true;
-				}
-			}					
-    		
-    	} else {
-	    	return false;
-    	}
-		
-	}
+    @Override
+    public boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) {
 
-	// Overridden for better type safety.
+        listener.getLogger().println(
+                String.format(MessageConstants.START_DEPLOY_RELATED_PLUGINS,
+                        DISPLAY_NAME, getDepCfg(overrides),
+                        getNamespace(overrides)));
+
+        // get oc client
+        IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
+
+        if (client != null) {
+            IDeploymentConfig dc = client.get(ResourceKind.DEPLOYMENT_CONFIG,
+                    getDepCfg(overrides), getNamespace(overrides));
+
+            if (dc == null) {
+                listener.getLogger()
+                        .println(
+                                String.format(
+                                        MessageConstants.EXIT_DEPLOY_RELATED_PLUGINS_NO_CFG,
+                                        DISPLAY_NAME, getDepCfg(overrides)));
+                return false;
+            }
+
+            boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+            IReplicationController rc = getLatestReplicationController(dc,
+                    getNamespace(overrides), client, chatty ? listener : null);
+
+            if (rc != null) {
+                String state = this.getReplicationControllerState(rc);
+                if (state.equalsIgnoreCase(STATE_FAILED)
+                        || state.equalsIgnoreCase(STATE_COMPLETE)
+                        || state.equalsIgnoreCase(STATE_CANCELLED)) {
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_NOOP,
+                                            rc.getName(), state));
+                    return true;
+                }
+
+                rc.setAnnotation("openshift.io/deployment.cancelled", "true");
+                rc.setAnnotation("openshift.io/deployment.status-reason",
+                        "The deployment was cancelled by the user");
+
+                client.update(rc);
+
+                listener.getLogger().println(
+                        String.format(
+                                MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_DIDIT,
+                                rc.getName()));
+                return true;
+            } else {
+                if (dc.getLatestVersionNumber() > 0) {
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_CANCEL_BAD_NO_REPCTR,
+                                            getDepCfg(overrides)));
+                    return false;
+                } else {
+                    listener.getLogger()
+                            .println(
+                                    String.format(
+                                            MessageConstants.EXIT_DEPLOY_CANCEL_GOOD_NO_REPCTR,
+                                            getDepCfg(overrides)));
+                    return true;
+                }
+            }
+
+        } else {
+            return false;
+        }
+
+    }
+
+    // Overridden for better type safety.
     // If your plugin doesn't really define any property on Descriptor,
     // you don't have to do this.
     @Override
     public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl)super.getDescriptor();
+        return (DescriptorImpl) super.getDescriptor();
     }
 
-
-
-	/**
-     * Descriptor for {@link OpenShiftDeployCanceller}. Used as a singleton.
-     * The class is marked as public so that it can be accessed from views.
+    /**
+     * Descriptor for {@link OpenShiftDeployCanceller}. Used as a singleton. The
+     * class is marked as public so that it can be accessed from views.
      *
      */
-    @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements IOpenShiftPluginDescriptor {
+    @Extension
+    // This indicates to Jenkins that this is an implementation of an extension
+    // point.
+    public static final class DescriptorImpl extends
+            BuildStepDescriptor<Publisher> implements
+            IOpenShiftPluginDescriptor {
         /**
-         * To persist global configuration information,
-         * simply store it in a field and call save().
+         * To persist global configuration information, simply store it in a
+         * field and call save().
          *
          * <p>
          * If you don't want fields to be persisted, use <tt>transient</tt>.
          */
 
         /**
-         * In order to load the persisted global configuration, you have to 
-         * call load() in the constructor.
+         * In order to load the persisted global configuration, you have to call
+         * load() in the constructor.
          */
         public DescriptorImpl() {
             load();
         }
 
-
         public FormValidation doCheckDepCfg(@QueryParameter String value)
                 throws IOException, ServletException {
-        	return ParamVerify.doCheckDepCfg(value);
+            return ParamVerify.doCheckDepCfg(value);
         }
 
         public boolean isApplicable(Class<? extends AbstractProject> aClass) {
-            // Indicates that this builder can be used with all kinds of project types 
+            // Indicates that this builder can be used with all kinds of project
+            // types
             return true;
         }
 
@@ -152,16 +187,15 @@ public class OpenShiftDeployCanceller extends OpenShiftBasePostAction {
         }
 
         @Override
-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+        public boolean configure(StaplerRequest req, JSONObject formData)
+                throws FormException {
             // To persist global configuration information,
-            // pull info from formData, set appropriate instance field (which should have a getter), and call save().
+            // pull info from formData, set appropriate instance field (which
+            // should have a getter), and call save().
             save();
-            return super.configure(req,formData);
+            return super.configure(req, formData);
         }
 
     }
 
-
-
 }
-

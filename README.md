@@ -372,8 +372,8 @@ Per the OpenShift documentation, see the commands `oc describe serviceaccount de
 
 For the certificate, when running in the OpenShift Jenkins image, the CA certificate by default is pulled from the well known location ("/run/secrets/kubernetes.io/serviceaccount/ca.crt") where OpenShift mounts it, and then is stored into the Java KeyStore and X.509 TrustManager for subsequent verification against the OpenShift server on all subsequent interactions.  If you wish to override the certificate used:
 
-- For all steps of a given project, set a build parameter (again, of type `Text Parameter`)  named `CA_CERT` to the string needed to construct the certificate.
-- Since `Text Parameter` input fields are not available with the global key/value properties, the plug-in does not support defining certificates via a `CA_CERT` property across Jenkins projects.
+- Option 1:  set a either a project specific build parameter or global key/value property named `CA_CERT_FILE` to the file location of the certificate
+- Option 2: For all steps of a given project, set a build parameter (again, of type `Text Parameter`)  named `CA_CERT` to the string needed to construct the certificate.  Since `Text Parameter` input fields are not available with the global key/value properties, the plug-in does not support defining certificates via a `CA_CERT` property across Jenkins projects.
 
 If you want to skip TLS verification and allow for untrusted certificates, set the named parameter `SKIP_TLS` to any value other than `false`.  Since this can be done with a Jenkins `String Parameter`, you can use this at either the global or project level. 
 

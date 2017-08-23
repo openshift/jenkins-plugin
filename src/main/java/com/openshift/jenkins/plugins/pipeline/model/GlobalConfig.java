@@ -1,6 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline.model;
 
-
 import com.openshift.jenkins.plugins.pipeline.*;
 
 // this class is storage for Global Jenkins config, accessible via config.jelly and extensions
@@ -26,32 +25,38 @@ public class GlobalConfig {
     public static final long DEFAULT_EXEC_WAIT = 3 * MINUTE;
 
     public static long getBuildWait() {
-        return new OpenShiftBuilder.DescriptorImpl().getConfiguredDefaultWaitTime();
+        return new OpenShiftBuilder.DescriptorImpl()
+                .getConfiguredDefaultWaitTime();
     }
 
     public static long getBuildVerifyWait() {
-        return new OpenShiftBuildVerifier.DescriptorImpl().getConfiguredDefaultWaitTime();
+        return new OpenShiftBuildVerifier.DescriptorImpl()
+                .getConfiguredDefaultWaitTime();
     }
 
     public static long getExecWait() {
-        return new OpenShiftExec.DescriptorImpl().getConfiguredDefaultWaitTime();
+        return new OpenShiftExec.DescriptorImpl()
+                .getConfiguredDefaultWaitTime();
     }
 
     public static long getDeployWait() {
-        return new OpenShiftDeployer.DescriptorImpl().getConfiguredDefaultWaitTime();
+        return new OpenShiftDeployer.DescriptorImpl()
+                .getConfiguredDefaultWaitTime();
     }
 
     public static long getDeployVerifyWait() {
-        return new OpenShiftDeploymentVerifier.DescriptorImpl().getConfiguredDefaultWaitTime();
+        return new OpenShiftDeploymentVerifier.DescriptorImpl()
+                .getConfiguredDefaultWaitTime();
     }
 
     public static long getScalerWait() {
-        return new OpenShiftScaler.DescriptorImpl().getConfiguredDefaultWaitTime();
+        return new OpenShiftScaler.DescriptorImpl()
+                .getConfiguredDefaultWaitTime();
     }
 
     public static int getServiceVerifyRetry() {
-        return new OpenShiftServiceVerifier.DescriptorImpl().getConfiguredRetryCount();
+        return new OpenShiftServiceVerifier.DescriptorImpl()
+                .getConfiguredRetryCount();
     }
-
 
 }
