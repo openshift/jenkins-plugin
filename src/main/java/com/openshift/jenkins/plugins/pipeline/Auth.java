@@ -49,7 +49,22 @@ public class Auth implements ISSLCertificateCallback {
     public static Auth createInstance(TaskListener listener, String apiURL,
             Map<String, String> env) throws RuntimeException {
         Auth auth = null;
-        File f = new File(CERT_FILE);
+        File f = null;
+        // first see if user overrides cert file location
+        String certFile = env.get("CA_CERT_FILE");
+        if (certFile != null && certFile.trim().length() > 0) {
+            f = new File(certFile.trim());
+        }
+        // if CA_CERT_FILE override bad, throw exception
+        if (f != null && !f.exists()) {
+            throw new RuntimeException("CA_CERT_FILE location " + certFile + " does not exist");
+        }
+        
+        // if override not specified use default
+        if (f == null) {
+            f = new File(CERT_FILE);
+        }
+        
         String skipVal = env.get("SKIP_TLS");
         String certVal = env.get("CA_CERT");
         boolean skip = skipVal != null
@@ -320,7 +335,7 @@ public class Auth implements ISSLCertificateCallback {
      * e.printStackTrace(listener.getLogger()); } } return deriveBearerToken(at,
      * listener, verbose, vars, env); }
      */
-    public static String deriveCA(String ca, TaskListener listener,
+    /*public static String deriveCA(String ca, TaskListener listener,
             boolean verbose) {
         String caCert = ca;
         if (verbose && listener != null)
@@ -381,7 +396,7 @@ public class Auth implements ISSLCertificateCallback {
         }
 
         return caCert;
-    }
+    }*/
 
     private static InputStream getInputStreamFromDataOrFile(String data,
             File file) throws FileNotFoundException,
