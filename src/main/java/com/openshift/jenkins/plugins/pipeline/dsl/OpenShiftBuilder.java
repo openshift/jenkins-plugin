@@ -21,8 +21,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-
-public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShiftBuilder {
+public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements
+        IOpenShiftBuilder {
 
     protected final String bldCfg;
     protected String commitID;
@@ -31,15 +31,19 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
     protected String checkForTriggeredDeployments;
     protected List<NameValuePair> envVars = new ArrayList<>();
 
-    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+    // Fields in config.jelly must match the parameter names in the
+    // "DataBoundConstructor"
     @DataBoundConstructor
     public OpenShiftBuilder(String bldCfg) {
         this.bldCfg = bldCfg;
     }
 
-    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
-    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
+    // generically speaking, Jenkins will always pass in non-null field values.
+    // However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get
+    // null for the new fields. Hence,
+    // we have introduced the generic convention (even for fields that existed
+    // in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
     public String getCommitID() {
@@ -66,7 +70,8 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
 
     @DataBoundSetter
     public void setShowBuildLogs(String showBuildLogs) {
-        this.showBuildLogs = showBuildLogs != null ? showBuildLogs.trim() : null;
+        this.showBuildLogs = showBuildLogs != null ? showBuildLogs.trim()
+                : null;
     }
 
     public String getBldCfg() {
@@ -87,12 +92,15 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
     }
 
     @DataBoundSetter
-    public void setCheckForTriggeredDeployments(String checkForTriggeredDeployments) {
-        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments.trim() : null;
+    public void setCheckForTriggeredDeployments(
+            String checkForTriggeredDeployments) {
+        this.checkForTriggeredDeployments = checkForTriggeredDeployments != null ? checkForTriggeredDeployments
+                .trim() : null;
     }
 
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftBuilderExecution.class);
@@ -110,13 +118,16 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("buildConfig") && !arguments.containsKey("bldCfg"))
-                throw new IllegalArgumentException("need to specify buildConfig");
+            if (!arguments.containsKey("buildConfig")
+                    && !arguments.containsKey("bldCfg"))
+                throw new IllegalArgumentException(
+                        "need to specify buildConfig");
             Object bldCfg = arguments.get("buildConfig");
             if (bldCfg == null || bldCfg.toString().trim().length() == 0)
                 bldCfg = arguments.get("bldCfg");
             if (bldCfg == null || bldCfg.toString().trim().length() == 0)
-                throw new IllegalArgumentException("need to specify buildConfig");
+                throw new IllegalArgumentException(
+                        "need to specify buildConfig");
             OpenShiftBuilder step = new OpenShiftBuilder(bldCfg.toString());
             if (arguments.containsKey("buildName")) {
                 Object buildName = arguments.get("buildName");
@@ -125,9 +136,11 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
                 }
             }
             if (arguments.containsKey("checkForTriggeredDeployments")) {
-                Object checkForTriggeredDeployments = arguments.get("checkForTriggeredDeployments");
+                Object checkForTriggeredDeployments = arguments
+                        .get("checkForTriggeredDeployments");
                 if (checkForTriggeredDeployments != null) {
-                    step.setCheckForTriggeredDeployments(checkForTriggeredDeployments.toString());
+                    step.setCheckForTriggeredDeployments(checkForTriggeredDeployments
+                            .toString());
                 }
             }
             if (arguments.containsKey("commitID")) {
@@ -143,7 +156,8 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
                 }
             }
 
-            // Allow env to be specified as a map: env: [ [ name : 'name1', value : 'value2' ], ... ]
+            // Allow env to be specified as a map: env: [ [ name : 'name1',
+            // value : 'value2' ], ... ]
             Object envObject = arguments.get("env");
             if (envObject != null) {
                 try {
@@ -154,13 +168,18 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
                         Object name = m.get("name");
                         Object value = m.get("value");
                         if (name == null || value == null) {
-                            throw new IOException("Missing name or value in entry: " + o.toString());
+                            throw new IOException(
+                                    "Missing name or value in entry: "
+                                            + o.toString());
                         }
-                        envs.add(new NameValuePair(name.toString().trim(), value.toString().trim()));
+                        envs.add(new NameValuePair(name.toString().trim(),
+                                value.toString().trim()));
                     }
                     step.setEnv(envs);
                 } catch (Throwable t) {
-                    throw new UnsupportedOperationException("Environment variables must be specified as follows: env: [ [ name : 'name1', value : 'value2' ], ... ]. Error: " + t.getMessage());
+                    throw new UnsupportedOperationException(
+                            "Environment variables must be specified as follows: env: [ [ name : 'name1', value : 'value2' ], ... ]. Error: "
+                                    + t.getMessage());
                 }
             }
 
@@ -191,4 +210,3 @@ public class OpenShiftBuilder extends TimedOpenShiftBaseStep implements IOpenShi
     }
 
 }
-

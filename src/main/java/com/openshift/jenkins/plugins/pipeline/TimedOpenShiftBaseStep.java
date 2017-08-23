@@ -12,12 +12,14 @@ import org.kohsuke.stapler.StaplerRequest;
 
 import java.io.Serializable;
 
-public abstract class TimedOpenShiftBaseStep extends OpenShiftBaseStep implements SimpleBuildStep, Serializable, ITimedOpenShiftPlugin {
+public abstract class TimedOpenShiftBaseStep extends OpenShiftBaseStep
+        implements SimpleBuildStep, Serializable, ITimedOpenShiftPlugin {
 
     protected final String waitTime;
     protected final String waitUnit;
 
-    protected TimedOpenShiftBaseStep(String apiURL, String namespace, String authToken, String verbose, String waitTime, String waitUnit) {
+    protected TimedOpenShiftBaseStep(String apiURL, String namespace,
+            String authToken, String verbose, String waitTime, String waitUnit) {
         super(apiURL, namespace, authToken, verbose);
         this.waitTime = waitTime != null ? waitTime.trim() : null;
         this.waitUnit = waitUnit != null ? waitUnit.trim() : null;

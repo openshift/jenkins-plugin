@@ -19,57 +19,59 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeleterLabels;
 
-public class OpenShiftDeleterLabels extends OpenShiftBaseStep implements IOpenShiftDeleterLabels {
+public class OpenShiftDeleterLabels extends OpenShiftBaseStep implements
+        IOpenShiftDeleterLabels {
 
-	protected final String types;
-	protected final String keys;
-	protected final String values;
-	
-    @DataBoundConstructor public OpenShiftDeleterLabels(String types, String keys, String values) {
-    	this.types = types != null ? types.trim() : null;
-    	this.keys = keys != null ? keys.trim() : null;
-    	this.values = values != null ? values.trim() : null;
-	}
-    
+    protected final String types;
+    protected final String keys;
+    protected final String values;
 
-	public String getTypes() {
-		return types;
-	}
-	
-	public String getKeys() {
-		return keys;
-	}
-	
-	public String getValues() {
-		return values;
-	}
-	
-	@Override
-	public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-		return true;
-	}
+    @DataBoundConstructor
+    public OpenShiftDeleterLabels(String types, String keys, String values) {
+        this.types = types != null ? types.trim() : null;
+        this.keys = keys != null ? keys.trim() : null;
+        this.values = values != null ? values.trim() : null;
+    }
 
-	@Override
-	public Action getProjectAction(AbstractProject<?, ?> project) {
-		return null;
-	}
+    public String getTypes() {
+        return types;
+    }
 
-	@Override
-	public Collection<? extends Action> getProjectActions(
-			AbstractProject<?, ?> project) {
-		return null;
-	}
+    public String getKeys() {
+        return keys;
+    }
 
-	@Override
-	public BuildStepMonitor getRequiredMonitorService() {
-		return null;
-	}
+    public String getValues() {
+        return values;
+    }
 
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftDeleterLabels.class.getName());
+    @Override
+    public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
+        return true;
+    }
 
+    @Override
+    public Action getProjectAction(AbstractProject<?, ?> project) {
+        return null;
+    }
 
-	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
+    @Override
+    public Collection<? extends Action> getProjectActions(
+            AbstractProject<?, ?> project) {
+        return null;
+    }
+
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return null;
+    }
+
+    private static final Logger LOGGER = Logger
+            .getLogger(OpenShiftDeleterLabels.class.getName());
+
+    @Extension
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftDeleterLabelsExecution.class);
@@ -87,13 +89,17 @@ public class OpenShiftDeleterLabels extends OpenShiftBaseStep implements IOpenSh
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("types") || !arguments.containsKey("keys") || !arguments.containsKey("values"))
-            	throw new IllegalArgumentException("need to specify types, keys, and values");
-            OpenShiftDeleterLabels step = new OpenShiftDeleterLabels(arguments.get("types").toString(), arguments.get("keys").toString(), arguments.get("values").toString());
+            if (!arguments.containsKey("types")
+                    || !arguments.containsKey("keys")
+                    || !arguments.containsKey("values"))
+                throw new IllegalArgumentException(
+                        "need to specify types, keys, and values");
+            OpenShiftDeleterLabels step = new OpenShiftDeleterLabels(arguments
+                    .get("types").toString(), arguments.get("keys").toString(),
+                    arguments.get("values").toString());
             ParamVerify.updateDSLBaseStep(arguments, step);
             return step;
         }
     }
-
 
 }

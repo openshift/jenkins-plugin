@@ -9,7 +9,8 @@ import org.kohsuke.stapler.QueryParameter;
 
 import java.io.Serializable;
 
-public class Argument extends AbstractDescribableImpl<Argument> implements Serializable {
+public class Argument extends AbstractDescribableImpl<Argument> implements
+        Serializable {
 
     protected final String value;
 
@@ -21,7 +22,6 @@ public class Argument extends AbstractDescribableImpl<Argument> implements Seria
     public String getValue() {
         return value;
     }
-
 
     @Extension
     public static class DescriptorImpl extends Descriptor<Argument> {

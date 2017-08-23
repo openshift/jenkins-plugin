@@ -66,104 +66,139 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
         return GlobalConfig.getBuildWait();
     }
 
-    default void applyEnvVars(IBuildTriggerable bt, Map<String, String> overrides, TaskListener listener, boolean chatty) {
+    default void applyEnvVars(IBuildTriggerable bt,
+            Map<String, String> overrides, TaskListener listener, boolean chatty) {
         if (getEnv() != null) {
             for (NameValuePair p : getEnv()) {
                 String name = p.getName().trim();
                 if (!name.isEmpty()) {
                     if (chatty)
-                        listener.getLogger().println("applyEnvVars env name " + name + " raw value " + p.getValue() + " override value " + getOverride(p.getValue(), overrides));
-                    bt.setEnvironmentVariable(p.getName(), getOverride(p.getValue(), overrides));
+                        listener.getLogger().println(
+                                "applyEnvVars env name " + name + " raw value "
+                                        + p.getValue() + " override value "
+                                        + getOverride(p.getValue(), overrides));
+                    bt.setEnvironmentVariable(p.getName(),
+                            getOverride(p.getValue(), overrides));
                 }
             }
         }
     }
 
-    default IBuild startBuild(IBuildConfig bc, IBuild prevBld, Map<String, String> overrides, boolean chatty, TaskListener listener, IClient client) {
+    default IBuild startBuild(IBuildConfig bc, IBuild prevBld,
+            Map<String, String> overrides, boolean chatty,
+            TaskListener listener, IClient client) {
         IBuild bld = null;
         if (bc != null) {
-            if (getCommitID(overrides) != null && getCommitID(overrides).length() > 0) {
+            if (getCommitID(overrides) != null
+                    && getCommitID(overrides).length() > 0) {
                 final String cid = getCommitID(overrides);
-                bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-                    public IBuild visit(IBuildTriggerable triggerable) {
-                        triggerable.setCommitId(cid);
-                        triggerable.addBuildCause("Jenkins job: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
-                        applyEnvVars(triggerable, overrides, listener, chatty);
-                        return triggerable.trigger();
-                    }
-                }, null);
+                bld = bc.accept(
+                        new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+                            public IBuild visit(IBuildTriggerable triggerable) {
+                                triggerable.setCommitId(cid);
+                                triggerable.addBuildCause("Jenkins job: "
+                                        + overrides
+                                                .get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
+                                applyEnvVars(triggerable, overrides, listener,
+                                        chatty);
+                                return triggerable.trigger();
+                            }
+                        }, null);
             } else {
-                bld = bc.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-                    public IBuild visit(IBuildTriggerable triggerable) {
-                        triggerable.addBuildCause("Jenkins job: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
-                        applyEnvVars(triggerable, overrides, listener, chatty);
-                        return triggerable.trigger();
-                    }
-                }, null);
+                bld = bc.accept(
+                        new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+                            public IBuild visit(IBuildTriggerable triggerable) {
+                                triggerable.addBuildCause("Jenkins job: "
+                                        + overrides
+                                                .get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
+                                applyEnvVars(triggerable, overrides, listener,
+                                        chatty);
+                                return triggerable.trigger();
+                            }
+                        }, null);
             }
         } else if (prevBld != null) {
-            bld = prevBld.accept(new CapabilityVisitor<IBuildTriggerable, IBuild>() {
-                public IBuild visit(IBuildTriggerable triggerable) {
-                    triggerable.addBuildCause("Jenkins job: " + overrides.get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
-                    applyEnvVars(triggerable, overrides, listener, chatty);
-                    return triggerable.trigger();
-                }
-            }, null);
+            bld = prevBld.accept(
+                    new CapabilityVisitor<IBuildTriggerable, IBuild>() {
+                        public IBuild visit(IBuildTriggerable triggerable) {
+                            triggerable.addBuildCause("Jenkins job: "
+                                    + overrides
+                                            .get(IOpenShiftPlugin.BUILD_URL_ENV_KEY));
+                            applyEnvVars(triggerable, overrides, listener,
+                                    chatty);
+                            return triggerable.trigger();
+                        }
+                    }, null);
         }
         return bld;
     }
-    
-    default IStoppable getBuildPodLogs(IClient client, String bldId, Map<String, String> overrides, boolean chatty, TaskListener listener, AtomicBoolean needToFollow) {
+
+    default IStoppable getBuildPodLogs(IClient client, String bldId,
+            Map<String, String> overrides, boolean chatty,
+            TaskListener listener, AtomicBoolean needToFollow) {
         IStoppable stop = null;
-        List<IPod> pods = client.list(ResourceKind.POD, getNamespace(overrides));
+        List<IPod> pods = client
+                .list(ResourceKind.POD, getNamespace(overrides));
         for (IPod pod : pods) {
             if (chatty)
-                listener.getLogger().println("\nOpenShiftBuilder found pod " + pod.getName());
+                listener.getLogger().println(
+                        "\nOpenShiftBuilder found pod " + pod.getName());
 
             // build pod starts with build id
             if (pod.getName().startsWith(bldId)) {
                 if (chatty)
-                    listener.getLogger().println("\nOpenShiftBuilder going with build pod " + pod);
-                final String container = pod.getContainers().iterator().next().getName();
+                    listener.getLogger().println(
+                            "\nOpenShiftBuilder going with build pod " + pod);
+                final String container = pod.getContainers().iterator().next()
+                        .getName();
 
-                stop = pod.accept(new CapabilityVisitor<IPodLogRetrievalAsync, IStoppable>() {
-                    @Override
-                    public IStoppable visit(IPodLogRetrievalAsync capability) {
-                        return capability.start(new IPodLogRetrievalAsync.IPodLogListener() {
+                stop = pod
+                        .accept(new CapabilityVisitor<IPodLogRetrievalAsync, IStoppable>() {
                             @Override
-                            public void onOpen() {
-                            }
+                            public IStoppable visit(
+                                    IPodLogRetrievalAsync capability) {
+                                return capability
+                                        .start(new IPodLogRetrievalAsync.IPodLogListener() {
+                                            @Override
+                                            public void onOpen() {
+                                            }
 
-                            @Override
-                            public void onMessage(String message) {
-                                listener.getLogger().print(message);
-                            }
+                                            @Override
+                                            public void onMessage(String message) {
+                                                listener.getLogger().print(
+                                                        message);
+                                            }
 
-                            @Override
-                            public void onClose(int code, String reason) {
-                            }
+                                            @Override
+                                            public void onClose(int code,
+                                                    String reason) {
+                                            }
 
-                            @Override
-                            public void onFailure(IOException e) {
-                                // If follow fails, try to restart it on the next loop.
-                                needToFollow.compareAndSet(false, true);
+                                            @Override
+                                            public void onFailure(IOException e) {
+                                                // If follow fails, try to
+                                                // restart it on the next loop.
+                                                needToFollow.compareAndSet(
+                                                        false, true);
+                                            }
+                                        }, new IPodLogRetrievalAsync.Options()
+                                                .follow().container(container));
                             }
-                        }, new IPodLogRetrievalAsync.Options()
-                                .follow()
-                                .container(container));
-                    }
-                }, null);
+                        }, null);
                 break;
             }
         }
         return stop;
     }
 
-    default void waitOnBuild(IClient client, long startTime, String bldId, TaskListener listener, Map<String, String> overrides, long wait, boolean follow, boolean chatty) throws InterruptedException {
+    default void waitOnBuild(IClient client, long startTime, String bldId,
+            TaskListener listener, Map<String, String> overrides, long wait,
+            boolean follow, boolean chatty) throws InterruptedException {
         IBuild bld = null;
         String bldState = null;
 
-        // get internal OS Java REST Client error if access pod logs while bld is in Pending state
+        // get internal OS Java REST Client error if access pod logs while bld
+        // is in Pending state
         // instead of Running, Complete, or Failed
 
         IStoppable stop = null;
@@ -171,18 +206,23 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
         final AtomicBoolean needToFollow = new AtomicBoolean(follow);
 
         while (TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) < (startTime + wait)) {
-            bld = client.get(ResourceKind.BUILD, bldId, getNamespace(overrides));
+            bld = client
+                    .get(ResourceKind.BUILD, bldId, getNamespace(overrides));
             bldState = bld.getStatus();
             if (Boolean.parseBoolean(getVerbose(overrides)))
-                listener.getLogger().println("\nOpenShiftBuilder bld state:  " + bldState);
+                listener.getLogger().println(
+                        "\nOpenShiftBuilder bld state:  " + bldState);
 
-            if (isBuildRunning(bldState) && needToFollow.compareAndSet(true, false)) {
-                stop = this.getBuildPodLogs(client, bldId, overrides, chatty, listener, needToFollow);
+            if (isBuildRunning(bldState)
+                    && needToFollow.compareAndSet(true, false)) {
+                stop = this.getBuildPodLogs(client, bldId, overrides, chatty,
+                        listener, needToFollow);
             }
 
             if (isBuildFinished(bldState)) {
                 if (follow && stop == null)
-                    stop = this.getBuildPodLogs(client, bldId, overrides, chatty, listener, needToFollow);
+                    stop = this.getBuildPodLogs(client, bldId, overrides,
+                            chatty, listener, needToFollow);
                 break;
             }
 
@@ -191,7 +231,10 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
             } catch (InterruptedException e) {
                 // need to throw as this indicates the step as been cancelled
                 // also attempt to cancel build on openshift side
-                OpenShiftBuildCanceller canceller = new OpenShiftBuildCanceller(getApiURL(overrides), getNamespace(overrides), getAuthToken(overrides), getVerbose(overrides), getBldCfg(overrides));
+                OpenShiftBuildCanceller canceller = new OpenShiftBuildCanceller(
+                        getApiURL(overrides), getNamespace(overrides),
+                        getAuthToken(overrides), getVerbose(overrides),
+                        getBldCfg(overrides));
                 canceller.setAuth(getAuth());
                 canceller.coreLogic(null, listener, overrides);
                 throw e;
@@ -202,84 +245,117 @@ public interface IOpenShiftBuilder extends ITimedOpenShiftPlugin {
 
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) throws InterruptedException {
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-        boolean checkDeps = Boolean.parseBoolean(getCheckForTriggeredDeployments(overrides));
-        listener.getLogger().println(String.format(MessageConstants.START_BUILD_RELATED_PLUGINS, DISPLAY_NAME, getBldCfg(overrides), getNamespace(overrides)));
+        boolean checkDeps = Boolean
+                .parseBoolean(getCheckForTriggeredDeployments(overrides));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_BUILD_RELATED_PLUGINS,
+                        DISPLAY_NAME, getBldCfg(overrides),
+                        getNamespace(overrides)));
 
         boolean follow = Boolean.parseBoolean(getShowBuildLogs(overrides));
         if (chatty)
-            listener.getLogger().println("\nOpenShiftBuilder logger follow " + follow);
+            listener.getLogger().println(
+                    "\nOpenShiftBuilder logger follow " + follow);
 
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
 
         if (client != null) {
             long startTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-            boolean skipBC = getBuildName(overrides) != null && getBuildName(overrides).length() > 0;
+            boolean skipBC = getBuildName(overrides) != null
+                    && getBuildName(overrides).length() > 0;
             IBuildConfig bc = null;
             IBuild prevBld = null;
             if (!skipBC) {
-                bc = client.get(ResourceKind.BUILD_CONFIG, getBldCfg(overrides), getNamespace(overrides));
+                bc = client.get(ResourceKind.BUILD_CONFIG,
+                        getBldCfg(overrides), getNamespace(overrides));
             } else {
-                prevBld = client.get(ResourceKind.BUILD, getBuildName(overrides), getNamespace(overrides));
+                prevBld = client.get(ResourceKind.BUILD,
+                        getBuildName(overrides), getNamespace(overrides));
             }
 
-
             if (chatty)
-                listener.getLogger().println("\nOpenShiftBuilder build config retrieved " + bc + " buildName " + getBuildName(overrides));
+                listener.getLogger().println(
+                        "\nOpenShiftBuilder build config retrieved " + bc
+                                + " buildName " + getBuildName(overrides));
 
             if (bc != null || prevBld != null) {
-                
+
                 // don't follow if a jenkinsfile strategy
-                //TODO until we get the restclient updated, getBuildStrategy returns null if jenkins strategy, non-null for the traditional 3
+                // TODO until we get the restclient updated, getBuildStrategy
+                // returns null if jenkins strategy, non-null for the
+                // traditional 3
                 boolean jenkinsfileBC = false;
                 if (bc != null)
                     jenkinsfileBC = bc.getBuildStrategy() == null;
                 else {
-                    IBuildConfig tmpBC = client.get(ResourceKind.BUILD_CONFIG, getBldCfg(overrides), getNamespace(overrides));
+                    IBuildConfig tmpBC = client.get(ResourceKind.BUILD_CONFIG,
+                            getBldCfg(overrides), getNamespace(overrides));
                     if (tmpBC != null)
                         jenkinsfileBC = tmpBC.getBuildStrategy() == null;
                 }
                 if (chatty)
-                    listener.getLogger().println("\nOpenShiftBuilder bc strategy == jenkinsfile " + jenkinsfileBC);
-                
+                    listener.getLogger().println(
+                            "\nOpenShiftBuilder bc strategy == jenkinsfile "
+                                    + jenkinsfileBC);
+
                 if (follow)
                     follow = !jenkinsfileBC;
 
                 // Trigger / start build
-                IBuild bld = this.startBuild(bc, prevBld, overrides, chatty, listener, client);
-
+                IBuild bld = this.startBuild(bc, prevBld, overrides, chatty,
+                        listener, client);
 
                 if (bld == null) {
-                    listener.getLogger().println(MessageConstants.EXIT_BUILD_NO_BUILD_OBJ);
+                    listener.getLogger().println(
+                            MessageConstants.EXIT_BUILD_NO_BUILD_OBJ);
                     return false;
                 } else {
-                    annotateJobInfoToResource(client, listener, chatty, overrides, bld);
+                    annotateJobInfoToResource(client, listener, chatty,
+                            overrides, bld);
 
                     String bldId = bld.getName();
                     if (!checkDeps)
-                        listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD, bldId));
+                        listener.getLogger().println(
+                                String.format(
+                                        MessageConstants.WAITING_ON_BUILD,
+                                        bldId));
                     else
-                        listener.getLogger().println(String.format(MessageConstants.WAITING_ON_BUILD_PLUS_DEPLOY, bldId));
+                        listener.getLogger()
+                                .println(
+                                        String.format(
+                                                MessageConstants.WAITING_ON_BUILD_PLUS_DEPLOY,
+                                                bldId));
 
-                    startTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+                    startTime = TimeUnit.NANOSECONDS
+                            .toMillis(System.nanoTime());
 
                     long wait = getTimeout(listener, chatty, overrides);
 
                     if (chatty)
-                        listener.getLogger().println("\n OpenShiftBuilder looking for build " + bldId);
+                        listener.getLogger().println(
+                                "\n OpenShiftBuilder looking for build "
+                                        + bldId);
 
+                    waitOnBuild(client, startTime, bldId, listener, overrides,
+                            wait, follow, chatty);
 
-                    waitOnBuild(client, startTime, bldId, listener, overrides, wait, follow, chatty);
-
-                    return this.verifyBuild(startTime, wait, client, getBldCfg(overrides), bldId, getNamespace(overrides), chatty, listener, DISPLAY_NAME, checkDeps, true, overrides);
+                    return this.verifyBuild(startTime, wait, client,
+                            getBldCfg(overrides), bldId,
+                            getNamespace(overrides), chatty, listener,
+                            DISPLAY_NAME, checkDeps, true, overrides);
 
                 }
 
-
             } else {
-                listener.getLogger().println(String.format(MessageConstants.EXIT_BUILD_NO_BUILD_CONFIG_OBJ, getBldCfg(overrides)));
+                listener.getLogger()
+                        .println(
+                                String.format(
+                                        MessageConstants.EXIT_BUILD_NO_BUILD_CONFIG_OBJ,
+                                        getBldCfg(overrides)));
                 return false;
             }
         } else {

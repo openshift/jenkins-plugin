@@ -13,7 +13,8 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.List;
 
-public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftExec, IOpenShiftApiObjHandler {
+public class OpenShiftExec extends TimedOpenShiftBaseStep implements
+        IOpenShiftExec, IOpenShiftApiObjHandler {
 
     protected final String pod;
     protected final String container;
@@ -37,16 +38,21 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
     }
 
     @DataBoundConstructor
-    public OpenShiftExec(String apiURL, String namespace, String authToken, String verbose, String pod, String container, String command, List<Argument>arguments, String waitTime, String waitUnit) {
-        super( apiURL, namespace, authToken, verbose, waitTime, waitUnit );
+    public OpenShiftExec(String apiURL, String namespace, String authToken,
+            String verbose, String pod, String container, String command,
+            List<Argument> arguments, String waitTime, String waitUnit) {
+        super(apiURL, namespace, authToken, verbose, waitTime, waitUnit);
         this.pod = pod != null ? pod.trim() : null;
         this.container = container != null ? container.trim() : null;
         this.command = command != null ? command.trim() : null;
         this.arguments = arguments;
     }
 
-    @Extension // This indicates to Jenkins that this is an implementation of an extension point.
-    public static final class DescriptorImpl extends TimedBuildStepDescriptor<Builder> {
+    @Extension
+    // This indicates to Jenkins that this is an implementation of an extension
+    // point.
+    public static final class DescriptorImpl extends
+            TimedBuildStepDescriptor<Builder> {
 
         public FormValidation doCheckPod(@QueryParameter String value)
                 throws IOException, ServletException {
@@ -62,13 +68,11 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
             return DISPLAY_NAME;
         }
 
-
         @Override
         protected long getStaticDefaultWaitTime() {
             return GlobalConfig.DEFAULT_EXEC_WAIT;
         }
 
     }
-
 
 }

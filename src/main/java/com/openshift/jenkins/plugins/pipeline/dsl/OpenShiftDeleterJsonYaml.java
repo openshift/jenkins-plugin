@@ -19,45 +19,48 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeleterJsonYaml;
 
-public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpenShiftDeleterJsonYaml {
+public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements
+        IOpenShiftDeleterJsonYaml {
 
     protected final String jsonyaml;
-    
-    @DataBoundConstructor public OpenShiftDeleterJsonYaml(String jsonyaml) {
-    	this.jsonyaml = jsonyaml != null ? jsonyaml.trim() : null;
-	}
 
-	@Override
-	public String getJsonyaml() {
-		return jsonyaml;
-	}
+    @DataBoundConstructor
+    public OpenShiftDeleterJsonYaml(String jsonyaml) {
+        this.jsonyaml = jsonyaml != null ? jsonyaml.trim() : null;
+    }
 
-	@Override
-	public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-		return true;
-	}
+    @Override
+    public String getJsonyaml() {
+        return jsonyaml;
+    }
 
-	@Override
-	public Action getProjectAction(AbstractProject<?, ?> project) {
-		return null;
-	}
+    @Override
+    public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
+        return true;
+    }
 
-	@Override
-	public Collection<? extends Action> getProjectActions(
-			AbstractProject<?, ?> project) {
-		return null;
-	}
+    @Override
+    public Action getProjectAction(AbstractProject<?, ?> project) {
+        return null;
+    }
 
-	@Override
-	public BuildStepMonitor getRequiredMonitorService() {
-		return null;
-	}
+    @Override
+    public Collection<? extends Action> getProjectActions(
+            AbstractProject<?, ?> project) {
+        return null;
+    }
 
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftDeleterJsonYaml.class.getName());
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return null;
+    }
 
+    private static final Logger LOGGER = Logger
+            .getLogger(OpenShiftDeleterJsonYaml.class.getName());
 
-	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
+    @Extension
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftDeleterJsonYamlExecution.class);
@@ -75,18 +78,19 @@ public class OpenShiftDeleterJsonYaml extends OpenShiftBaseStep implements IOpen
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-        	Object jsonyaml = arguments.get("yaml");
-        	if (jsonyaml == null || jsonyaml.toString().trim().length() == 0)
-        		jsonyaml = arguments.get("json");
-        	if (jsonyaml == null || jsonyaml.toString().trim().length() == 0)
-        		jsonyaml = arguments.get("jsonyaml");
+            Object jsonyaml = arguments.get("yaml");
             if (jsonyaml == null || jsonyaml.toString().trim().length() == 0)
-            	throw new IllegalArgumentException("need to specify json or yaml");
-            OpenShiftDeleterJsonYaml step = new OpenShiftDeleterJsonYaml(jsonyaml.toString());
+                jsonyaml = arguments.get("json");
+            if (jsonyaml == null || jsonyaml.toString().trim().length() == 0)
+                jsonyaml = arguments.get("jsonyaml");
+            if (jsonyaml == null || jsonyaml.toString().trim().length() == 0)
+                throw new IllegalArgumentException(
+                        "need to specify json or yaml");
+            OpenShiftDeleterJsonYaml step = new OpenShiftDeleterJsonYaml(
+                    jsonyaml.toString());
             ParamVerify.updateDSLBaseStep(arguments, step);
             return step;
         }
     }
-
 
 }

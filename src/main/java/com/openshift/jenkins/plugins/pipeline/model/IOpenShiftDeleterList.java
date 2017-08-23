@@ -12,82 +12,98 @@ import com.openshift.restclient.IClient;
 
 public interface IOpenShiftDeleterList extends IOpenShiftApiObjHandler {
 
-	final static String DISPLAY_NAME = "Delete OpenShift Resource(s) by Key";
-	
-	default String getDisplayName() {
-		return DISPLAY_NAME;
-	}
-	
-	String getKeys();
-		
-	String getTypes();
-		
-	default String getTypes(Map<String,String> overrides) {
-		return getOverride(getTypes(), overrides);
-	}
-	
-	default String getKeys(Map<String,String> overrides) {
-		return getOverride(getKeys(), overrides);
-	}
-	
-	default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
-		boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
-    	listener.getLogger().println(String.format(MessageConstants.START_DELETE_OBJS, DISPLAY_NAME, getNamespace(overrides)));
+    final static String DISPLAY_NAME = "Delete OpenShift Resource(s) by Key";
 
-    	updateApiTypes(chatty, listener, overrides);
-    	
-    	// get oc client 
-    	IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
-    	
-    	if (client != null) {
-    		// verify valid type is specified
-    		Set<String> types = OpenShiftApiObjHandler.apiMap.keySet();
-    		String resourceKind = null;
-    		int deletes = 0;
-    		int fails = 0;
-    		int badType = 0;
-    		String[] inputTypes = getTypes(overrides).split(",");
-    		String[] inputKeys = getKeys(overrides).split(",");
-    		
-    		if (inputTypes.length != inputKeys.length) {
-    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_KEY_TYPE_MISMATCH, inputTypes.length, inputKeys.length));
-    			return false;
-    		}
-    		
-    		for (int i =0; i < inputTypes.length; i++) {
-    			if (OpenShiftApiObjHandler.typeShortcut.containsKey(inputTypes[i])) {
-    				resourceKind = OpenShiftApiObjHandler.typeShortcut.get(inputTypes[i]);
-    			} else {
-            		for (String type : types) {
-            			
-            			if (type.equalsIgnoreCase(inputTypes[i])) {
-            				resourceKind = type;
-            				break;
-            			}
-            			
-            		}
-    			}
-    			
-        		if (resourceKind == null) {
-        			listener.getLogger().println(String.format(MessageConstants.TYPE_NOT_SUPPORTED, inputTypes[i]));
-        			badType++;
-        			continue;
-        		}
-        		
-    	    	// rc[0] will be successful deletes, rc[1] will be failed deletes
-        		int[] rc = new int[2];
-        		rc = deleteAPIObjs(client, listener, getNamespace(overrides), resourceKind, inputKeys[i], null, chatty);
-        		deletes = deletes + rc[0];
-        		fails = fails + rc[1];
-    		}
-    		
-    		if (fails == 0 && badType == 0) {
-    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_GOOD, DISPLAY_NAME, deletes));
-    			return true;
-    		} else {
-    			listener.getLogger().println(String.format(MessageConstants.EXIT_DELETE_BAD, DISPLAY_NAME, deletes, fails + badType));
-    		}
-    	}
-		return false;
-	}
+    default String getDisplayName() {
+        return DISPLAY_NAME;
+    }
+
+    String getKeys();
+
+    String getTypes();
+
+    default String getTypes(Map<String, String> overrides) {
+        return getOverride(getTypes(), overrides);
+    }
+
+    default String getKeys(Map<String, String> overrides) {
+        return getOverride(getKeys(), overrides);
+    }
+
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) {
+        boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_DELETE_OBJS, DISPLAY_NAME,
+                        getNamespace(overrides)));
+
+        updateApiTypes(chatty, listener, overrides);
+
+        // get oc client
+        IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
+
+        if (client != null) {
+            // verify valid type is specified
+            Set<String> types = OpenShiftApiObjHandler.apiMap.keySet();
+            String resourceKind = null;
+            int deletes = 0;
+            int fails = 0;
+            int badType = 0;
+            String[] inputTypes = getTypes(overrides).split(",");
+            String[] inputKeys = getKeys(overrides).split(",");
+
+            if (inputTypes.length != inputKeys.length) {
+                listener.getLogger().println(
+                        String.format(
+                                MessageConstants.EXIT_DELETE_KEY_TYPE_MISMATCH,
+                                inputTypes.length, inputKeys.length));
+                return false;
+            }
+
+            for (int i = 0; i < inputTypes.length; i++) {
+                if (OpenShiftApiObjHandler.typeShortcut
+                        .containsKey(inputTypes[i])) {
+                    resourceKind = OpenShiftApiObjHandler.typeShortcut
+                            .get(inputTypes[i]);
+                } else {
+                    for (String type : types) {
+
+                        if (type.equalsIgnoreCase(inputTypes[i])) {
+                            resourceKind = type;
+                            break;
+                        }
+
+                    }
+                }
+
+                if (resourceKind == null) {
+                    listener.getLogger().println(
+                            String.format(MessageConstants.TYPE_NOT_SUPPORTED,
+                                    inputTypes[i]));
+                    badType++;
+                    continue;
+                }
+
+                // rc[0] will be successful deletes, rc[1] will be failed
+                // deletes
+                int[] rc = new int[2];
+                rc = deleteAPIObjs(client, listener, getNamespace(overrides),
+                        resourceKind, inputKeys[i], null, chatty);
+                deletes = deletes + rc[0];
+                fails = fails + rc[1];
+            }
+
+            if (fails == 0 && badType == 0) {
+                listener.getLogger().println(
+                        String.format(MessageConstants.EXIT_DELETE_GOOD,
+                                DISPLAY_NAME, deletes));
+                return true;
+            } else {
+                listener.getLogger().println(
+                        String.format(MessageConstants.EXIT_DELETE_BAD,
+                                DISPLAY_NAME, deletes, fails + badType));
+            }
+        }
+        return false;
+    }
 }

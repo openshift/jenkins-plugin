@@ -1,6 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
-
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -14,7 +13,8 @@ import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 
 import javax.inject.Inject;
 
-public class OpenShiftCreatorExecution extends AbstractSynchronousNonBlockingStepExecution<Void> {
+public class OpenShiftCreatorExecution extends
+        AbstractSynchronousNonBlockingStepExecution<Void> {
 
     private static final long serialVersionUID = 1L;
 
@@ -27,20 +27,25 @@ public class OpenShiftCreatorExecution extends AbstractSynchronousNonBlockingSte
     @StepContextParameter
     private transient Run<?, ?> runObj;
     @StepContextParameter
-    private transient FilePath filePath; // included as ref of what can be included for future use
+    private transient FilePath filePath; // included as ref of what can be
+                                         // included for future use
     @StepContextParameter
-    private transient Executor executor; // included as ref of what can be included for future use
+    private transient Executor executor; // included as ref of what can be
+                                         // included for future use
     @StepContextParameter
-    private transient Computer computer; // included as ref of what can be included for future use
+    private transient Computer computer; // included as ref of what can be
+                                         // included for future use
 
     @Inject
     private transient OpenShiftCreator step;
 
     @Override
     protected Void run() throws Exception {
-        boolean success = step.doItCore(listener, envVars, runObj, null, launcher);
+        boolean success = step.doItCore(listener, envVars, runObj, null,
+                launcher);
         if (!success) {
-            throw new AbortException("\"" + step.getDescriptor().getDisplayName() + "\" failed");
+            throw new AbortException("\""
+                    + step.getDescriptor().getDisplayName() + "\" failed");
         }
         return null;
     }

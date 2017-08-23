@@ -53,24 +53,31 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
     protected final String verbose;
     protected String lastCommitId = null;
 
-    // marked transient so don't serialize these next 3 in the workflow plugin flow; constructed on per request basis
-    //protected transient TokenAuthorizationStrategy bearerToken;
+    // marked transient so don't serialize these next 3 in the workflow plugin
+    // flow; constructed on per request basis
+    // protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
 
-    // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
+    // Fields in config.jelly must match the parameter names in the
+    // "DataBoundConstructor"
     @DataBoundConstructor
-    public OpenShiftImageStreams(String imageStreamName, String tag, String apiURL, String namespace, String authToken, String verbose) {
-        this.imageStreamName = imageStreamName != null ? imageStreamName.trim() : null;
-        this.tag =  tag != null ? tag.trim() : null;
+    public OpenShiftImageStreams(String imageStreamName, String tag,
+            String apiURL, String namespace, String authToken, String verbose) {
+        this.imageStreamName = imageStreamName != null ? imageStreamName.trim()
+                : null;
+        this.tag = tag != null ? tag.trim() : null;
         this.apiURL = apiURL != null ? apiURL.trim() : null;
         this.namespace = namespace != null ? namespace.trim() : null;
         this.authToken = authToken != null ? authToken.trim() : null;
         this.verbose = verbose != null ? verbose.trim() : null;
     }
 
-    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
-    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
+    // generically speaking, Jenkins will always pass in non-null field values.
+    // However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get
+    // null for the new fields. Hence,
+    // we have introduced the generic convention (even for fields that existed
+    // in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
     public String getApiURL() {
@@ -105,12 +112,14 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
         return getOverride(getTag(), overrides);
     }
 
-    protected String getCommitId(TaskListener listener, Map<String, String> overrides) {
+    protected String getCommitId(TaskListener listener,
+            Map<String, String> overrides) {
         boolean chatty = Boolean.parseBoolean(verbose);
 
         // get oc client (sometime REST, sometimes Exec of oc command
         setAuth(Auth.createInstance(null, getApiURL(overrides), overrides));
-        //setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null, authToken, listener, chatty)));
+        // setToken(new TokenAuthorizationStrategy(Auth.deriveBearerToken(null,
+        // authToken, listener, chatty)));
         // get oc client
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
 
@@ -118,51 +127,65 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 
         String imageStream = getImageStreamName(overrides);
         try {
-            IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM, imageStream, getNamespace(overrides));
-            // we will treat the OpenShiftImageStream "imageID" as the Jenkins "commitId"
+            IImageStream isImpl = client.get(ResourceKind.IMAGE_STREAM,
+                    imageStream, getNamespace(overrides));
+            // we will treat the OpenShiftImageStream "imageID" as the Jenkins
+            // "commitId"
             commitId = isImpl.getImageId(tag);
         } catch (com.openshift.restclient.NotFoundException e) {
             if (chatty)
-                listener.getLogger().println("\n\nImageStream " + imageStream + " not found");
+                listener.getLogger().println(
+                        "\n\nImageStream " + imageStream + " not found");
         }
 
-
         if (chatty)
-            listener.getLogger().println("\n\nOpenShiftImageStreams image ID used for Jenkins 'commitId' is " + commitId);
+            listener.getLogger().println(
+                    "\n\nOpenShiftImageStreams image ID used for Jenkins 'commitId' is "
+                            + commitId);
         return commitId;
 
     }
 
     @Override
     public void checkout(Run<?, ?> build, Launcher launcher,
-                         FilePath workspace, TaskListener listener, File changelogFile,
-                         SCMRevisionState baseline) throws IOException, InterruptedException {
+            FilePath workspace, TaskListener listener, File changelogFile,
+            SCMRevisionState baseline) throws IOException, InterruptedException {
         boolean chatty = Boolean.parseBoolean(verbose);
 
         String bldName = null;
         if (build != null)
             bldName = build.getDisplayName();
         if (chatty)
-            listener.getLogger().println("\n\nOpenShiftImageStreams checkout called for " + bldName);
+            listener.getLogger().println(
+                    "\n\nOpenShiftImageStreams checkout called for " + bldName);
 
         EnvVars env = build.getEnvironment(listener);
         lastCommitId = getCommitId(listener, env);
         if (lastCommitId == null) {
             String imageStream = getImageStreamName(env);
             String tag = getTag(env);
-            listener.getLogger().println(String.format(MessageConstants.SCM_IMAGESTREAM_NOT_FOUND, imageStream, tag));
-            // We cannot yet throw an exception here because the calling code will be interrupted and the SCM action
+            listener.getLogger().println(
+                    String.format(MessageConstants.SCM_IMAGESTREAM_NOT_FOUND,
+                            imageStream, tag));
+            // We cannot yet throw an exception here because the calling code
+            // will be interrupted and the SCM action
             // will not be added to the build job.
-            // Just setting the build result here. An exception will be thrown in the postCheckout method.
+            // Just setting the build result here. An exception will be thrown
+            // in the postCheckout method.
             build.setResult(Result.FAILURE);
         }
     }
 
     @Override
-    public void postCheckout(@Nonnull Run<?, ?> build, @Nonnull Launcher launcher, @Nonnull FilePath workspace, @Nonnull TaskListener listener) throws IOException, InterruptedException {
+    public void postCheckout(@Nonnull Run<?, ?> build,
+            @Nonnull Launcher launcher, @Nonnull FilePath workspace,
+            @Nonnull TaskListener listener) throws IOException,
+            InterruptedException {
         if (build.getResult() == Result.FAILURE) {
             EnvVars env = build.getEnvironment(listener);
-            String msg = String.format(MessageConstants.SCM_IMAGESTREAM_NOT_FOUND, getImageStreamName(env), getTag(env));
+            String msg = String.format(
+                    MessageConstants.SCM_IMAGESTREAM_NOT_FOUND,
+                    getImageStreamName(env), getTag(env));
             throw new AbortException(msg);
         }
     }
@@ -174,17 +197,21 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
 
     @Override
     public SCMRevisionState calcRevisionsFromBuild(Run<?, ?> build,
-                                                   FilePath workspace, Launcher launcher, TaskListener listener)
+            FilePath workspace, Launcher launcher, TaskListener listener)
             throws IOException, InterruptedException {
         EnvVars env = build.getEnvironment(listener);
-        listener.getLogger().println(String.format(MessageConstants.SCM_CALC, DISPLAY_NAME, getImageStreamName(env), tag, getNamespace(env)));
+        listener.getLogger().println(
+                String.format(MessageConstants.SCM_CALC, DISPLAY_NAME,
+                        getImageStreamName(env), tag, getNamespace(env)));
 
         String commitId = lastCommitId;
 
         ImageStreamRevisionState currIMSState = null;
         if (commitId != null) {
             currIMSState = new ImageStreamRevisionState(commitId);
-            listener.getLogger().println(String.format(MessageConstants.SCM_LAST_REV, currIMSState.toString()));
+            listener.getLogger().println(
+                    String.format(MessageConstants.SCM_LAST_REV,
+                            currIMSState.toString()));
         } else {
             currIMSState = new ImageStreamRevisionState("");
             listener.getLogger().println(MessageConstants.SCM_NO_REV);
@@ -193,8 +220,11 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
         return currIMSState;
     }
 
-    protected PollingResult compareRemoteRevisionInternal(EnvVars env, Launcher launcher, TaskListener listener, SCMRevisionState baseline) {
-        listener.getLogger().println(String.format(MessageConstants.SCM_COMP, DISPLAY_NAME, getImageStreamName(env), tag, getNamespace(env)));
+    protected PollingResult compareRemoteRevisionInternal(EnvVars env,
+            Launcher launcher, TaskListener listener, SCMRevisionState baseline) {
+        listener.getLogger().println(
+                String.format(MessageConstants.SCM_COMP, DISPLAY_NAME,
+                        getImageStreamName(env), tag, getNamespace(env)));
         String commitId = this.getCommitId(listener, env);
 
         ImageStreamRevisionState currIMSState = null;
@@ -202,10 +232,12 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
             currIMSState = new ImageStreamRevisionState(commitId);
         boolean chatty = Boolean.parseBoolean(verbose);
         if (chatty)
-            listener.getLogger().println("\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline " + baseline +
-                    " with lastest " + currIMSState);
+            listener.getLogger().println(
+                    "\n\nOpenShiftImageStreams compareRemoteRevisionWith comparing baseline "
+                            + baseline + " with lastest " + currIMSState);
         boolean changes = false;
-        if (baseline != null && baseline instanceof ImageStreamRevisionState && currIMSState != null)
+        if (baseline != null && baseline instanceof ImageStreamRevisionState
+                && currIMSState != null)
             changes = !currIMSState.equals(baseline);
 
         if (baseline == null && currIMSState != null) {
@@ -219,17 +251,18 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
             listener.getLogger().println(MessageConstants.SCM_NO_CHANGE);
         }
 
-        return new PollingResult(baseline, currIMSState, changes ? Change.SIGNIFICANT : Change.NONE);
+        return new PollingResult(baseline, currIMSState,
+                changes ? Change.SIGNIFICANT : Change.NONE);
     }
 
     @Override
     public PollingResult compareRemoteRevisionWith(@Nonnull Job<?, ?> project,
-                                                   @Nullable Launcher launcher,
-                                                   @Nullable FilePath workspace,
-                                                   @Nonnull TaskListener listener,
-                                                   @Nonnull SCMRevisionState baseline)
+            @Nullable Launcher launcher, @Nullable FilePath workspace,
+            @Nonnull TaskListener listener, @Nonnull SCMRevisionState baseline)
             throws IOException, InterruptedException {
-        return compareRemoteRevisionInternal(project.getEnvironment(null, listener), launcher, listener, baseline);
+        return compareRemoteRevisionInternal(
+                project.getEnvironment(null, listener), launcher, listener,
+                baseline);
     }
 
     @Override
@@ -237,7 +270,9 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
             AbstractProject<?, ?> project, Launcher launcher,
             FilePath workspace, TaskListener listener, SCMRevisionState baseline)
             throws IOException, InterruptedException {
-        return compareRemoteRevisionInternal(project.getEnvironment(null, listener), launcher, listener, baseline);
+        return compareRemoteRevisionInternal(
+                project.getEnvironment(null, listener), launcher, listener,
+                baseline);
     }
 
     @Override
@@ -246,31 +281,31 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
                 getClass());
     }
 
-
     @Override
     public boolean requiresWorkspaceForPolling() {
-        // our openshift itself and the cloud/master/slave plugin handles ramping up pods for builds ... those are our
+        // our openshift itself and the cloud/master/slave plugin handles
+        // ramping up pods for builds ... those are our
         // "workspace"
         return false;
     }
 
-
     @Extension
-    public static class DescriptorImpl extends SCMDescriptor implements IOpenShiftPluginDescriptor {
+    public static class DescriptorImpl extends SCMDescriptor implements
+            IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftImageStreams.class, null);
             load();
         }
 
-
         public FormValidation doCheckTag(@QueryParameter String value)
                 throws IOException, ServletException {
             return ParamVerify.doCheckTag(value);
         }
 
-        public FormValidation doCheckImageStreamName(@QueryParameter String value)
-                throws IOException, ServletException {
+        public FormValidation doCheckImageStreamName(
+                @QueryParameter String value) throws IOException,
+                ServletException {
             return ParamVerify.doCheckImageStreamName(value);
         }
 
@@ -287,7 +322,6 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
         }
     }
 
-
     @Override
     public String getBaseClassName() {
         return OpenShiftImageStreams.class.getName();
@@ -299,7 +333,8 @@ public class OpenShiftImageStreams extends SCM implements IOpenShiftPlugin {
     }
 
     @Override
-    public boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+    public boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) {
         return false;
     }
 

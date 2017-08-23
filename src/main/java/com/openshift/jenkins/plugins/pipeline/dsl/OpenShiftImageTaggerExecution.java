@@ -1,6 +1,5 @@
 package com.openshift.jenkins.plugins.pipeline.dsl;
 
-
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
@@ -15,7 +14,8 @@ import javax.inject.Inject;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 
-public class OpenShiftImageTaggerExecution extends AbstractSynchronousNonBlockingStepExecution<Void> {
+public class OpenShiftImageTaggerExecution extends
+        AbstractSynchronousNonBlockingStepExecution<Void> {
 
     private static final long serialVersionUID = 1L;
 
@@ -28,21 +28,26 @@ public class OpenShiftImageTaggerExecution extends AbstractSynchronousNonBlockin
     @StepContextParameter
     private transient Run<?, ?> runObj;
     @StepContextParameter
-    private transient FilePath filePath; // included as ref of what can be included for future use
+    private transient FilePath filePath; // included as ref of what can be
+                                         // included for future use
     @StepContextParameter
-    private transient Executor executor; // included as ref of what can be included for future use
+    private transient Executor executor; // included as ref of what can be
+                                         // included for future use
     @StepContextParameter
-    private transient Computer computer; // included as ref of what can be included for future use
+    private transient Computer computer; // included as ref of what can be
+                                         // included for future use
 
     @Inject
     private transient OpenShiftImageTagger step;
 
     @Override
     protected Void run() throws Exception {
-    	boolean success = step.doItCore(listener, envVars, runObj, null, launcher);
-    	if (!success) {
-    		throw new AbortException("\"" + step.getDescriptor().getDisplayName() + "\" failed");
-    	}
-    	return null;
+        boolean success = step.doItCore(listener, envVars, runObj, null,
+                launcher);
+        if (!success) {
+            throw new AbortException("\""
+                    + step.getDescriptor().getDisplayName() + "\" failed");
+        }
+        return null;
     }
 }

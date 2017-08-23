@@ -14,7 +14,8 @@ import jenkins.tasks.SimpleBuildStep;
 import java.io.IOException;
 import java.io.Serializable;
 
-public abstract class OpenShiftBasePostAction extends Recorder implements SimpleBuildStep, Serializable, IOpenShiftPlugin {
+public abstract class OpenShiftBasePostAction extends Recorder implements
+        SimpleBuildStep, Serializable, IOpenShiftPlugin {
 
     protected final String apiURL;
     protected final String namespace;
@@ -22,71 +23,75 @@ public abstract class OpenShiftBasePostAction extends Recorder implements Simple
     protected final String verbose;
     protected transient Auth auth;
 
-    public OpenShiftBasePostAction(String apiURL, String namespace, String authToken, String verbose) {
+    public OpenShiftBasePostAction(String apiURL, String namespace,
+            String authToken, String verbose) {
         this.apiURL = apiURL != null ? apiURL.trim() : null;
         this.namespace = namespace != null ? namespace.trim() : null;
         this.authToken = authToken != null ? authToken.trim() : null;
         this.verbose = verbose != null ? verbose.trim() : null;
-	}
+    }
 
-    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
-    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
+    // generically speaking, Jenkins will always pass in non-null field values.
+    // However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get
+    // null for the new fields. Hence,
+    // we have introduced the generic convention (even for fields that existed
+    // in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
     public String getApiURL() {
-		return apiURL;
-	}
-    
-	public String getNamespace() {
-		return namespace;
-	}
-	
-	public String getAuthToken() {
-		return authToken;
-	}
-	
-    public String getVerbose() {
-		return verbose;
-	}
-    
-    @Override
-	public void setAuth(Auth auth) {
-		this.auth = auth;
-	}
-
-    @Override
-	public Auth getAuth() {
-		return auth;
-	}
-
-	@Override
-	public String getBaseClassName() {
-		return OpenShiftBasePostAction.class.getName();
-	}
-
-	@Override
-	public BuildStepMonitor getRequiredMonitorService() {
-		return BuildStepMonitor.NONE;
-	}
-
-	@Override
-	public boolean needsToRunAfterFinalized() {
-		return true;
-	}
-	  
-    // this is the workflow plugin path
-	@Override
-	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
-			TaskListener listener) throws InterruptedException, IOException {
-		this.doIt(run, workspace, launcher, listener);
-	}
-
-	// this is the classic post build action path
-	@Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
-		return this.doIt(build, launcher, listener);
+        return apiURL;
     }
 
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public String getAuthToken() {
+        return authToken;
+    }
+
+    public String getVerbose() {
+        return verbose;
+    }
+
+    @Override
+    public void setAuth(Auth auth) {
+        this.auth = auth;
+    }
+
+    @Override
+    public Auth getAuth() {
+        return auth;
+    }
+
+    @Override
+    public String getBaseClassName() {
+        return OpenShiftBasePostAction.class.getName();
+    }
+
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return BuildStepMonitor.NONE;
+    }
+
+    @Override
+    public boolean needsToRunAfterFinalized() {
+        return true;
+    }
+
+    // this is the workflow plugin path
+    @Override
+    public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
+            TaskListener listener) throws InterruptedException, IOException {
+        this.doIt(run, workspace, launcher, listener);
+    }
+
+    // this is the classic post build action path
+    @Override
+    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher,
+            BuildListener listener) throws IOException, InterruptedException {
+        return this.doIt(build, launcher, listener);
+    }
 
 }

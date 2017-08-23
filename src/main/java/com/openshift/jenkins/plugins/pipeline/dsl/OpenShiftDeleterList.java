@@ -19,51 +19,53 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import com.openshift.jenkins.plugins.pipeline.ParamVerify;
 import com.openshift.jenkins.plugins.pipeline.model.IOpenShiftDeleterList;
 
-public class OpenShiftDeleterList extends OpenShiftBaseStep implements IOpenShiftDeleterList {
+public class OpenShiftDeleterList extends OpenShiftBaseStep implements
+        IOpenShiftDeleterList {
 
-	protected final String types;
-	protected final String keys;
-	
-    @DataBoundConstructor public OpenShiftDeleterList(String types, String keys) {
-    	this.types = types != null ? types.trim() : null;
-    	this.keys = keys != null ? keys.trim() : null;
-	}
-    
+    protected final String types;
+    protected final String keys;
 
-	public String getTypes() {
-		return types;
-	}
-	
-	public String getKeys() {
-		return keys;
-	}
-	
-	@Override
-	public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-		return true;
-	}
+    @DataBoundConstructor
+    public OpenShiftDeleterList(String types, String keys) {
+        this.types = types != null ? types.trim() : null;
+        this.keys = keys != null ? keys.trim() : null;
+    }
 
-	@Override
-	public Action getProjectAction(AbstractProject<?, ?> project) {
-		return null;
-	}
+    public String getTypes() {
+        return types;
+    }
 
-	@Override
-	public Collection<? extends Action> getProjectActions(
-			AbstractProject<?, ?> project) {
-		return null;
-	}
+    public String getKeys() {
+        return keys;
+    }
 
-	@Override
-	public BuildStepMonitor getRequiredMonitorService() {
-		return null;
-	}
+    @Override
+    public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
+        return true;
+    }
 
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftDeleterList.class.getName());
+    @Override
+    public Action getProjectAction(AbstractProject<?, ?> project) {
+        return null;
+    }
 
+    @Override
+    public Collection<? extends Action> getProjectActions(
+            AbstractProject<?, ?> project) {
+        return null;
+    }
 
-	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return null;
+    }
+
+    private static final Logger LOGGER = Logger
+            .getLogger(OpenShiftDeleterList.class.getName());
+
+    @Extension
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftDeleterListExecution.class);
@@ -81,13 +83,15 @@ public class OpenShiftDeleterList extends OpenShiftBaseStep implements IOpenShif
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("types") || !arguments.containsKey("keys"))
-            	throw new IllegalArgumentException("need to specify types, keys, and values");
-            OpenShiftDeleterList step = new OpenShiftDeleterList(arguments.get("types").toString(), arguments.get("keys").toString());
+            if (!arguments.containsKey("types")
+                    || !arguments.containsKey("keys"))
+                throw new IllegalArgumentException(
+                        "need to specify types, keys, and values");
+            OpenShiftDeleterList step = new OpenShiftDeleterList(arguments.get(
+                    "types").toString(), arguments.get("keys").toString());
             ParamVerify.updateDSLBaseStep(arguments, step);
             return step;
         }
     }
-
 
 }

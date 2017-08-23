@@ -69,12 +69,16 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
     default String deriveImageID(String srcTag, IImageStream srcIS) {
         String srcImageID = srcIS.getImageId(srcTag);
         if (srcImageID != null && srcImageID.length() > 0) {
-            // srcTag an valid ImageStreamTag, so translating to an ImageStreamImage
-            srcImageID = srcIS.getName() + "@" + (srcImageID.startsWith("sha256:") ? srcImageID.substring(7) : srcImageID);
+            // srcTag an valid ImageStreamTag, so translating to an
+            // ImageStreamImage
+            srcImageID = srcIS.getName()
+                    + "@"
+                    + (srcImageID.startsWith("sha256:") ? srcImageID
+                            .substring(7) : srcImageID);
             return srcImageID;
         } else {
             // not a valid ImageStreamTag, see if a valid ImageStreamImage
-            //TODO port to ImageStream.java in openshift-restclient-java
+            // TODO port to ImageStream.java in openshift-restclient-java
             ModelNode imageStream = ((ImageStream) srcIS).getNode();
             ModelNode status = imageStream.get("status");
             ModelNode tags = status.get("tags");
@@ -86,9 +90,13 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
                 ModelNode items = tagWrapper.get("items");
                 for (ModelNode itemWrapper : items.asList()) {
                     ModelNode image = itemWrapper.get("image");
-                    if (image != null && (image.asString().equals(srcTag) ||
-                            image.asString().substring(7).equals(srcTag))) {
-                        return srcIS.getName() + "@" + (srcTag.startsWith("sha256:") ? srcTag.substring(7) : srcTag);
+                    if (image != null
+                            && (image.asString().equals(srcTag) || image
+                                    .asString().substring(7).equals(srcTag))) {
+                        return srcIS.getName()
+                                + "@"
+                                + (srcTag.startsWith("sha256:") ? srcTag
+                                        .substring(7) : srcTag);
                     }
                 }
             }
@@ -97,7 +105,7 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
     }
 
     default String deriveImageTag(String imageID, IImageStream srcIS) {
-        //TODO port to ImageStream.java in openshift-restclient-java
+        // TODO port to ImageStream.java in openshift-restclient-java
         ModelNode imageStream = ((ImageStream) srcIS).getNode();
         ModelNode status = imageStream.get("status");
         ModelNode tags = status.get("tags");
@@ -109,8 +117,9 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
             ModelNode items = tagWrapper.get("items");
             for (ModelNode itemWrapper : items.asList()) {
                 ModelNode image = itemWrapper.get("image");
-                if (image != null && (image.asString().equals(imageID) ||
-                        image.asString().substring(7).equals(imageID))) {
+                if (image != null
+                        && (image.asString().equals(imageID) || image
+                                .asString().substring(7).equals(imageID))) {
                     return tag.asString();
                 }
             }
@@ -118,7 +127,8 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
         return null;
     }
 
-    default boolean coreLogic(Launcher launcher, TaskListener listener, Map<String, String> overrides) {
+    default boolean coreLogic(Launcher launcher, TaskListener listener,
+            Map<String, String> overrides) {
         final String srcStream = getSrcStream(overrides);
         final String srcTag = getSrcTag(overrides);
         final String srcNS = getNamespace(overrides);
@@ -127,8 +137,9 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
         final String destTags = getDestTag(overrides);
         final String destNS = getDestinationNamespace(overrides);
 
-
-        listener.getLogger().println(String.format(MessageConstants.START_TAG, srcStream, srcTag, srcNS, destStreams, destTags, destNS));
+        listener.getLogger().println(
+                String.format(MessageConstants.START_TAG, srcStream, srcTag,
+                        srcNS, destStreams, destTags, destNS));
         boolean chatty = Boolean.parseBoolean(getVerbose(overrides));
         boolean useTag = Boolean.parseBoolean(getAlias(overrides));
 
@@ -136,14 +147,19 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
 
         if (srcClient != null) {
             // get src id
-            IImageStream srcIS = srcClient.get(ResourceKind.IMAGE_STREAM, srcStream, srcNS);
+            IImageStream srcIS = srcClient.get(ResourceKind.IMAGE_STREAM,
+                    srcStream, srcNS);
             if (srcIS == null) {
-                listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_CANNOT_GET_IS, srcStream, srcNS));
+                listener.getLogger().println(
+                        String.format(MessageConstants.EXIT_TAG_CANNOT_GET_IS,
+                                srcStream, srcNS));
                 return false;
             }
 
             if (chatty) {
-                listener.getLogger().println("\n tag before verification: " + srcTag + " and alias " + useTag);
+                listener.getLogger().println(
+                        "\n tag before verification: " + srcTag + " and alias "
+                                + useTag);
             }
 
             String srcImageID = null;
@@ -170,39 +186,51 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
             }
 
             if (srcImageID == null) {
-                listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_NOT_FOUND, srcTag, srcStream));
+                listener.getLogger().println(
+                        String.format(MessageConstants.EXIT_TAG_NOT_FOUND,
+                                srcTag, srcStream));
                 return false;
             }
 
             if (chatty) {
-                listener.getLogger().println("\n srcImageID after translation " + srcImageID + " and tag type " + tagType);
+                listener.getLogger().println(
+                        "\n srcImageID after translation " + srcImageID
+                                + " and tag type " + tagType);
             }
-
 
             final IClient destClient;
 
             // If destination token is set, create a new destination client
             final String destToken = getDestinationAuthToken(overrides);
             if (destToken != null && (!destToken.isEmpty())) {
-                this.setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(overrides), overrides));
-                destClient = this.getClient(listener, DISPLAY_NAME, overrides, destToken);
+                this.setAuth(Auth.createInstance(chatty ? listener : null,
+                        getApiURL(overrides), overrides));
+                destClient = this.getClient(listener, DISPLAY_NAME, overrides,
+                        destToken);
             } else {
                 destClient = srcClient;
             }
 
-            List<String> newDestinationStreams = Arrays.asList(destStreams.split(","));
+            List<String> newDestinationStreams = Arrays.asList(destStreams
+                    .split(","));
             List<String> newDestTags = Arrays.asList(destTags.split(","));
 
             /**
              * The following logic is permissive of the following combinations
-             *  (1) 1 dest stream and 1 dest tag  	(i.e. a single new stream:tag combination)
-             * 	(2) 1 dest stream and N dest tags   (i.e. all tags apply to the same stream)
-             * 	(3) 1 dest tag and N dest streams	(i.e. all streams will get the same tag)
-             * 	(4) N dest streams and N dest tags	(i.e. each index will be a unique stream:tag)
+             * (1) 1 dest stream and 1 dest tag (i.e. a single new stream:tag
+             * combination) (2) 1 dest stream and N dest tags (i.e. all tags
+             * apply to the same stream) (3) 1 dest tag and N dest streams (i.e.
+             * all streams will get the same tag) (4) N dest streams and N dest
+             * tags (i.e. each index will be a unique stream:tag)
              */
 
-            if (newDestinationStreams.size() != 1 && newDestTags.size() != 1 && newDestinationStreams.size() != newDestTags.size()) {
-                String error = String.format("Destination streams (%s) cardinality [%d] is incompatible with destination tag (%s) cardinality [%d]", newDestinationStreams, newDestinationStreams.size(), newDestTags, newDestTags.size());
+            if (newDestinationStreams.size() != 1 && newDestTags.size() != 1
+                    && newDestinationStreams.size() != newDestTags.size()) {
+                String error = String
+                        .format("Destination streams (%s) cardinality [%d] is incompatible with destination tag (%s) cardinality [%d]",
+                                newDestinationStreams,
+                                newDestinationStreams.size(), newDestTags,
+                                newDestTags.size());
                 throw new IllegalArgumentException(error);
             }
 
@@ -223,14 +251,19 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
                 IImageStream destIS = null;
                 for (int retries = 10; retries > 0; retries--) {
                     try {
-                        destIS = destClient.get(ResourceKind.IMAGE_STREAM, destStream, destNS);
+                        destIS = destClient.get(ResourceKind.IMAGE_STREAM,
+                                destStream, destNS);
                     } catch (com.openshift.restclient.OpenShiftException e) {
-                        String createJson = "{\"kind\": \"ImageStream\",\"apiVersion\": \"v1\",\"metadata\": {\"name\": \"" +
-                                destStream + "\",\"creationTimestamp\": null},\"spec\": {},\"status\": {\"dockerImageRepository\": \"\"}}";
+                        String createJson = "{\"kind\": \"ImageStream\",\"apiVersion\": \"v1\",\"metadata\": {\"name\": \""
+                                + destStream
+                                + "\",\"creationTimestamp\": null},\"spec\": {},\"status\": {\"dockerImageRepository\": \"\"}}";
 
-                        Map<String, String> newOverrides = new HashMap<String, String>(overrides);
-                        // we don't want this step's source namespace to be the creator's namespace,
-                        // but rather this step's destination namespace, so clear out the override
+                        Map<String, String> newOverrides = new HashMap<String, String>(
+                                overrides);
+                        // we don't want this step's source namespace to be the
+                        // creator's namespace,
+                        // but rather this step's destination namespace, so
+                        // clear out the override
                         // and then reuse all other overrides.
                         newOverrides.remove("namespace");
 
@@ -239,34 +272,55 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
                             token = getAuthToken();
                         }
 
-                        OpenShiftCreator isCreator = new OpenShiftCreator(getApiURL(newOverrides), destNS, token, "" + chatty, createJson);
-                        isCreator.setAuth(Auth.createInstance(chatty ? listener : null, getApiURL(newOverrides), overrides));
+                        OpenShiftCreator isCreator = new OpenShiftCreator(
+                                getApiURL(newOverrides), destNS, token, ""
+                                        + chatty, createJson);
+                        isCreator.setAuth(Auth.createInstance(chatty ? listener
+                                : null, getApiURL(newOverrides), overrides));
 
-                        boolean newISCreated = isCreator.coreLogic(launcher, listener, newOverrides);
+                        boolean newISCreated = isCreator.coreLogic(launcher,
+                                listener, newOverrides);
 
                         if (!newISCreated) {
-                            listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_CANNOT_CREATE_DEST_IS, destStream, destNS));
+                            listener.getLogger()
+                                    .println(
+                                            String.format(
+                                                    MessageConstants.EXIT_TAG_CANNOT_CREATE_DEST_IS,
+                                                    destStream, destNS));
                             return false;
                         }
 
-                        destIS = srcClient.get(ResourceKind.IMAGE_STREAM, destStream, destNS);
+                        destIS = srcClient.get(ResourceKind.IMAGE_STREAM,
+                                destStream, destNS);
                     }
 
                     if (destIS == null) {
-                        listener.getLogger().println(String.format(MessageConstants.EXIT_TAG_CANNOT_GET_IS, destStream, destNS));
+                        listener.getLogger()
+                                .println(
+                                        String.format(
+                                                MessageConstants.EXIT_TAG_CANNOT_GET_IS,
+                                                destStream, destNS));
                         return false;
                     }
 
                     destIS.addTag(destTag, tagType, srcImageID, srcNS);
                     if (chatty) {
-                        listener.getLogger().println("\n updated image stream json " + ((ImageStream) destIS).getNode().toJSONString(false) + " with tag: " + destTag);
+                        listener.getLogger().println(
+                                "\n updated image stream json "
+                                        + ((ImageStream) destIS).getNode()
+                                                .toJSONString(false)
+                                        + " with tag: " + destTag);
                     }
 
                     try {
                         destClient.update(destIS);
                         break;
                     } catch (OpenShiftException ose) {
-                        if (ose.getStatus().getCode() == 403 && retries > 1) { // If resource was updating, retry
+                        if (ose.getStatus().getCode() == 403 && retries > 1) { // If
+                                                                               // resource
+                                                                               // was
+                                                                               // updating,
+                                                                               // retry
                             continue;
                         }
                         throw ose;
@@ -274,7 +328,8 @@ public interface IOpenShiftImageTagger extends IOpenShiftPlugin {
                 }
             }
 
-            listener.getLogger().println(String.format(MessageConstants.EXIT_OK, DISPLAY_NAME));
+            listener.getLogger().println(
+                    String.format(MessageConstants.EXIT_OK, DISPLAY_NAME));
             return true;
         } else {
             return false;

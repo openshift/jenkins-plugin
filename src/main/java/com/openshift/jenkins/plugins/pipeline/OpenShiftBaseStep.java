@@ -15,26 +15,32 @@ import java.io.Serializable;
 
 //import com.openshift.restclient.authorization.TokenAuthorizationStrategy;
 
-public abstract class OpenShiftBaseStep extends Builder implements SimpleBuildStep, Serializable, IOpenShiftPlugin {
+public abstract class OpenShiftBaseStep extends Builder implements
+        SimpleBuildStep, Serializable, IOpenShiftPlugin {
 
     protected final String apiURL;
     protected final String namespace;
     protected final String authToken;
     protected final String verbose;
-    // marked transient so don't serialize these next 2 in the workflow plugin flow; constructed on per request basis
-    //protected transient TokenAuthorizationStrategy bearerToken;
+    // marked transient so don't serialize these next 2 in the workflow plugin
+    // flow; constructed on per request basis
+    // protected transient TokenAuthorizationStrategy bearerToken;
     protected transient Auth auth;
 
-    protected OpenShiftBaseStep(String apiURL, String namespace, String authToken, String verbose) {
+    protected OpenShiftBaseStep(String apiURL, String namespace,
+            String authToken, String verbose) {
         this.apiURL = apiURL != null ? apiURL.trim() : null;
         this.namespace = namespace != null ? namespace.trim() : null;
         this.authToken = authToken != null ? authToken.trim() : null;
         this.verbose = verbose != null ? verbose.trim() : null;
     }
 
-    // generically speaking, Jenkins will always pass in non-null field values.  However, as we have periodically
-    // added new fields, jobs created with earlier versions of the plugin get null for the new fields.  Hence, 
-    // we have introduced the generic convention (even for fields that existed in the initial incarnations of the plugin)
+    // generically speaking, Jenkins will always pass in non-null field values.
+    // However, as we have periodically
+    // added new fields, jobs created with earlier versions of the plugin get
+    // null for the new fields. Hence,
+    // we have introduced the generic convention (even for fields that existed
+    // in the initial incarnations of the plugin)
     // of insuring nulls are not returned for field getters
 
     public String getApiURL() {
@@ -71,13 +77,14 @@ public abstract class OpenShiftBaseStep extends Builder implements SimpleBuildSt
     // this is the workflow plugin path
     @Override
     public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher,
-                        TaskListener listener) throws InterruptedException, IOException {
+            TaskListener listener) throws InterruptedException, IOException {
         this.doIt(run, workspace, launcher, listener);
     }
 
     // this is the classic jenkins build step path
     @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
+    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher,
+            BuildListener listener) throws IOException, InterruptedException {
         return this.doIt(build, launcher, listener);
     }
 }

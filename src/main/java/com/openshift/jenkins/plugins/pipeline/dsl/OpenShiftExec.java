@@ -19,7 +19,8 @@ import org.kohsuke.stapler.DataBoundSetter;
 import java.io.IOException;
 import java.util.*;
 
-public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftExec {
+public class OpenShiftExec extends TimedOpenShiftBaseStep implements
+        IOpenShiftExec {
 
     protected String pod;
     protected String container;
@@ -63,7 +64,8 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
     }
 
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftExecExecution.class);
@@ -79,15 +81,18 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
             return DISPLAY_NAME;
         }
 
-        private Object requiredArgument(Map<String, Object> arguments, String arg) {
+        private Object requiredArgument(Map<String, Object> arguments,
+                String arg) {
             Object o = arguments.get(arg);
             if (o == null) {
-                throw new IllegalArgumentException("Missing required argument: " + arg);
+                throw new IllegalArgumentException(
+                        "Missing required argument: " + arg);
             }
             return o;
         }
 
-        private String argumentAsString(Map<String, Object> arguments, String arg, String def) {
+        private String argumentAsString(Map<String, Object> arguments,
+                String arg, String def) {
             Object o = arguments.get(arg);
             if (o == null) {
                 return def;
@@ -95,23 +100,27 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
             return o.toString();
         }
 
-        private String argumentAsString(Map<String, Object> arguments, String arg) throws IllegalArgumentException {
+        private String argumentAsString(Map<String, Object> arguments,
+                String arg) throws IllegalArgumentException {
             return requiredArgument(arguments, arg).toString();
         }
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            OpenShiftExec step = new OpenShiftExec(argumentAsString(arguments, "pod"));
+            OpenShiftExec step = new OpenShiftExec(argumentAsString(arguments,
+                    "pod"));
             step.setContainer(argumentAsString(arguments, "container", ""));
 
             Object commandObject = requiredArgument(arguments, "command");
             if (commandObject instanceof String) { // command: "date"
                 step.setCommand(commandObject.toString());
-            } else if (commandObject instanceof List) { // command : [ "echo", "hello", ... ]
+            } else if (commandObject instanceof List) { // command : [ "echo",
+                                                        // "hello", ... ]
                 List commandList = (List) commandObject;
                 Iterator i = commandList.iterator();
                 if (!i.hasNext()) {
-                    throw new IllegalArgumentException("Command list cannot be empty");
+                    throw new IllegalArgumentException(
+                            "Command list cannot be empty");
                 }
                 step.setCommand(i.next().toString());
                 List<Argument> commandArgs = new ArrayList<>();
@@ -120,7 +129,9 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
                 }
                 step.setArguments(commandArgs);
             } else {
-                throw new IllegalArgumentException("Unrecognized command syntax. It created type: " + commandObject.getClass().getName());
+                throw new IllegalArgumentException(
+                        "Unrecognized command syntax. It created type: "
+                                + commandObject.getClass().getName());
             }
 
             Object argumentsObject = arguments.get("arguments");
@@ -132,7 +143,9 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
                         if (o instanceof Map) {
                             Object aObject = ((Map) o).get("value");
                             if (aObject == null) {
-                                throw new IllegalArgumentException("Expected value entry in arguments map: " + o.toString());
+                                throw new IllegalArgumentException(
+                                        "Expected value entry in arguments map: "
+                                                + o.toString());
                             }
                             arg = aObject.toString().trim();
                         } else {
@@ -142,7 +155,9 @@ public class OpenShiftExec extends TimedOpenShiftBaseStep implements IOpenShiftE
                     }
                     step.setArguments(commandArgs);
                 } else {
-                    throw new IllegalArgumentException("Unrecognized arguments syntax. It created type: " + argumentsObject.getClass().getName());
+                    throw new IllegalArgumentException(
+                            "Unrecognized arguments syntax. It created type: "
+                                    + argumentsObject.getClass().getName());
                 }
             }
 

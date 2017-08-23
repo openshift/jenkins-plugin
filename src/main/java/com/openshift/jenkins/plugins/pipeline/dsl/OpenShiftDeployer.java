@@ -17,44 +17,47 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.logging.Logger;
 
-public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenShiftDeployer {
-	
-	protected final String depCfg;
+public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements
+        IOpenShiftDeployer {
 
-    @DataBoundConstructor public OpenShiftDeployer(String depCfg) {
-    	this.depCfg = depCfg != null ? depCfg.trim() : null;
-	}   
-    
-	public String getDepCfg() {
-		return depCfg;
-	}
+    protected final String depCfg;
 
-	@Override
-	public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-		return true;
-	}
+    @DataBoundConstructor
+    public OpenShiftDeployer(String depCfg) {
+        this.depCfg = depCfg != null ? depCfg.trim() : null;
+    }
 
-	@Override
-	public Action getProjectAction(AbstractProject<?, ?> project) {
-		return null;
-	}
+    public String getDepCfg() {
+        return depCfg;
+    }
 
-	@Override
-	public Collection<? extends Action> getProjectActions(
-			AbstractProject<?, ?> project) {
-		return null;
-	}
+    @Override
+    public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
+        return true;
+    }
 
-	@Override
-	public BuildStepMonitor getRequiredMonitorService() {
-		return null;
-	}
+    @Override
+    public Action getProjectAction(AbstractProject<?, ?> project) {
+        return null;
+    }
 
-    private static final Logger LOGGER = Logger.getLogger(OpenShiftDeployer.class.getName());
+    @Override
+    public Collection<? extends Action> getProjectActions(
+            AbstractProject<?, ?> project) {
+        return null;
+    }
 
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return null;
+    }
 
-	@Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements IOpenShiftPluginDescriptor {
+    private static final Logger LOGGER = Logger
+            .getLogger(OpenShiftDeployer.class.getName());
+
+    @Extension
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl
+            implements IOpenShiftPluginDescriptor {
 
         public DescriptorImpl() {
             super(OpenShiftDeployerExecution.class);
@@ -72,19 +75,21 @@ public class OpenShiftDeployer extends TimedOpenShiftBaseStep implements IOpenSh
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            if (!arguments.containsKey("deploymentConfig") && !arguments.containsKey("depCfg"))
-            	throw new IllegalArgumentException("need to specify deploymentConfig");
+            if (!arguments.containsKey("deploymentConfig")
+                    && !arguments.containsKey("depCfg"))
+                throw new IllegalArgumentException(
+                        "need to specify deploymentConfig");
             Object depCfg = arguments.get("deploymentConfig");
             if (depCfg == null || depCfg.toString().trim().length() == 0)
-            	depCfg = arguments.get("depCfg");
+                depCfg = arguments.get("depCfg");
             if (depCfg == null || depCfg.toString().trim().length() == 0)
-            	throw new IllegalArgumentException("need to specify deploymentConfig");
+                throw new IllegalArgumentException(
+                        "need to specify deploymentConfig");
             OpenShiftDeployer step = new OpenShiftDeployer(depCfg.toString());
-            
+
             ParamVerify.updateTimedDSLBaseStep(arguments, step);
             return step;
         }
     }
-
 
 }
