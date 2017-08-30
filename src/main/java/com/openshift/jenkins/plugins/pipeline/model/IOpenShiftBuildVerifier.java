@@ -10,9 +10,13 @@ import hudson.model.TaskListener;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang.StringUtils;
 
 public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
 
@@ -38,26 +42,35 @@ public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
         return getOverride(getCheckForTriggeredDeployments(), overrides);
     }
 
-    default List<String> getBuildIDs(IClient client,
+    default String getLatestBuildID(IClient client,
             Map<String, String> overrides) {
+        Map<String, String> filter = new HashMap<String, String>();
+        filter.put("openshift.io/build-config.name", getBldCfg(overrides));
         List<IBuild> blds = client.list(ResourceKind.BUILD,
-                getNamespace(overrides));
-        List<String> ids = new ArrayList<String>();
+                getNamespace(overrides), filter);
+        // we'll get a list of startimes that we'll sort on to get the latest;
+        // we'll also build a map of startimes to build ids, so that we return
+        // the build ID related to the latest starttime
+        List<String> starttimes = new ArrayList<String>();
+        Map<String, String> timeToID = new HashMap<String, String>();
+        /*
+         * in case multiple builds have the same start time (parallel builds),
+         * use our custom comparator to make sure build-4 comes before build-38;
+         * then, if consecutive builds have the same start time, that later id
+         * number will be later in this list, and replace earlier entries in the
+         * timeToID map
+         */
+        Collections.sort(blds, new BuildNameComparator());
         for (IBuild bld : blds) {
-            if (bld.getName().startsWith(getBldCfg(overrides))) {
-                ids.add(bld.getName());
-            }
+            starttimes.add(bld.getBuildStatus().getStartTime());
+            timeToID.put(bld.getBuildStatus().getStartTime(), bld.getName());
         }
-        return ids;
-    }
-
-    default String getLatestBuildID(List<String> ids) {
-        String bldId = null;
-        if (ids.size() > 0) {
-            Collections.sort(ids);
-            bldId = ids.get(ids.size() - 1);
+        String starttime = null;
+        if (starttimes.size() > 0) {
+            Collections.sort(starttimes);
+            starttime = starttimes.get(starttimes.size() - 1);
         }
-        return bldId;
+        return timeToID.get(starttime);
     }
 
     default boolean coreLogic(Launcher launcher, TaskListener listener,
@@ -74,9 +87,7 @@ public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
         IClient client = this.getClient(listener, DISPLAY_NAME, overrides);
 
         if (client != null) {
-            List<String> ids = getBuildIDs(client, overrides);
-
-            String bldId = getLatestBuildID(ids);
+            String bldId = getLatestBuildID(client, overrides);
 
             if (!checkDeps) {
                 listener.getLogger()
@@ -102,6 +113,32 @@ public interface IOpenShiftBuildVerifier extends ITimedOpenShiftPlugin {
 
         } else {
             return false;
+        }
+
+    }
+
+    public class BuildNameComparator implements Comparator<IBuild> {
+
+        // makes optimizing assumptions based on format of openshift build names
+        @Override
+        public int compare(IBuild o1, IBuild o2) {
+            String id1 = o1.getName();
+            String id2 = o2.getName();
+            int at = StringUtils.indexOfDifference(id1, id2);
+            // no index means strings equal
+            if (at == StringUtils.INDEX_NOT_FOUND)
+                return 0;
+            String rem0 = id1.substring(at);
+            String rem1 = id2.substring(at);
+            // means id2 is just longer, so id1 < id2, so return -1
+            if (StringUtils.isBlank(rem0))
+                return -1;
+            // means id1 is just longer, so id1 > id2, so return 1
+            if (StringUtils.isBlank(rem1))
+                return 1;
+            if (Integer.valueOf(rem0) < Integer.valueOf(rem1))
+                return -1;
+            return 1;
         }
 
     }
