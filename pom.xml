@@ -95,8 +95,15 @@
 	<dependency>
   		<groupId>com.squareup.okhttp3</groupId>
   		<artifactId>okhttp</artifactId>
-  		<version>3.3.1</version>
+  		<version>3.8.1</version>
 	</dependency>
+	<!-- not a direct dependency, but if we don't pull in okhttp-ws at 3.4.2 like openshift-restclient-java, only 3.3.1 gets pulled in
+	and the rest client will get NoSuchMethodErrors when we do PodExec interactions (which leverage okhttp-ws WebSocketCall) -->
+    <dependency>
+       <groupId>com.squareup.okhttp3</groupId>
+       <artifactId>okhttp-ws</artifactId>
+       <version>3.4.2</version>
+    </dependency>
 	<dependency>
 			<groupId>org.jboss</groupId>
 			<artifactId>jboss-dmr</artifactId>
@@ -106,7 +113,7 @@
 	<dependency>
 	    <groupId>com.openshift</groupId>
 	    <artifactId>openshift-restclient-java</artifactId>
-	    <version>5.9.0.Final</version>
+	    <version>5.9.1.Final</version>
 	</dependency> 
     
   	<dependency>
