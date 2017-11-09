@@ -191,7 +191,7 @@ job, all failures will result in the termination of the Jenkins build.
 
 #### "Create OpenShift Resource(s)"
 
-The step name is "openshiftCreateResources".  Mandatory parameters is either:
+The step name is "openshiftCreateResource".  Mandatory parameters is either:
 
 - "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
 as the string passes either the JSON or YAML format checking, it will be processed.
