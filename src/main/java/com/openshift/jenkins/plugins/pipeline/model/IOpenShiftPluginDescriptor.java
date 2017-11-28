@@ -157,6 +157,8 @@ public interface IOpenShiftPluginDescriptor extends
 
             if (auth.useCert())
                 cb.sslCertCallbackWithDefaultHostnameVerifier(true);
+            
+            LOGGER.info("OpenShift Pipeline Plugin: testing connection for " + getOverride(apiURL, allOverrides));
 
             DefaultClient client = (DefaultClient) cb.build();
 
@@ -165,6 +167,7 @@ public interface IOpenShiftPluginDescriptor extends
             }
 
             String status = client.getServerReadyStatus();
+            LOGGER.info("OpenShift Pipeline Plugin: server ready status: " + status);
             if (status == null || !status.equalsIgnoreCase("ok")) {
                 return FormValidation
                         .error("Connection made but server status is:  "
@@ -181,6 +184,10 @@ public interface IOpenShiftPluginDescriptor extends
                     .build();
             Response result = client.adapt(OkHttpClient.class).newCall(request)
                     .execute();
+            if (result != null)
+                LOGGER.info("OpenShift Pipeline Plugin: HTTP get to " + getOverride(apiURL, allOverrides) + "/apis returned HTTP code " + result.code() + " and message " + result.message());
+            else
+                LOGGER.info("OpenShift Pipeline Plugin: HTTP get to " + getOverride(apiURL, allOverrides) + "/apis got a null response");
 
         } catch (Throwable e) {
             LOGGER.log(Level.SEVERE, "doTestConnection", e);
