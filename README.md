@@ -101,13 +101,13 @@ This Pipeline DSL is the replacement for the Java object instantiation within th
 
 For each of the DSLs, you can still instantiate the various steps and assign to a variable, however you no longer need to pass it to the `step` method (execution will commence immediately after the step is created).  This is shown in the following example:
 
-`def builder = openshiftBuild buildConfig: 'frontend'`
+`def builder = openshiftBuild bldCfg: 'frontend'`
 
 NOTE:  the Pipeline Plugin "Snippet Generator" creates Groovy of this form.
 
 You can also create the step without assigning it to a variable and allow the automatic execution to commence.  This is shown in the following example:
 
-`openshiftBuild(buildConfig: 'frontend')`
+`openshiftBuild(bldCfg: 'frontend')`
 
 Here is the complete DSL reference for the OpenShift Pipeline Plugin.
 
@@ -122,7 +122,7 @@ Here is the complete DSL reference for the OpenShift Pipeline Plugin.
 
 The step name is "openshiftBuild".  Mandatory parameters are:
 
-- "buildConfig" or "bldCfg":  The name of the BuildConfig to trigger
+- "bldCfg":  The name of the BuildConfig to trigger
 
 Optional parameters are:
 
@@ -272,7 +272,7 @@ Optional parameters are:
 
 The step name is "openshiftVerifyBuild".  Mandatory parameters are:
 
-- "buildConfig" or "bldCfg":  The name of the BuildConfig to verify.
+- "bldCfg":  The name of the BuildConfig to verify.
 
 Optional parameters are:
 
