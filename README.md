@@ -122,7 +122,7 @@ Here is the complete DSL reference for the OpenShift Pipeline Plugin.
 
 The step name is "openshiftBuild".  Mandatory parameters are:
 
-- "buildConfig" or "bldCfg":  The name of the BuildConfig to trigger
+- "buildConfig" or "bldCfg":  The name of the BuildConfig to trigger.  NOTE: both names work with scripted pipelines, but only "bldCfg" works with declarative pipelines.
 
 Optional parameters are:
 
@@ -137,7 +137,7 @@ Optional parameters are:
 
 The step name is "openshiftDeploy".  Mandatory parameters are:
 
-- "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to trigger.
+- "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to trigger.  NOTE: both names work with scripted pipelines, but only "depCfg" works with declarative pipelines.
 
 Optional parameters are:
 
@@ -195,14 +195,14 @@ job, all failures will result in the termination of the Jenkins build.
 The step name is "openshiftCreateResource".  Mandatory parameters is either:
 
 - "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
-as the string passes either the JSON or YAML format checking, it will be processed.
+as the string passes either the JSON or YAML format checking, it will be processed.  NOTE: all these names work with scripted pipelines, but only "jsonyaml" works with declarative pipelines.
 
 #### "Delete OpenShift Resource(s) from JSON/YAML"
 
 The step name is "openshiftDeleteResourceByJsonYaml".  Mandatory parameters is either:
 
 - "json", "yaml", or "jsonyaml": The JSON or YAML representation of the OpenShift resources.  Note, the plugin does not care if YAML is provided under the "json" key or vice-versa.  As long
-as the string passes either the JSON or YAML format checking, it will be processed.
+as the string passes either the JSON or YAML format checking, it will be processed.  NOTE: all these names work with scripted pipelines, but only "jsonyaml" works with declarative pipelines.
 
 ####  "Delete OpenShift Resource(s) using Labels"
 
@@ -226,7 +226,7 @@ The step name is "openshiftDeleteResourceByKey".  Mandatory parameters are:
 
 The step name is "openshiftScale".  Mandatory parameters are:
 
-- "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
+- "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.  NOTE: both names work with scripted pipelines, but only "depCfg" works with declarative pipelines.
 
 - "replicaCount":  The number of replicas to scale to.
 
@@ -240,13 +240,13 @@ Optional parameters are:
 
 The step name is "openshiftTag".  Mandatory parameters are:
 
--  "sourceStream" or "srcStream":  The ImageStream of the existing image.
+-  "sourceStream" or "srcStream":  The ImageStream of the existing image.    NOTE: all these names work with scripted pipelines, but only "srcStream" works with declarative pipelines.
 
--  "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image. 
+-  "sourceTag" or "srcTag":  The tag (ImageStreamTag type) or ID (ImageStreamImage type) of the existing image. NOTE: all these names work with scripted pipelines, but only "srcTag" works with declarative pipelines.
 
--  "destinationStream" or "destStream":  The ImageStream for the new tag. A comma delimited list can be specified.
+-  "destinationStream" or "destStream":  The ImageStream for the new tag. A comma delimited list can be specified.  NOTE: all these names work with scripted pipelines, but only "destStream" works with declarative pipelines.
 
--  "destinationTag" or "destTag":  The name of the new tag. A comma delimited list can be specified.
+-  "destinationTag" or "destTag":  The name of the new tag. A comma delimited list can be specified.  NOTE: all these names work with scripted pipelines, but only "destTag" works with declarative pipelines.
 
     The following combinations are supported:
     1. 1 destination stream and 1 destination tag   (i.e. single tag applies to single stream)
@@ -272,7 +272,7 @@ Optional parameters are:
 
 The step name is "openshiftVerifyBuild".  Mandatory parameters are:
 
-- "buildConfig" or "bldCfg":  The name of the BuildConfig to verify.
+- "buildConfig" or "bldCfg":  The name of the BuildConfig to verify.  NOTE: both names work with scripted pipelines, but only "bldCfg" works with declarative pipelines.
 
 Optional parameters are:
 
@@ -283,7 +283,7 @@ Optional parameters are:
 
 The step name is "openshiftVerifyDeployment".  Mandatory parameters are:
 
--  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.
+-  "deploymentConfig" or "depCfg":  The name of the DeploymentConfig to scale.  NOTE: both names work with scripted pipelines, but only "depCfg" works with declarative pipelines.
 
 Optional parameters are:
 
@@ -297,7 +297,7 @@ Optional parameters are:
 
 The step name is "openshiftVerifyService".  Mandatory parameters are:
 
-- "serviceName" or "svcName":  The name of the service to connect to.
+- "serviceName" or "svcName":  The name of the service to connect to.  NOTE: both names work with scripted pipelines, but only "svcName" works with declarative pipelines.
 
 Optional parameters are:
 
@@ -308,6 +308,10 @@ Optional parameters are:
 This step associates a pipeline with an ImageStream as its SCM. With polling enabled on a job,
 this allows a pipeline job to be launched automatically whenever a new image is tagged on an 
 ImageStream.
+
+NOTE:  with the advent of OpenShift Pipeline Build Strategy, incorporating your pipeline into
+such a BuildConfig along with the use of an Image Change Trigger is the better choice for 
+triggering pipeline jobs from changes to ImageStreams in OpenShift. 
 
 The step name is "openshiftImageStream". Mandatory parameters are:
 
