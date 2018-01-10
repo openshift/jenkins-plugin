@@ -13,7 +13,7 @@ import com.openshift.restclient.IClient;
 
 public interface IOpenShiftDeleterJsonYaml extends IOpenShiftApiObjHandler {
 
-    final static String DISPLAY_NAME = "Delete OpenShift Resource(s) from JSON/YAML";
+    final static String DISPLAY_NAME = "Delete OpenShift Resource(s) from JSON or YAML";
     final static String UNDEFINED = "undefined";
 
     default String getDisplayName() {
