@@ -20,8 +20,16 @@ public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
     default String fetchApiJsonFromApiServer(boolean chatty,
             TaskListener listener, Map<String, String> overrides,
             String apiDomain) {
-        return httpGet(chatty, listener, overrides, this.getApiURL(overrides)
+        String json = null;
+        try {
+        	json = httpGet(chatty, listener, overrides, this.getApiURL(overrides)
                 + "/swaggerapi" + apiDomain + "/v1");
+        } catch (Throwable t) {
+        	if (chatty) {
+        		listener.getLogger().println(t.getMessage());
+        	}
+        }
+        return json;
     }
 
     default void importJsonOfApiTypes(boolean chatty, TaskListener listener,
