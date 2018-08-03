@@ -310,6 +310,9 @@ public interface IOpenShiftPlugin extends IOpenShiftParameterOverrides {
             AbstractBuild<?, ?> build, Launcher launcher)
             throws InterruptedException {
         boolean chatty = Boolean.parseBoolean(getVerbose());
+        
+        listener.getLogger().println("NOTE: steps like this one from the OpenShift Pipeline Plugin" +
+        " will not be supported against OpenShift API Servers later than v3.11");
 
         if (run == null && build == null)
             throw new RuntimeException(
