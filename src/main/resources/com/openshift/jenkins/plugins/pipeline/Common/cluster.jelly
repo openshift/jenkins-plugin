@@ -1,7 +1,7 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
 
-  <f:entry title="Cluster API URL" field="apiURL" help="/plugin/openshift-pipeline/help-apiURL.html">
+  <f:entry title="Cluster API URL (only clusters at v3.11 or earlier are supported)" field="apiURL" help="/plugin/openshift-pipeline/help-apiURL.html">
     <f:textbox  />
   </f:entry>
 

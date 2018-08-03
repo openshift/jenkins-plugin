@@ -7,6 +7,9 @@ instances additional logic has been added to provide validation of the operation
 Their ultimate intent is to provide easy to use building blocks that simplify the construction of the projects, workflows, and pipelines in Jenkins that operate against OpenShift deployments,
 where allowing OpenShift interactions via Jenkins build steps, pipeline DSL, etc. gives those familiar with Jenkins, but new to OpenShift and the `oc` CLI, a better introductory experience.
 
+***NOTE***:  This plugin will only support OpenShift versions up to v3.11.  Any OpenShift versions after that will 
+require use of the [OpenShift Client Plugin for Jenkins](https://github.com/openshift/jenkins-client-plugin).
+
 NOTE:  This plugin does *NOT* require the `oc` binary be present.
 
 NOTE:  This plugin currently does not intend to match feature to feature what is provided via `oc`, but rather expose and augment when possible (additional validations for example) 
