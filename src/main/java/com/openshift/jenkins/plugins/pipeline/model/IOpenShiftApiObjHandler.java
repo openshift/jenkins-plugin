@@ -28,6 +28,8 @@ public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
         	if (chatty) {
         		listener.getLogger().println(t.getMessage());
         	}
+        	json = httpGet(chatty, listener, overrides, this.getApiURL(overrides)
+        			+ "/apis");
         }
         return json;
     }
@@ -37,42 +39,83 @@ public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
         if (json == null)
             return;
         ModelNode oapis = ModelNode.fromJSONString(json);
-        ModelNode apis = oapis.get("apis");
-        List<ModelNode> apiList = apis.asList();
-        for (ModelNode api : apiList) {
-            String path = api.get("path").asString();
-            ModelNode operations = api.get("operations");
-            List<ModelNode> operationList = operations.asList();
-            for (ModelNode operation : operationList) {
-                String type = operation.get("type").asString();
-                String method = operation.get("method").asString();
-                if (type.startsWith("v1.") && method.equalsIgnoreCase("POST")) {
-                    String coreType = type.substring(3);
-                    if (!OpenShiftApiObjHandler.apiMap.containsKey(coreType)) {
-                        String typeStrForURL = null;
-                        String[] pathPieces = path.split("/");
-                        for (String pathPiece : pathPieces) {
-                            if (pathPiece.equalsIgnoreCase(coreType + "s")
-                                    || pathPiece.equalsIgnoreCase(coreType)) {
-                                typeStrForURL = pathPiece;
-                                break;
+        if (oapis.has("apis")) {
+            // older path
+            ModelNode apis = oapis.get("apis");
+            List<ModelNode> apiList = apis.asList();
+            for (ModelNode api : apiList) {
+                String path = api.get("path").asString();
+                ModelNode operations = api.get("operations");
+                List<ModelNode> operationList = operations.asList();
+                for (ModelNode operation : operationList) {
+                    String type = operation.get("type").asString();
+                    String method = operation.get("method").asString();
+                    if (type.startsWith("v1.") && method.equalsIgnoreCase("POST")) {
+                        String coreType = type.substring(3);
+                        if (!OpenShiftApiObjHandler.apiMap.containsKey(coreType)) {
+                            String typeStrForURL = null;
+                            String[] pathPieces = path.split("/");
+                            for (String pathPiece : pathPieces) {
+                                if (pathPiece.equalsIgnoreCase(coreType + "s")
+                                        || pathPiece.equalsIgnoreCase(coreType)) {
+                                    typeStrForURL = pathPiece;
+                                    break;
+                                }
                             }
-                        }
-                        if (typeStrForURL != null) {
-                            if (chatty)
-                                listener.getLogger().println(
-                                        "\nOpenShiftCreator: adding from API server swagger endpoint new type "
-                                                + coreType + " with url str "
-                                                + typeStrForURL + " to domain "
-                                                + apiDomain);
-                            OpenShiftApiObjHandler.apiMap.put(coreType,
-                                    new String[] { apiDomain, typeStrForURL });
+                            if (typeStrForURL != null) {
+                                if (chatty)
+                                    listener.getLogger().println(
+                                            "\nOpenShiftCreator: adding from API server swagger endpoint new type "
+                                                    + coreType + " with url str "
+                                                    + typeStrForURL + " to domain "
+                                                    + apiDomain);
+                                OpenShiftApiObjHandler.apiMap.put(coreType,
+                                        new String[] { apiDomain, typeStrForURL });
+                            }
                         }
                     }
                 }
+                
             }
         }
 
+        if (oapis.has("groups")) {
+            // new path
+            ModelNode groups = oapis.get("groups");
+            List<ModelNode> groupList = groups.asList();
+            for (ModelNode group : groupList) {
+            	String name = group.get("name").asString();
+            	String groupjson = null;
+            	try {
+            		groupjson = httpGet(chatty, listener, overrides, this.getApiURL(overrides) + "/apis/" + name + "/v1");
+            	} catch (Throwable t) {
+            		if (chatty)
+            			listener.getLogger().println(t.getMessage());
+            	}
+            	if (groupjson == null)
+            		continue;
+            	ModelNode groupjsonNode = ModelNode.fromJSONString(groupjson);
+            	ModelNode resources = groupjsonNode.get("resources");
+            	List<ModelNode> resourceList = resources.asList();
+            	for (ModelNode resource : resourceList) {
+            		String kind = resource.get("kind").asString();
+            		if (!OpenShiftApiObjHandler.apiMap.containsKey(kind)) {
+                        if (chatty)
+                            listener.getLogger().println(
+                                    "\nOpenShiftCreator: adding from API server swagger endpoint new type "
+                                            + kind + " is openshift " + name.contains("openshift"));
+                        String value = kind.toLowerCase();
+                        if (!value.endsWith("s"))
+                        	value = value + "s";
+                		if (name.contains("openshift")) {
+                			OpenShiftApiObjHandler.apiMap.put(kind, new String[] {OpenShiftApiObjHandler.oapi, kind.toLowerCase()});
+                		} else {
+                			OpenShiftApiObjHandler.apiMap.put(kind, new String[] {OpenShiftApiObjHandler.api, kind.toLowerCase()});
+                		}            			
+            		}
+            	}
+            }
+        }
     }
 
     // TODO openshift-restclient-java's IApiTypeMapper is not really accessible
