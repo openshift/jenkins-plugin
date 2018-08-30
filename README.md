@@ -1,4 +1,9 @@
 # OpenShift V3 Plugin for Jenkins
+
+***DEPRECATION NOTE***:  This plugin will only support OpenShift versions up to v3.11.  Any OpenShift versions after that will 
+require use of the [OpenShift Client Plugin for Jenkins](https://github.com/openshift/jenkins-client-plugin).
+
+
 This project provides a series Jenkins plugin implementations that operate on [Kubernetes based OpenShift](https://docs.openshift.org/latest/welcome/index.html).  In summary
 they are a series of REST flows that interface with the OpenShift server via the [exposed API](https://docs.openshift.org/latest/rest_api/overview.html).
 They minimally mimic the REST flows of common uses of the `oc` [CLI command](https://docs.openshift.org/latest/cli_reference/basic_cli_operations.html), but in several
@@ -6,9 +11,6 @@ instances additional logic has been added to provide validation of the operation
 
 Their ultimate intent is to provide easy to use building blocks that simplify the construction of the projects, workflows, and pipelines in Jenkins that operate against OpenShift deployments,
 where allowing OpenShift interactions via Jenkins build steps, pipeline DSL, etc. gives those familiar with Jenkins, but new to OpenShift and the `oc` CLI, a better introductory experience.
-
-***NOTE***:  This plugin will only support OpenShift versions up to v3.11.  Any OpenShift versions after that will 
-require use of the [OpenShift Client Plugin for Jenkins](https://github.com/openshift/jenkins-client-plugin).
 
 NOTE:  This plugin does *NOT* require the `oc` binary be present.
 
