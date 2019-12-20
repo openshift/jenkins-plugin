@@ -364,8 +364,8 @@ Next, in the case of "Tag OpenShift Image", you could potentially wish to access
 
 Consider the scenario where the source image stream is in the project `test` and the destination image stream is in project `test2`.  Then try these two commands:
 
--  `oc policy add-role-to-user edit system:serviceaccount:test:<service account name> -n test2`
--  `oc policy add-role-to-user edit system:serviceaccount:test2:<service account name> -n test`
+-  `oc policy add-role-to-user edit -z system:serviceaccount:test:<service account name> -n test2`
+-  `oc policy add-role-to-user edit -z system:serviceaccount:test2:<service account name> -n test`
 
 A similar situation also applies for creating or deleting resources via JSON/YAML.  A namespace/project which differs from the namespace set for the build step could be specified for any of the resources in the JSON/YAML.  If so, similar `oc policy` invocations
 to add the edit role for any of those namespaces listed in the JSON/YAML will be needed.
