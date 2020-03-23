@@ -9,6 +9,7 @@ import net.sf.json.JSONObject;
 
 import org.jboss.dmr.ModelNode;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 import com.openshift.jenkins.plugins.pipeline.MessageConstants;
 import com.openshift.jenkins.plugins.pipeline.OpenShiftApiObjHandler;
@@ -147,7 +148,7 @@ public interface IOpenShiftApiObjHandler extends IOpenShiftPlugin {
         try {
             resources = ModelNode.fromJSONString(jsonyaml);
         } catch (Exception e) {
-            Yaml yaml = new Yaml();
+            Yaml yaml = new Yaml(new SafeConstructor());
             Map<String, Object> map = (Map<String, Object>) yaml.load(jsonyaml);
             JSONObject jsonObj = JSONObject.fromObject(map);
             try {
