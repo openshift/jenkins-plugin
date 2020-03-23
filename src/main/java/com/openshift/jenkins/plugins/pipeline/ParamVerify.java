@@ -7,7 +7,7 @@ import net.sf.json.JSONObject;
 import org.jboss.dmr.ModelNode;
 import org.kohsuke.stapler.QueryParameter;
 import org.yaml.snakeyaml.Yaml;
-
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Map;
@@ -111,7 +111,7 @@ public class ParamVerify {
             ModelNode.fromJSONString(value);
         } catch (Throwable t) {
             try {
-                Yaml yaml = new Yaml();
+                Yaml yaml = new Yaml(new SafeConstructor());
                 Map<String, Object> map = (Map<String, Object>) yaml
                         .load(value);
                 JSONObject jsonObj = JSONObject.fromObject(map);
